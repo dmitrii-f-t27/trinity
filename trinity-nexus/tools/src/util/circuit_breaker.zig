@@ -100,7 +100,7 @@ pub const CircuitBreaker = struct {
             .last_output_length = 0,
             .total_opens = 0,
             .current_loop = 0,
-            .history = std.ArrayList(StateTransition).init(allocator),
+            .history = std.ArrayList(StateTransition).empty,
         };
     }
 
@@ -111,7 +111,7 @@ pub const CircuitBreaker = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.history.deinit();
+        self.history.deinit(self.allocator);
     }
 
     /// Check if execution is allowed
@@ -189,7 +189,7 @@ pub const CircuitBreaker = struct {
 
         // Record transition if state changed
         if (old_state != self.state) {
-            try self.history.append(StateTransition{
+            try self.history.append(self.allocator, StateTransition{
                 .from_state = old_state,
                 .to_state = self.state,
                 .reason = reason,
@@ -212,7 +212,7 @@ pub const CircuitBreaker = struct {
         self.last_error_hash = null;
 
         if (old_state != .closed) {
-            self.history.append(StateTransition{
+            self.history.append(self.allocator, StateTransition{
                 .from_state = old_state,
                 .to_state = .closed,
                 .reason = "Manual reset",

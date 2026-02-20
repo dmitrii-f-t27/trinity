@@ -69,14 +69,14 @@ pub const BreakpointManager = struct {
     pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
-            .breakpoints = ArrayList(Breakpoint).init(allocator),
+            .breakpoints = ArrayList(Breakpoint).empty,
             .location_map = AutoHashMap(u64, u32).init(allocator),
             .next_id = 1,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.breakpoints.deinit();
+        self.breakpoints.deinit(self.allocator);
         self.location_map.deinit();
     }
 
@@ -91,7 +91,7 @@ pub const BreakpointManager = struct {
         const id = self.next_id;
         self.next_id += 1;
 
-        try self.breakpoints.append(.{
+        try self.breakpoints.append(self.allocator, .{
             .id = id,
             .kind = if (condition != null) .conditional else .line,
             .file = file,
@@ -187,7 +187,7 @@ pub const SnapshotManager = struct {
     pub fn init(allocator: Allocator, max_snapshots: usize) Self {
         return Self{
             .allocator = allocator,
-            .snapshots = ArrayList(Snapshot).init(allocator),
+            .snapshots = ArrayList(Snapshot).empty,
             .next_id = 1,
             .max_snapshots = max_snapshots,
         };
@@ -197,7 +197,7 @@ pub const SnapshotManager = struct {
         for (self.snapshots.items) |*snap| {
             snap.deinit(self.allocator);
         }
-        self.snapshots.deinit();
+        self.snapshots.deinit(self.allocator);
     }
 
     pub fn capture(self: *Self, ip: u32, sp: u32, fp: u32, stack: []const StackValue, locals: []const StackValue) !u32 {
@@ -213,7 +213,7 @@ pub const SnapshotManager = struct {
         const stack_copy = try self.allocator.dupe(StackValue, stack);
         const locals_copy = try self.allocator.dupe(StackValue, locals);
 
-        try self.snapshots.append(.{
+        try self.snapshots.append(self.allocator, .{
             .id = id,
             .ip = ip,
             .sp = sp,
@@ -296,7 +296,7 @@ pub const Debugger = struct {
             .allocator = allocator,
             .breakpoints = BreakpointManager.init(allocator),
             .snapshots = SnapshotManager.init(allocator, MAX_SNAPSHOTS),
-            .watches = ArrayList(WatchExpression).init(allocator),
+            .watches = ArrayList(WatchExpression).empty,
             .paused = false,
             .step_mode = .none,
             .step_depth = 0,
@@ -311,7 +311,7 @@ pub const Debugger = struct {
     pub fn deinit(self: *Self) void {
         self.breakpoints.deinit();
         self.snapshots.deinit();
-        self.watches.deinit();
+        self.watches.deinit(self.allocator);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

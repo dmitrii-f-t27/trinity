@@ -33,7 +33,7 @@ pub const MemoryStore = memory_store.MemoryStore;
 pub const MaxwellDaemon = struct {
     allocator: std.mem.Allocator,
     config: DaemonConfig,
-    
+
     // Core components
     agent: AgentLoop,
     analyzer: CodeAnalyzer,
@@ -43,7 +43,7 @@ pub const MaxwellDaemon = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: DaemonConfig, llm_config: LLMConfig) MaxwellDaemon {
         var agent = AgentLoop.init(allocator, config);
-        
+
         return MaxwellDaemon{
             .allocator = allocator,
             .config = config,
@@ -219,7 +219,7 @@ fn startDaemon(allocator: std.mem.Allocator) !void {
 
     // Simple blocking wait (in real implementation, use signal handling)
     while (daemon.agent.running.load(.seq_cst)) {
-        std.time.sleep(1 * std.time.ns_per_s);
+        std.Thread.sleep(1 * std.time.ns_per_s);
     }
 
     daemon.stop();

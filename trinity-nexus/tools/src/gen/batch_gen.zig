@@ -2,7 +2,6 @@ const std = @import("std");
 
 /// BATCH GENERATOR - Массовая генерация VIBEE модулей
 /// Ускорение: 10-50x по сравнению с последовательной генерацией
-
 pub const ModuleDef = struct {
     name: []const u8,
     desc: []const u8,
@@ -16,6 +15,7 @@ pub const DomainConfig = struct {
 
 /// Генерирует .vibee спецификацию
 pub fn generateSpec(allocator: std.mem.Allocator, domain: []const u8, module: ModuleDef, version: u32) ![]const u8 {
+    _ = domain;
     const v1 = version / 100;
     const v2 = (version / 10) % 10;
     const v3 = version % 10;
@@ -130,11 +130,9 @@ pub fn generateZig(allocator: std.mem.Allocator, module: ModuleDef, version: u32
         \\}}
         \\
     , .{
-        module.name, version, module.desc, v1, v2, v3,
-        module.name, module.name, module.name,
-        module.name, module.name, module.name,
-        module.name, module.name, module.name,
-        module.name, module.name, module.name,
+        module.name, version,     module.desc, v1,          v2,          v3,
+        module.name, module.name, module.name, module.name, module.name, module.name,
+        module.name, module.name, module.name, module.name, module.name, module.name,
         module.name, module.name, module.name,
     });
 }
@@ -153,7 +151,7 @@ pub fn generateDomain(allocator: std.mem.Allocator, config: DomainConfig) !void 
         // Генерируем .vibee
         const spec_content = try generateSpec(allocator, config.name, module, version);
         const spec_path = try std.fmt.allocPrint(allocator, "{s}/{s}_v{d}.vibee", .{ spec_dir, module.name, version });
-        
+
         const spec_file = try std.fs.cwd().createFile(spec_path, .{});
         defer spec_file.close();
         try spec_file.writeAll(spec_content);
@@ -161,7 +159,7 @@ pub fn generateDomain(allocator: std.mem.Allocator, config: DomainConfig) !void 
         // Генерируем .zig напрямую
         const zig_content = try generateZig(allocator, module, version);
         const zig_path = try std.fmt.allocPrint(allocator, "{s}/{s}_v{d}.zig", .{ output_dir, module.name, version });
-        
+
         const zig_file = try std.fs.cwd().createFile(zig_path, .{});
         defer zig_file.close();
         try zig_file.writeAll(zig_content);

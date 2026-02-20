@@ -86,7 +86,13 @@ pub const AnalysisResult = struct {
             .structs = std.ArrayList(StructInfo).initCapacity(allocator, 0) catch unreachable,
             .dependencies = std.ArrayList([]const u8).initCapacity(allocator, 0) catch unreachable,
             .imports = std.ArrayList([]const u8).initCapacity(allocator, 0) catch unreachable,
-            .complexity_metrics = ComplexityMetrics{},
+            .complexity_metrics = .{
+                .cyclomatic_complexity = 0,
+                .nesting_depth = 0,
+                .lines_of_code = 0,
+                .comment_ratio = 0.0,
+                .maintainability_index = 0.0,
+            },
             .allocator = allocator,
         };
     }
@@ -159,7 +165,13 @@ pub const FossilSpec = struct {
             .name = name,
             .raw_vibee = "",
             .analysis = AnalysisResult.init(allocator),
-            .metadata = SpecMetadata{},
+            .metadata = .{
+                .language = "zig",
+                .version = "1.0.0",
+                .created_at = std.time.timestamp(),
+                .author = "Maxwell",
+                .description = "Auto-generated specification",
+            },
             .allocator = allocator,
         };
     }
@@ -274,13 +286,21 @@ pub const GeneratedCode = struct {
         return GeneratedCode{
             .binary_code = "",
             .ternary_code = "",
-            .metadata = CodeMetadata{},
+            .metadata = .{
+                .version = "1.0.0",
+                .source_hash = [_]u8{0} ** 32,
+                .target_architecture = "x86_64",
+                .code_size = 0,
+                .compile_time = 0,
+                .optimization_level = 0,
+            },
             .test_results = std.ArrayList(TestResult).initCapacity(allocator, 0) catch unreachable,
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *GeneratedCode) void {
+        self.allocator.free(self.metadata.version);
         self.allocator.free(self.binary_code);
         self.allocator.free(self.ternary_code);
         for (self.test_results.items) |*tr| {
@@ -347,8 +367,7 @@ pub const UroborosState = struct {
     }
 
     pub fn recordImprovement(self: *UroborosState, improvement: []const u8) !void {
-        const copy = try self.allocator.dupe(u8, improvement);
-        try self.improvements_made.append(self.allocator, copy);
+        try self.improvements_made.append(self.allocator, improvement);
     }
 };
 
@@ -418,18 +437,18 @@ pub const AdvancedArchaeologist = struct {
     }
 
     fn extractFunctions(self: *AdvancedArchaeologist, fossil: *FossilSpec, profane: ProfaneCode) !void {
+        _ = self;
         if (profane.language == .zig) {
             var iter = std.mem.splitScalar(u8, profane.content, '\n');
             var line_num: u32 = 1;
             while (iter.next()) |line| {
                 const trimmed = std.mem.trim(u8, line, &std.ascii.whitespace);
                 if (std.mem.startsWith(u8, trimmed, "pub fn ") or std.mem.startsWith(u8, trimmed, "fn ")) {
-                    const name_start = if (std.mem.startsWith(u8, trimmed, "pub fn ")) 7 else 3;
+                    const name_start: usize = if (std.mem.startsWith(u8, trimmed, "pub fn ")) 7 else 3;
                     const name_end = std.mem.indexOfScalar(u8, trimmed[name_start..], '(') orelse trimmed.len;
-                    const func_name = trimmed[name_start..name_end];
+                    const func_name = trimmed[name_start .. name_start + name_end];
 
-                    const func_info = try fossil.analysis.allocator.create(FunctionInfo);
-                    func_info.* = FunctionInfo{
+                    const func_info = FunctionInfo{
                         .name = try fossil.analysis.allocator.dupe(u8, func_name),
                         .parameters = try fossil.analysis.allocator.dupe(u8, ""),
                         .return_type = try fossil.analysis.allocator.dupe(u8, ""),
@@ -451,7 +470,6 @@ pub const AdvancedArchaeologist = struct {
 
     fn extractDependencies(self: *AdvancedArchaeologist, fossil: *FossilSpec, profane: ProfaneCode) !void {
         _ = self;
-        _ = fossil;
 
         var iter = std.mem.splitSequence(u8, profane.content, "@import");
         while (iter.next()) |fragment| {
@@ -467,10 +485,11 @@ pub const AdvancedArchaeologist = struct {
     }
 
     fn calculateComplexity(self: *AdvancedArchaeologist, fossil: *FossilSpec) !void {
+        _ = self;
         const cc = @as(u32, @intCast(fossil.analysis.functions.items.len)) + 1;
         fossil.analysis.complexity_metrics.cyclomatic_complexity = cc;
         fossil.analysis.complexity_metrics.nesting_depth = 3;
-        const mi = 171 - 5.2 * std.math.log(@as(f64, @floatFromInt(cc)));
+        const mi = 171.0 - 5.2 * std.math.log(f64, std.math.e, @as(f64, @floatFromInt(cc)));
         fossil.analysis.complexity_metrics.maintainability_index = if (mi < 0) 0.0 else mi;
     }
 
@@ -529,6 +548,7 @@ pub const AdvancedAlchemist = struct {
     }
 
     fn greatPurification(self: *AdvancedAlchemist, purified: *PurifiedSpec, fossil: FossilSpec) !void {
+        _ = fossil;
         const opt = try self.allocator.dupe(u8, "eliminate_duplicates");
         try purified.optimization_report.optimizations_applied.append(self.allocator, opt);
 
@@ -543,6 +563,7 @@ pub const AdvancedAlchemist = struct {
     }
 
     fn applyBogatyrs(self: *AdvancedAlchemist, purified: *PurifiedSpec, fossil: FossilSpec) !void {
+        _ = fossil;
         const opt = try self.allocator.dupe(u8, "apply_33_bogatyrs");
         try purified.optimization_report.optimizations_applied.append(self.allocator, opt);
 
@@ -556,6 +577,7 @@ pub const AdvancedAlchemist = struct {
     }
 
     fn applyPASDaemons(self: *AdvancedAlchemist, purified: *PurifiedSpec, fossil: FossilSpec) !void {
+        _ = fossil;
         const opt = try self.allocator.dupe(u8, "apply_pas_daemons");
         try purified.optimization_report.optimizations_applied.append(self.allocator, opt);
 
@@ -569,6 +591,7 @@ pub const AdvancedAlchemist = struct {
     }
 
     fn phiOptimization(self: *AdvancedAlchemist, purified: *PurifiedSpec, fossil: FossilSpec) !void {
+        _ = fossil;
         const opt = try self.allocator.dupe(u8, "phi_spiral_optimization");
         try purified.optimization_report.optimizations_applied.append(self.allocator, opt);
 
@@ -685,15 +708,12 @@ pub const AdvancedCreator = struct {
     }
 
     fn generateBinaryCode(self: *AdvancedCreator, generated: *GeneratedCode, canonized: CanonizedSpec) !void {
-        _ = self;
-        _ = canonized;
-
         const binary_code = try std.fmt.allocPrint(self.allocator,
             \\// Generated by Uroboros v2.0.0
             \\// From canonized spec: {s}
             \\
             \\// ELF64 header
-            \\const header = [_]u8{
+            \\const header = [_]u8{{
             \\    0x7F, 'E', 'L', 'F', 2, 1, 1, 0
             \\}};
             \\
@@ -710,9 +730,7 @@ pub const AdvancedCreator = struct {
     }
 
     fn generateTernaryCode(self: *AdvancedCreator, generated: *GeneratedCode, canonized: CanonizedSpec) !void {
-        _ = self;
         _ = canonized;
-
         const ternary_code = try std.fmt.allocPrint(self.allocator,
             \\// Ternary code generated by Uroboros v2.0.0
             \\// Target: TRIT-CPU
@@ -730,6 +748,7 @@ pub const AdvancedCreator = struct {
     }
 
     fn populateMetadata(self: *AdvancedCreator, generated: *GeneratedCode, canonized: CanonizedSpec) !void {
+        _ = canonized;
         generated.metadata.version = try std.fmt.allocPrint(self.allocator, "{d}.0.0", .{std.time.timestamp()});
         generated.metadata.compile_time = std.time.timestamp();
         generated.metadata.target_architecture = "ternary_trit_cpu";
@@ -737,9 +756,10 @@ pub const AdvancedCreator = struct {
     }
 
     fn generateTests(self: *AdvancedCreator, generated: *GeneratedCode, canonized: CanonizedSpec) !void {
+        _ = self;
+        _ = canonized;
         {
-            const test_result = try generated.allocator.create(TestResult);
-            test_result.* = TestResult{
+            const test_result = TestResult{
                 .name = try generated.allocator.dupe(u8, "test_compilation"),
                 .passed = true,
                 .duration_ns = 1000000,
@@ -749,8 +769,7 @@ pub const AdvancedCreator = struct {
         }
 
         {
-            const test_result = try generated.allocator.create(TestResult);
-            test_result.* = TestResult{
+            const test_result = TestResult{
                 .name = try generated.allocator.dupe(u8, "test_execution"),
                 .passed = true,
                 .duration_ns = 2000000,
@@ -760,8 +779,7 @@ pub const AdvancedCreator = struct {
         }
 
         {
-            const test_result = try generated.allocator.create(TestResult);
-            test_result.* = TestResult{
+            const test_result = TestResult{
                 .name = try generated.allocator.dupe(u8, "test_validation"),
                 .passed = true,
                 .duration_ns = 500000,

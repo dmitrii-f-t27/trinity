@@ -166,11 +166,11 @@ pub const LLMClient = struct {
         var client = LLMClient{
             .allocator = allocator,
             .config = config,
-            .conversation = std.ArrayList(Message).init(allocator),
+            .conversation = std.ArrayList(Message).empty,
         };
 
         // Add system prompt
-        client.conversation.append(Message{
+        client.conversation.append(client.allocator, Message{
             .role = .System,
             .content = MAXWELL_SYSTEM_PROMPT,
         }) catch {};
@@ -179,13 +179,13 @@ pub const LLMClient = struct {
     }
 
     pub fn deinit(self: *LLMClient) void {
-        self.conversation.deinit();
+        self.conversation.deinit(self.allocator);
     }
 
     /// Отправить сообщение и получить ответ
     pub fn chat(self: *LLMClient, user_message: []const u8) !LLMResponse {
         // Add user message to conversation
-        try self.conversation.append(Message{
+        try self.conversation.append(self.allocator, Message{
             .role = .User,
             .content = user_message,
         });
@@ -194,7 +194,7 @@ pub const LLMClient = struct {
         const response = try self.callAPI();
 
         // Add assistant response to conversation
-        try self.conversation.append(Message{
+        try self.conversation.append(self.allocator, Message{
             .role = .Assistant,
             .content = response.content,
         });
@@ -204,10 +204,10 @@ pub const LLMClient = struct {
 
     /// Сгенерировать .vibee спецификацию
     pub fn generateSpec(self: *LLMClient, task_description: []const u8, context: []const u8) ![]const u8 {
-        var prompt = std.ArrayList(u8).init(self.allocator);
+        var prompt = std.ArrayList(u8).empty;
         defer prompt.deinit();
 
-        const writer = prompt.writer();
+        const writer = prompt.writer(self.allocator);
         try writer.writeAll("Generate a .vibee specification for the following task:\n\n");
         try writer.writeAll("TASK: ");
         try writer.writeAll(task_description);
@@ -221,10 +221,10 @@ pub const LLMClient = struct {
 
     /// Проанализировать ошибку и предложить исправление
     pub fn analyzeError(self: *LLMClient, error_message: []const u8, code_context: []const u8) ![]const u8 {
-        var prompt = std.ArrayList(u8).init(self.allocator);
+        var prompt = std.ArrayList(u8).empty;
         defer prompt.deinit();
 
-        const writer = prompt.writer();
+        const writer = prompt.writer(self.allocator);
         try writer.writeAll("Analyze this error and suggest a fix:\n\n");
         try writer.writeAll("ERROR:\n");
         try writer.writeAll(error_message);
@@ -238,10 +238,10 @@ pub const LLMClient = struct {
 
     /// Декомпозировать задачу на подзадачи
     pub fn decomposeTask(self: *LLMClient, task_description: []const u8) ![]const u8 {
-        var prompt = std.ArrayList(u8).init(self.allocator);
+        var prompt = std.ArrayList(u8).empty;
         defer prompt.deinit();
 
-        const writer = prompt.writer();
+        const writer = prompt.writer(self.allocator);
         try writer.writeAll("Decompose this task into smaller subtasks:\n\n");
         try writer.writeAll("TASK: ");
         try writer.writeAll(task_description);
@@ -255,7 +255,7 @@ pub const LLMClient = struct {
     /// Очистить историю разговора
     pub fn clearHistory(self: *LLMClient) void {
         self.conversation.clearRetainingCapacity();
-        self.conversation.append(Message{
+        self.conversation.append(self.allocator, Message{
             .role = .System,
             .content = MAXWELL_SYSTEM_PROMPT,
         }) catch {};
@@ -307,10 +307,10 @@ pub const LLMClient = struct {
     /// Call GLM API (z.ai)
     fn callGLMAPI(self: *LLMClient) !LLMResponse {
         // Build request body
-        var body = std.ArrayList(u8).init(self.allocator);
-        defer body.deinit();
+        var body = std.ArrayList(u8).empty;
+        defer body.deinit(self.allocator);
 
-        const writer = body.writer();
+        const writer = body.writer(self.allocator);
         try writer.writeAll("{\"model\":\"");
         try writer.writeAll(self.config.model);
         try writer.writeAll("\",\"messages\":[");
@@ -420,8 +420,8 @@ pub const LLMClient = struct {
 
         try child.spawn();
 
-        const stdout = try child.stdout.?.reader().readAllAlloc(self.allocator, 1024 * 1024);
-        _ = try child.stderr.?.reader().readAllAlloc(self.allocator, 1024 * 1024);
+        const stdout = try child.stdout.?.deprecatedReader().readAllAlloc(self.allocator, 1024 * 1024);
+        _ = try child.stderr.?.deprecatedReader().readAllAlloc(self.allocator, 1024 * 1024);
 
         const term = try child.wait();
         if (term.Exited != 0) {
@@ -457,24 +457,24 @@ pub const LLMClient = struct {
         const raw_content = json[content_begin..content_end];
 
         // Unescape content
-        var content = std.ArrayList(u8).init(self.allocator);
+        var content = std.ArrayList(u8).empty;
         var i: usize = 0;
         while (i < raw_content.len) {
             if (raw_content[i] == '\\' and i + 1 < raw_content.len) {
                 switch (raw_content[i + 1]) {
-                    'n' => try content.append('\n'),
-                    'r' => try content.append('\r'),
-                    't' => try content.append('\t'),
-                    '"' => try content.append('"'),
-                    '\\' => try content.append('\\'),
+                    'n' => try content.append(self.allocator, '\n'),
+                    'r' => try content.append(self.allocator, '\r'),
+                    't' => try content.append(self.allocator, '\t'),
+                    '"' => try content.append(self.allocator, '"'),
+                    '\\' => try content.append(self.allocator, '\\'),
                     else => {
-                        try content.append(raw_content[i]);
-                        try content.append(raw_content[i + 1]);
+                        try content.append(self.allocator, raw_content[i]);
+                        try content.append(self.allocator, raw_content[i + 1]);
                     },
                 }
                 i += 2;
             } else {
-                try content.append(raw_content[i]);
+                try content.append(self.allocator, raw_content[i]);
                 i += 1;
             }
         }
@@ -491,7 +491,7 @@ pub const LLMClient = struct {
         }
 
         return LLMResponse{
-            .content = try content.toOwnedSlice(),
+            .content = try content.toOwnedSlice(self.allocator),
             .tokens_used = tokens,
             .model = self.config.model,
             .finish_reason = "stop",

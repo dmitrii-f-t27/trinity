@@ -62,19 +62,21 @@ pub const LatencyMetrics = struct {
     p90_ms: f64 = 0,
     p99_ms: f64 = 0,
     std_dev_ms: f64 = 0,
+    allocator: Allocator,
 
     pub fn init(allocator: Allocator) LatencyMetrics {
         return .{
-            .samples = std.ArrayList(f64).init(allocator),
+            .samples = std.ArrayList(f64).empty,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *LatencyMetrics) void {
-        self.samples.deinit();
+        self.samples.deinit(self.allocator);
     }
 
     pub fn addSample(self: *LatencyMetrics, ms: f64) !void {
-        try self.samples.append(ms);
+        try self.samples.append(self.allocator, ms);
         if (ms < self.min_ms) self.min_ms = ms;
         if (ms > self.max_ms) self.max_ms = ms;
     }
@@ -221,12 +223,12 @@ pub const BenchmarkRunner = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .results = std.ArrayList(BenchmarkResult).init(allocator),
+            .results = std.ArrayList(BenchmarkResult).empty,
         };
     }
 
     pub fn deinit(self: *BenchmarkRunner) void {
-        self.results.deinit();
+        self.results.deinit(self.allocator);
     }
 
     /// Run memory benchmark
@@ -257,7 +259,7 @@ pub const BenchmarkRunner = struct {
         for (0..self.config.warmup_iterations) |_| {
             const timer = Timer.start();
             // Simulate model load
-            std.time.sleep(1_000_000); // 1ms simulated
+            std.Thread.sleep(1_000_000); // 1ms simulated
             _ = timer.elapsedMs();
         }
 
@@ -265,7 +267,7 @@ pub const BenchmarkRunner = struct {
         for (0..self.config.test_iterations) |_| {
             const timer = Timer.start();
             // In real impl: load model from disk
-            std.time.sleep(1_000_000); // 1ms simulated
+            std.Thread.sleep(1_000_000); // 1ms simulated
             total_ms += timer.elapsedMs();
         }
 
@@ -284,7 +286,7 @@ pub const BenchmarkRunner = struct {
         for (0..self.config.warmup_iterations) |_| {
             const timer = Timer.start();
             // Simulate inference
-            std.time.sleep(10_000_000); // 10ms simulated
+            std.Thread.sleep(10_000_000); // 10ms simulated
             _ = timer.elapsedMs();
         }
 
@@ -293,7 +295,7 @@ pub const BenchmarkRunner = struct {
         for (0..self.config.test_iterations) |_| {
             const timer = Timer.start();
             // In real impl: run actual inference
-            std.time.sleep(10_000_000); // 10ms simulated
+            std.Thread.sleep(10_000_000); // 10ms simulated
             const elapsed = timer.elapsedMs();
             total_time_ms += elapsed;
             try latency.addSample(elapsed);
@@ -322,7 +324,7 @@ pub const BenchmarkRunner = struct {
             const timer = Timer.start();
             // Simulate prefill
             const prefill_time = @as(u64, @intCast(prompt_len)) * 10_000; // 10us per token
-            std.time.sleep(prefill_time);
+            std.Thread.sleep(prefill_time);
             _ = timer.elapsedMs();
         }
 
@@ -331,7 +333,7 @@ pub const BenchmarkRunner = struct {
             const timer = Timer.start();
             // In real impl: run prefill and measure first token
             const prefill_time = @as(u64, @intCast(prompt_len)) * 10_000;
-            std.time.sleep(prefill_time);
+            std.Thread.sleep(prefill_time);
             try latency.addSample(timer.elapsedMs());
         }
 
@@ -492,7 +494,7 @@ pub fn main() !void {
 
 test "timer accuracy" {
     const timer = Timer.start();
-    std.time.sleep(10_000_000); // 10ms
+    std.Thread.sleep(10_000_000); // 10ms
     const elapsed = timer.elapsedMs();
     try std.testing.expect(elapsed >= 9.0 and elapsed <= 15.0);
 }

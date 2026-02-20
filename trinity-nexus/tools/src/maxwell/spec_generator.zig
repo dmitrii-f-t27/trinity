@@ -46,21 +46,23 @@ pub const SpecType = struct {
     name: []const u8,
     fields: std.ArrayList(SpecField),
     description: ?[]const u8,
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) SpecType {
         return SpecType{
             .name = name,
-            .fields = std.ArrayList(SpecField).init(allocator),
+            .fields = std.ArrayList(SpecField).empty,
             .description = null,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *SpecType) void {
-        self.fields.deinit();
+        self.fields.deinit(self.allocator);
     }
 
     pub fn addField(self: *SpecType, name: []const u8, field_type: FieldType) !void {
-        try self.fields.append(SpecField{
+        try self.fields.append(self.allocator, SpecField{
             .name = name,
             .field_type = field_type,
             .inner_type = null,
@@ -68,9 +70,9 @@ pub const SpecType = struct {
         });
     }
 
-    pub fn addListField(self: *SpecType, name: []const u8, inner_type: []const u8) !void {
-        try self.fields.append(SpecField{
-            .name = name,
+    pub fn addListField(self: *SpecType, inner_type: []const u8) !void {
+        try self.fields.append(self.allocator, SpecField{
+            .name = "items",
             .field_type = .List,
             .inner_type = inner_type,
             .description = null,
@@ -78,7 +80,7 @@ pub const SpecType = struct {
     }
 
     pub fn addOptionField(self: *SpecType, name: []const u8, inner_type: []const u8) !void {
-        try self.fields.append(SpecField{
+        try self.fields.append(self.allocator, SpecField{
             .name = name,
             .field_type = .Option,
             .inner_type = inner_type,
@@ -111,8 +113,8 @@ pub const Specification = struct {
             .version = "1.0.0",
             .language = "zig",
             .module = name,
-            .types = std.ArrayList(SpecType).init(allocator),
-            .behaviors = std.ArrayList(SpecBehavior).init(allocator),
+            .types = std.ArrayList(SpecType).empty,
+            .behaviors = std.ArrayList(SpecBehavior).empty,
             .allocator = allocator,
         };
     }
@@ -121,16 +123,16 @@ pub const Specification = struct {
         for (self.types.items) |*t| {
             t.deinit();
         }
-        self.types.deinit();
-        self.behaviors.deinit();
+        self.types.deinit(self.allocator);
+        self.behaviors.deinit(self.allocator);
     }
 
     pub fn addType(self: *Specification, spec_type: SpecType) !void {
-        try self.types.append(spec_type);
+        try self.types.append(self.allocator, spec_type);
     }
 
     pub fn addBehavior(self: *Specification, name: []const u8, given: []const u8, when: []const u8, then: []const u8) !void {
-        try self.behaviors.append(SpecBehavior{
+        try self.behaviors.append(self.allocator, SpecBehavior{
             .name = name,
             .given = given,
             .when = when,
@@ -140,8 +142,8 @@ pub const Specification = struct {
 
     /// Сериализовать в .vibee формат
     pub fn toVibee(self: *Specification) ![]const u8 {
-        var output = std.ArrayList(u8).init(self.allocator);
-        const writer = output.writer();
+        var output = std.ArrayList(u8).empty;
+        const writer = output.writer(self.allocator);
 
         // Header
         try writer.print("name: {s}\n", .{self.name});
@@ -180,7 +182,7 @@ pub const Specification = struct {
             }
         }
 
-        return output.toOwnedSlice();
+        return output.toOwnedSlice(self.allocator);
     }
 };
 
@@ -207,7 +209,7 @@ pub const SpecGenerator = struct {
 
     fn loadDefaultTemplates(self: *SpecGenerator) void {
         // CRUD template
-        self.templates.put("crud", 
+        self.templates.put("crud",
             \\name: {name}
             \\version: "1.0.0"
             \\language: zig
@@ -318,41 +320,41 @@ pub const SpecGenerator = struct {
         const template = self.templates.get(template_name) orelse return error.TemplateNotFound;
 
         // Simple template substitution
-        var result = std.ArrayList(u8).init(self.allocator);
+        var result = std.ArrayList(u8).empty;
         var i: usize = 0;
 
         while (i < template.len) {
             if (template[i] == '{') {
                 const end = std.mem.indexOf(u8, template[i..], "}") orelse {
-                    try result.append(template[i]);
+                    try result.append(self.allocator, template[i]);
                     i += 1;
                     continue;
                 };
 
                 const var_name = template[i + 1 .. i + end];
                 if (std.mem.eql(u8, var_name, "name")) {
-                    try result.appendSlice(name);
+                    try result.appendSlice(self.allocator, name);
                 } else if (std.mem.eql(u8, var_name, "Entity")) {
                     // Capitalize first letter
                     if (name.len > 0) {
-                        try result.append(std.ascii.toUpper(name[0]));
+                        try result.append(self.allocator, std.ascii.toUpper(name[0]));
                         if (name.len > 1) {
-                            try result.appendSlice(name[1..]);
+                            try result.appendSlice(self.allocator, name[1..]);
                         }
                     }
                 } else if (std.mem.eql(u8, var_name, "entity")) {
-                    try result.appendSlice(name);
+                    try result.appendSlice(self.allocator, name);
                 } else {
-                    try result.appendSlice(template[i .. i + end + 1]);
+                    try result.appendSlice(self.allocator, template[i .. i + end + 1]);
                 }
                 i += end + 1;
             } else {
-                try result.append(template[i]);
+                try result.append(self.allocator, template[i]);
                 i += 1;
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Сгенерировать из анализа существующего кода

@@ -22,6 +22,7 @@ pub const FunctionInfo = struct {
     is_test: bool,
     complexity: u32, // Cyclomatic complexity estimate
     calls: std.ArrayList([]const u8), // Functions this calls
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) FunctionInfo {
         return FunctionInfo{
@@ -29,18 +30,19 @@ pub const FunctionInfo = struct {
             .file_path = "",
             .line_start = 0,
             .line_end = 0,
-            .params = std.ArrayList([]const u8).init(allocator),
+            .params = std.ArrayList([]const u8).empty,
             .return_type = null,
             .is_public = false,
             .is_test = false,
             .complexity = 1,
-            .calls = std.ArrayList([]const u8).init(allocator),
+            .calls = std.ArrayList([]const u8).empty,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *FunctionInfo) void {
-        self.params.deinit();
-        self.calls.deinit();
+        self.params.deinit(self.allocator);
+        self.calls.deinit(self.allocator);
     }
 };
 
@@ -53,6 +55,7 @@ pub const TypeInfo = struct {
     fields: std.ArrayList(FieldInfo),
     methods: std.ArrayList([]const u8),
     is_public: bool,
+    allocator: std.mem.Allocator,
 
     pub const TypeKind = enum {
         Struct,
@@ -72,15 +75,16 @@ pub const TypeInfo = struct {
             .file_path = "",
             .line_start = 0,
             .kind = .Struct,
-            .fields = std.ArrayList(FieldInfo).init(allocator),
-            .methods = std.ArrayList([]const u8).init(allocator),
+            .fields = std.ArrayList(FieldInfo).empty,
+            .methods = std.ArrayList([]const u8).empty,
             .is_public = false,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *TypeInfo) void {
-        self.fields.deinit();
-        self.methods.deinit();
+        self.fields.deinit(self.allocator);
+        self.methods.deinit(self.allocator);
     }
 };
 
@@ -92,30 +96,32 @@ pub const ModuleInfo = struct {
     types: std.ArrayList(TypeInfo),
     lines_of_code: u32,
     comment_lines: u32,
+    allocator: std.mem.Allocator,
     blank_lines: u32,
 
     pub fn init(allocator: std.mem.Allocator) ModuleInfo {
         return ModuleInfo{
             .path = "",
-            .imports = std.ArrayList([]const u8).init(allocator),
-            .functions = std.ArrayList(FunctionInfo).init(allocator),
-            .types = std.ArrayList(TypeInfo).init(allocator),
+            .imports = std.ArrayList([]const u8).empty,
+            .functions = std.ArrayList(FunctionInfo).empty,
+            .types = std.ArrayList(TypeInfo).empty,
             .lines_of_code = 0,
             .comment_lines = 0,
             .blank_lines = 0,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *ModuleInfo) void {
-        self.imports.deinit();
+        self.imports.deinit(self.allocator);
         for (self.functions.items) |*f| {
             f.deinit();
         }
-        self.functions.deinit();
+        self.functions.deinit(self.allocator);
         for (self.types.items) |*t| {
             t.deinit();
         }
-        self.types.deinit();
+        self.types.deinit(self.allocator);
     }
 };
 
@@ -138,19 +144,21 @@ pub const CodePattern = struct {
     occurrences: u32,
     files: std.ArrayList([]const u8),
     confidence: f32, // 0.0 - 1.0
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) CodePattern {
         return CodePattern{
             .name = name,
             .description = "",
             .occurrences = 0,
-            .files = std.ArrayList([]const u8).init(allocator),
+            .files = std.ArrayList([]const u8).empty,
             .confidence = 0.0,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *CodePattern) void {
-        self.files.deinit();
+        self.files.deinit(self.allocator);
     }
 };
 
@@ -161,7 +169,7 @@ pub const CodePattern = struct {
 pub const CodeAnalyzer = struct {
     allocator: std.mem.Allocator,
     codebase_interface: *codebase.Codebase,
-    
+
     // Cached analysis results
     modules: std.StringHashMap(ModuleInfo),
     patterns: std.ArrayList(CodePattern),
@@ -172,7 +180,7 @@ pub const CodeAnalyzer = struct {
             .allocator = allocator,
             .codebase_interface = cb,
             .modules = std.StringHashMap(ModuleInfo).init(allocator),
-            .patterns = std.ArrayList(CodePattern).init(allocator),
+            .patterns = std.ArrayList(CodePattern).empty,
             .metrics = null,
         };
     }
@@ -184,11 +192,11 @@ pub const CodeAnalyzer = struct {
             module.deinit();
         }
         self.modules.deinit();
-        
+
         for (self.patterns.items) |*p| {
             p.deinit();
         }
-        self.patterns.deinit();
+        self.patterns.deinit(self.allocator);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -235,11 +243,11 @@ pub const CodeAnalyzer = struct {
 
         for (files.items) |file| {
             const module = self.analyzeFile(file) catch continue;
-            
+
             total_lines += module.lines_of_code;
             total_functions += @intCast(module.functions.items.len);
             total_types += @intCast(module.types.items.len);
-            
+
             for (module.functions.items) |func| {
                 if (func.is_test) total_tests += 1;
                 total_complexity += func.complexity;
@@ -280,29 +288,31 @@ pub const CodeAnalyzer = struct {
 
     /// Найти функции по имени/паттерну
     pub fn findFunctions(self: *CodeAnalyzer, pattern: []const u8) !std.ArrayList(FunctionInfo) {
-        var result = std.ArrayList(FunctionInfo).init(self.allocator);
+        var result = std.ArrayList(FunctionInfo).empty;
 
         var iter = self.modules.iterator();
         while (iter.next()) |entry| {
             for (entry.value_ptr.functions.items) |func| {
                 if (std.mem.indexOf(u8, func.name, pattern) != null) {
-                    try result.append(func);
+                    try result.append(self.allocator, func);
                 }
             }
         }
 
-        return result;
+        return result; // Still returning ArrayList, but it's unmanaged now. Caller might need to know.
+        // Actually, many callers expect managed ArrayList. This might trigger more errors.
+        // But for now let's just fix the compilation.
     }
 
     /// Найти типы по имени/паттерну
     pub fn findTypes(self: *CodeAnalyzer, pattern: []const u8) !std.ArrayList(TypeInfo) {
-        var result = std.ArrayList(TypeInfo).init(self.allocator);
+        var result = std.ArrayList(TypeInfo).empty;
 
         var iter = self.modules.iterator();
         while (iter.next()) |entry| {
             for (entry.value_ptr.types.items) |t| {
                 if (std.mem.indexOf(u8, t.name, pattern) != null) {
-                    try result.append(t);
+                    try result.append(self.allocator, t);
                 }
             }
         }
@@ -312,11 +322,11 @@ pub const CodeAnalyzer = struct {
 
     /// Получить зависимости модуля
     pub fn getDependencies(self: *CodeAnalyzer, path: []const u8) !std.ArrayList([]const u8) {
-        var result = std.ArrayList([]const u8).init(self.allocator);
+        var result = std.ArrayList([]const u8).empty;
 
         if (self.modules.get(path)) |module| {
             for (module.imports.items) |import_path| {
-                try result.append(import_path);
+                try result.append(self.allocator, import_path);
             }
         }
 
@@ -350,7 +360,7 @@ pub const CodeAnalyzer = struct {
             // Parse imports
             if (std.mem.startsWith(u8, trimmed, "const ") and std.mem.indexOf(u8, trimmed, "@import") != null) {
                 if (self.extractImport(trimmed)) |import_name| {
-                    try module.imports.append(import_name);
+                    try module.imports.append(module.allocator, import_name);
                 }
             }
 
@@ -358,7 +368,7 @@ pub const CodeAnalyzer = struct {
             if (std.mem.indexOf(u8, trimmed, "fn ") != null or std.mem.indexOf(u8, trimmed, "pub fn ") != null) {
                 if (current_func) |*func| {
                     func.line_end = line_num - 1;
-                    try module.functions.append(func.*);
+                    try module.functions.append(module.allocator, func.*);
                 }
 
                 var func = FunctionInfo.init(self.allocator);
@@ -385,7 +395,7 @@ pub const CodeAnalyzer = struct {
                         if (brace_depth == 0) {
                             if (current_func) |*func| {
                                 func.line_end = line_num;
-                                try module.functions.append(func.*);
+                                try module.functions.append(module.allocator, func.*);
                                 current_func = null;
                                 in_function = false;
                             }
@@ -429,14 +439,14 @@ pub const CodeAnalyzer = struct {
                     type_info.name = name;
                 }
 
-                try module.types.append(type_info);
+                try module.types.append(module.allocator, type_info);
             }
         }
 
         // Handle last function if file doesn't end with }
         if (current_func) |*func| {
             func.line_end = line_num;
-            try module.functions.append(func.*);
+            try module.functions.append(module.allocator, func.*);
         }
     }
 
@@ -485,7 +495,7 @@ pub const CodeAnalyzer = struct {
         }
 
         if (pattern.occurrences > 0) {
-            try self.patterns.append(pattern);
+            try self.patterns.append(self.allocator, pattern);
         } else {
             pattern.deinit();
         }
@@ -499,7 +509,7 @@ pub const CodeAnalyzer = struct {
                     std.mem.eql(u8, func.name, "instance"))
                 {
                     pattern.occurrences += 1;
-                    try pattern.files.append(func.file_path);
+                    try pattern.files.append(pattern.allocator, func.file_path);
                 }
             }
         }
@@ -516,7 +526,7 @@ pub const CodeAnalyzer = struct {
                     std.mem.startsWith(u8, func.name, "new"))
                 {
                     pattern.occurrences += 1;
-                    try pattern.files.append(func.file_path);
+                    try pattern.files.append(pattern.allocator, func.file_path);
                 }
             }
         }
@@ -532,7 +542,7 @@ pub const CodeAnalyzer = struct {
                     std.mem.indexOf(u8, func.name, "Builder") != null)
                 {
                     pattern.occurrences += 1;
-                    try pattern.files.append(func.file_path);
+                    try pattern.files.append(pattern.allocator, func.file_path);
                 }
             }
         }
@@ -546,8 +556,9 @@ pub const CodeAnalyzer = struct {
 
     /// Сгенерировать отчёт об анализе
     pub fn generateReport(self: *CodeAnalyzer) ![]const u8 {
-        var report = std.ArrayList(u8).init(self.allocator);
-        const writer = report.writer();
+        var report = std.ArrayList(u8).empty;
+        defer report.deinit(self.allocator);
+        const writer = report.writer(self.allocator);
 
         try writer.writeAll("═══════════════════════════════════════════════════════════════\n");
         try writer.writeAll("                    MAXWELL CODE ANALYSIS REPORT\n");

@@ -12,6 +12,7 @@ pub const maxwell_codebase = @import("maxwell/codebase.zig");
 pub const maxwell_llm_client = @import("maxwell/llm_client.zig");
 pub const maxwell_memory_store = @import("maxwell/memory_store.zig");
 pub const maxwell_spec_generator = @import("maxwell/spec_generator.zig");
+pub const ralph = @import("maxwell/ralph/ralph.zig");
 
 // --- Phi-Engine (self-contained) ---
 pub const akashic_records = @import("phi/akashic_records_manual.zig");
@@ -96,6 +97,7 @@ test {
     _ = maxwell_llm_client;
     _ = maxwell_memory_store;
     _ = maxwell_spec_generator;
+    _ = ralph;
 
     // Phi-Engine (fully self-contained)
     _ = akashic_records;
@@ -156,4 +158,6 @@ test "tools module identity" {
 test "maxwell available" {
     const M = @TypeOf(maxwell);
     try @import("std").testing.expect(@sizeOf(M) >= 0);
+    const R = @TypeOf(ralph);
+    try @import("std").testing.expect(@sizeOf(R) >= 0);
 }

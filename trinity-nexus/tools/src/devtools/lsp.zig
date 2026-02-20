@@ -231,19 +231,19 @@ pub const LSPServer = struct {
         _ = position;
         self.requests_handled += 1;
 
-        var items = ArrayList(CompletionItem).init(self.allocator);
+        var items = ArrayList(CompletionItem).empty;
 
         // VIBEE keywords
         const keywords = [_][]const u8{
-            "name",            "version",       "language",       "module",
-            "creation_pattern", "source",        "transformer",    "result",
-            "behaviors",       "given",         "when",           "then",
-            "test_cases",      "types",         "kind",           "fields",
-            "methods",         "pas_analysis",  "sacred_formula", "constants",
+            "name",             "version",      "language",       "module",
+            "creation_pattern", "source",       "transformer",    "result",
+            "behaviors",        "given",        "when",           "then",
+            "test_cases",       "types",        "kind",           "fields",
+            "methods",          "pas_analysis", "sacred_formula", "constants",
         };
 
         for (keywords) |kw| {
-            try items.append(.{
+            try items.append(self.allocator, .{
                 .label = kw,
                 .kind = .Keyword,
                 .detail = "VIBEE keyword",
@@ -253,7 +253,7 @@ pub const LSPServer = struct {
         }
 
         // Sacred constants
-        try items.append(.{
+        try items.append(self.allocator, .{
             .label = "PHI",
             .kind = .Constant,
             .detail = "φ = 1.618033988749895",
@@ -261,7 +261,7 @@ pub const LSPServer = struct {
             .insertText = "1.618033988749895",
         });
 
-        try items.append(.{
+        try items.append(self.allocator, .{
             .label = "GOLDEN_IDENTITY",
             .kind = .Constant,
             .detail = "φ² + 1/φ² = 3",
@@ -269,7 +269,7 @@ pub const LSPServer = struct {
             .insertText = "3.0",
         });
 
-        try items.append(.{
+        try items.append(self.allocator, .{
             .label = "PI",
             .kind = .Constant,
             .detail = "π = 3.14159265358979",
@@ -277,7 +277,7 @@ pub const LSPServer = struct {
             .insertText = "3.14159265358979",
         });
 
-        try items.append(.{
+        try items.append(self.allocator, .{
             .label = "E",
             .kind = .Constant,
             .detail = "e = 2.71828182845904",
@@ -285,7 +285,7 @@ pub const LSPServer = struct {
             .insertText = "2.71828182845904",
         });
 
-        return items.toOwnedSlice();
+        return items.toOwnedSlice(self.allocator);
     }
 
     pub fn handleHover(self: *Self, uri: []const u8, position: Position) ?HoverResult {
@@ -340,11 +340,11 @@ pub const LSPServer = struct {
     pub fn getDiagnostics(self: *Self, uri: []const u8) ![]Diagnostic {
         const doc = self.documents.get(uri) orelse return &.{};
 
-        var diagnostics = ArrayList(Diagnostic).init(self.allocator);
+        var diagnostics = ArrayList(Diagnostic).empty;
 
         // Simple validation: check for required fields
         if (std.mem.indexOf(u8, doc.content, "name:") == null) {
-            try diagnostics.append(.{
+            try diagnostics.append(self.allocator, .{
                 .range = .{
                     .start = .{ .line = 0, .character = 0 },
                     .end = .{ .line = 0, .character = 1 },
@@ -356,7 +356,7 @@ pub const LSPServer = struct {
             });
         }
 
-        return diagnostics.toOwnedSlice();
+        return diagnostics.toOwnedSlice(self.allocator);
     }
 
     pub fn getMetrics(self: *const Self) LSPMetrics {

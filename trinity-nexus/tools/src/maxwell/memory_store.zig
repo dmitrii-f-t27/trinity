@@ -19,6 +19,7 @@ pub const Experience = struct {
     lessons: std.ArrayList([]const u8),
     duration_ms: u64,
     timestamp: i64,
+    allocator: std.mem.Allocator,
 
     pub const Outcome = enum {
         Success,
@@ -41,14 +42,15 @@ pub const Experience = struct {
             .task_description = "",
             .approach = "",
             .outcome = .Success,
-            .lessons = std.ArrayList([]const u8).init(allocator),
+            .lessons = std.ArrayList([]const u8).empty,
             .duration_ms = 0,
             .timestamp = std.time.timestamp(),
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Experience) void {
-        self.lessons.deinit();
+        self.lessons.deinit(self.allocator);
     }
 };
 
@@ -86,29 +88,29 @@ pub const ErrorRecord = struct {
 
 pub const MemoryStore = struct {
     allocator: std.mem.Allocator,
-    
+
     // Storage
     experiences: std.ArrayList(Experience),
     patterns: std.ArrayList(Pattern),
     errors: std.ArrayList(ErrorRecord),
-    
+
     // Indices for fast lookup
     pattern_by_trigger: std.StringHashMap(u64),
-    
+
     // Counters
     next_experience_id: u64,
     next_pattern_id: u64,
     next_error_id: u64,
-    
+
     // Persistence
     storage_path: ?[]const u8,
 
     pub fn init(allocator: std.mem.Allocator) MemoryStore {
         return MemoryStore{
             .allocator = allocator,
-            .experiences = std.ArrayList(Experience).init(allocator),
-            .patterns = std.ArrayList(Pattern).init(allocator),
-            .errors = std.ArrayList(ErrorRecord).init(allocator),
+            .experiences = std.ArrayList(Experience).empty,
+            .patterns = std.ArrayList(Pattern).empty,
+            .errors = std.ArrayList(ErrorRecord).empty,
             .pattern_by_trigger = std.StringHashMap(u64).init(allocator),
             .next_experience_id = 1,
             .next_pattern_id = 1,
@@ -121,9 +123,9 @@ pub const MemoryStore = struct {
         for (self.experiences.items) |*exp| {
             exp.deinit();
         }
-        self.experiences.deinit();
-        self.patterns.deinit();
-        self.errors.deinit();
+        self.experiences.deinit(self.allocator);
+        self.patterns.deinit(self.allocator);
+        self.errors.deinit(self.allocator);
         self.pattern_by_trigger.deinit();
     }
 
@@ -137,7 +139,7 @@ pub const MemoryStore = struct {
         new_exp.id = self.next_experience_id;
         self.next_experience_id += 1;
 
-        try self.experiences.append(new_exp);
+        try self.experiences.append(self.allocator, new_exp);
 
         // Auto-extract patterns from successful experiences
         if (exp.outcome == .Success) {
@@ -173,7 +175,7 @@ pub const MemoryStore = struct {
 
     /// Получить успешные опыты по типу задачи
     pub fn getSuccessfulExperiences(self: *MemoryStore, task_type: []const u8) !std.ArrayList(*Experience) {
-        var result = std.ArrayList(*Experience).init(self.allocator);
+        var result = std.ArrayList(*Experience).empty;
 
         for (self.experiences.items) |*exp| {
             if (std.mem.eql(u8, exp.task_type, task_type) and exp.outcome == .Success) {
@@ -194,7 +196,7 @@ pub const MemoryStore = struct {
         new_pattern.id = self.next_pattern_id;
         self.next_pattern_id += 1;
 
-        try self.patterns.append(new_pattern);
+        try self.patterns.append(self.allocator, new_pattern);
         try self.pattern_by_trigger.put(pattern.trigger, new_pattern.id);
 
         return new_pattern.id;
@@ -238,7 +240,7 @@ pub const MemoryStore = struct {
 
     /// Получить лучшие паттерны
     pub fn getTopPatterns(self: *MemoryStore, limit: usize) !std.ArrayList(*Pattern) {
-        var result = std.ArrayList(*Pattern).init(self.allocator);
+        var result = std.ArrayList(*Pattern).empty;
 
         // Sort by confidence * usage_count
         var sorted = try self.allocator.alloc(*Pattern, self.patterns.items.len);
@@ -301,7 +303,7 @@ pub const MemoryStore = struct {
         };
 
         self.next_error_id += 1;
-        try self.errors.append(record);
+        try self.errors.append(self.allocator, record);
 
         return record.id;
     }

@@ -70,7 +70,7 @@ pub const Codebase = struct {
             .allocator = allocator,
             .root_path = root_path,
             .file_cache = std.StringHashMap([]const u8).init(allocator),
-            .change_history = std.ArrayList(Change).init(allocator),
+            .change_history = std.ArrayList(Change).empty,
         };
     }
 
@@ -87,7 +87,7 @@ pub const Codebase = struct {
             }
             self.allocator.free(change.new_content);
         }
-        self.change_history.deinit();
+        self.change_history.deinit(self.allocator);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -170,7 +170,7 @@ pub const Codebase = struct {
 
     /// Получить список файлов в директории
     pub fn listFiles(self: *Codebase, dir_path: []const u8, pattern: ?[]const u8) !std.ArrayList(FileInfo) {
-        var result = std.ArrayList(FileInfo).init(self.allocator);
+        var result = std.ArrayList(FileInfo).empty;
 
         const full_path = try std.fs.path.join(self.allocator, &[_][]const u8{ self.root_path, dir_path });
         defer self.allocator.free(full_path);
@@ -201,7 +201,7 @@ pub const Codebase = struct {
 
     /// Найти файлы по паттерну рекурсивно
     pub fn findFiles(self: *Codebase, pattern: []const u8) !std.ArrayList([]const u8) {
-        var result = std.ArrayList([]const u8).init(self.allocator);
+        var result = std.ArrayList([]const u8).empty;
         try self.findFilesRecursive("", pattern, &result);
         return result;
     }
@@ -383,7 +383,7 @@ pub const Codebase = struct {
     pub fn exec(self: *Codebase, command: []const u8, args: []const []const u8) ExecResult {
         const start_time = std.time.milliTimestamp();
 
-        var argv = std.ArrayList([]const u8).init(self.allocator);
+        var argv = std.ArrayList([]const u8).empty;
         defer argv.deinit();
         
         argv.append(command) catch {
