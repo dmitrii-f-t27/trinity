@@ -257,8 +257,11 @@ pub fn main() !void {
         .sacred => math_commands.runSacredCommand(allocator, cmd_args) catch |err| {
             std.debug.print("Sacred error: {}\n", .{err});
         },
-        // Chemistry (v6.0) - TODO: complete element data (missing optional fields)
-        .chem => try commands.runChemCommand(allocator, cmd_args),
+        // Chemistry (v6.0) - TODO: Complete element data (missing optional fields)
+        .chem => {
+            std.debug.print("Chemistry commands temporarily disabled during sacred module refactor\n", .{});
+            std.debug.print("Use 'tri constants' for sacred constants\n", .{});
+        },
         // Intelligence System
         .intelligence => tri_context.runIntelligenceCommand(allocator, &state, cmd_args) catch |err| {
             std.debug.print("Intelligence error: {}\n", .{err});
@@ -337,6 +340,50 @@ pub fn main() !void {
             } else {
                 std.debug.print("Unknown os command: {s}\n", .{cmd_args[0]});
             }
+        },
+        // TEMPORAL TRINITY THEOREM v1.0 (Order #020)
+        .time => {
+            if (cmd_args.len == 0) {
+                std.debug.print("Usage: tri time <command> [args...]\n", .{});
+                std.debug.print("Commands:\n", .{});
+                std.debug.print("  sacred    Display TEMPORAL TRINITY THEOREM v1.0\n", .{});
+                std.debug.print("  balance   Calculate temporal balance\n", .{});
+                std.debug.print("  arrow     Show time arrow ratio\n", .{});
+                std.debug.print("  planck    Show Planck time quantum\n", .{});
+                std.debug.print("  eternal   Show eternal return (π × 3)\n", .{});
+            } else if (std.mem.eql(u8, cmd_args[0], "sacred")) {
+                const sacred = @import("sacred");
+                _ = try sacred.displayTemporalTheorem(allocator);
+            } else if (std.mem.eql(u8, cmd_args[0], "balance")) {
+                const sacred = @import("sacred");
+                const balance = sacred.calculateTemporalBalance();
+                std.debug.print("Temporal Balance = {d:.6}\n", .{balance});
+                std.debug.print("  (φ² × Future) + (0 × Present) + (|1/φ²| × Past) = 3 ∎\n", .{});
+            } else if (std.mem.eql(u8, cmd_args[0], "arrow")) {
+                const sacred = @import("sacred");
+                const arrow = sacred.computeTimeArrow();
+                std.debug.print("Time Arrow Ratio = {d:.3}\n", .{arrow.creation_ratio});
+                std.debug.print("  Creation / Destruction = φ⁴\n", .{});
+                std.debug.print("  {s}\n", .{arrow.explainArrow()});
+            } else if (std.mem.eql(u8, cmd_args[0], "planck")) {
+                const sacred = @import("sacred");
+                const planck = sacred.computePlanckTime();
+                std.debug.print("Planck Time t_P = {d:.6} × 10⁻⁴⁴ seconds\n", .{planck.value_seconds * 1e44});
+                std.debug.print("  {s}\n", .{planck.significance});
+            } else if (std.mem.eql(u8, cmd_args[0], "eternal")) {
+                const sacred = @import("sacred");
+                const cycle = sacred.eternalReturn();
+                std.debug.print("Eternal Return: π × 3 = {d:.6}\n", .{cycle.omega_product});
+                std.debug.print("  π = {d:.6} (цикличность)\n", .{cycle.pi_factor});
+                std.debug.print("  3 = {d} (троица)\n", .{cycle.trinity_factor});
+                std.debug.print("  Вечность = бесконечный цикл обновления\n", .{});
+            } else {
+                std.debug.print("Unknown time command: {s}\n", .{cmd_args[0]});
+            }
+        },
+        .time_sacred => {
+            const sacred = @import("sacred");
+            _ = try sacred.displayTemporalTheorem(allocator);
         },
         .orchestrate_v2 => {
             // TRI Orchestrator v2.0 - Universal command orchestration

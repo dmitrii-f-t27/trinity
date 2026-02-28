@@ -226,6 +226,9 @@ pub const Command = enum {
     query,
     // TRINITY OS v1.0 Public Demo (Order #017)
     os,
+    // TEMPORAL TRINITY THEOREM v1.0 (Order #020)
+    time,
+    time_sacred,
 };
 
 pub const CLIState = struct {
@@ -832,6 +835,9 @@ pub fn parseCommand(arg: []const u8) Command {
     if (std.mem.eql(u8, arg, "query")) return .query;
     // TRINITY OS v1.0 Public Demo (Order #017)
     if (std.mem.eql(u8, arg, "os")) return .os;
+    // TEMPORAL TRINITY THEOREM v1.0 (Order #020)
+    if (std.mem.eql(u8, arg, "time")) return .time;
+    if (std.mem.eql(u8, arg, "time-sacred")) return .time_sacred;
     return .none;
 }
 

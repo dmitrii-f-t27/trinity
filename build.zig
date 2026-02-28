@@ -1302,7 +1302,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const sacred_mod = b.createModule(.{
-        .root_source_file = b.path("src/sacred/chemistry.zig"),
+        .root_source_file = b.path("src/sacred/sacred.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{

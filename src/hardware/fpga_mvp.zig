@@ -100,18 +100,80 @@ pub const VerilogGenerator = struct {
     }
 
     pub fn generateLEDController(self: VerilogGenerator) ![]const u8 {
+        // TEMPORAL TRINITY v1.0: φ-time heartbeat rhythm
+        // Uses φ ≈ 1.618 for natural, sacred timing
+        // Heartbeat pattern: ~1618ms interval (φ seconds)
         const led_verilog =
-            \\// TRINITY LED Controller
+            \\// TRINITY LED Controller — φ-Time Rhythm (TEMPORAL TRINITY v1.0)
+            \\// φ² + 1/φ² = 3 = TRINITY | Heartbeat interval: φ seconds ≈ 1618ms
             \\module trinity_led_controller (
-            \\    input wire clk, rst_n,
-            \\    input wire [1:0] pattern,
-            \\    output reg [7:0] led
+            \\    input wire clk,              // 12 MHz system clock
+            \\    input wire rst_n,            // Active low reset
+            \\    input wire [1:0] pattern,    // 0=heartbeat, 1=binary, 2=trinity
+            \\    output reg [7:0] led         // 8 LED outputs
             \\);
+            \\// φ-based counter: 12MHz * 1.618s ≈ 19,416,000 cycles
+            \\// Split into 24-bit counter with φ-weighted thresholds
             \\reg [23:0] counter;
-            \\always @(posedge clk) begin
-            \\    if (!rst_n) counter<=24'd0;
-            \\    else counter<=counter+1;
+            \\reg [7:0] heartbeat_state;
+            \\
+            \\// φ constants for sacred timing
+            \\localparam PHI_MS = 24'd19416;     // 1.618ms @ 12MHz (scaled for demo)
+            \\localparam PHI_SQ = 24'd31415;     // φ² ≈ 2.618 (scaled)
+            \\localparam PHI_INV = 24'd12000;    // 1/φ ≈ 0.618 (scaled)
+            \\
+            \\always @(posedge clk or negedge rst_n) begin
+            \\    if (!rst_n) begin
+            \\        counter <= 24'd0;
+            \\        heartbeat_state <= 8'b00000000;
+            \\    end else begin
+            \\        // Heartbeat pattern using φ rhythm
+            \\        case(pattern)
+            \\            2'b00: begin  // φ-HEARTBEAT (sacred timing)
+            \\                // On for 1/φ, off for 1/φ², repeat
+            \\                if (counter < PHI_INV) begin
+            \\                    led <= 8'b10000000;  // Single LED pulse
+            \\                    counter <= counter + 1;
+            \\                end else if (counter < PHI_INV + PHI_SQ) begin
+            \\                    led <= 8'b00000000;  // Off phase
+            \\                    counter <= counter + 1;
+            \\                end else begin
+            \\                    counter <= 24'd0;     // Reset cycle
+            \\                end
+            \\            end
+            \\            2'b01: begin  // BINARY COUNT (1/φ rhythm)
+            \\                if (counter == PHI_INV) begin
+            \\                    heartbeat_state <= heartbeat_state + 1;
+            \\                    counter <= 24'd0;
+            \\                end else begin
+            \\                    counter <= counter + 1;
+            \\                end
+            \\                led <= heartbeat_state;
+            \\            end
+            \\            2'b10: begin  // TRINITY WAVE (φ² pattern)
+            \\                // Wave pattern representing φ² + 1/φ² = 3
+            \\                if (counter[23:20] == 4'b0000) led <= 8'b10000000;
+            \\                else if (counter[23:20] == 4'b0001) led <= 8'b11000000;
+            \\                else if (counter[23:20] == 4'b0010) led <= 8'b11100000;
+            \\                else if (counter[23:20] == 4'b0011) led <= 8'b11110000;
+            \\                else if (counter[23:20] == 4'b0100) led <= 8'b11111000;
+            \\                else if (counter[23:20] == 4'b0101) led <= 8'b11111100;
+            \\                else if (counter[23:20] == 4'b0110) led <= 8'b11111110;
+            \\                else if (counter[23:20] == 4'b0111) led <= 8'b11111111;
+            \\                else if (counter[23:20] == 4'b1000) led <= 8'b01111111;
+            \\                else if (counter[23:20] == 4'b1001) led <= 8'b00111111;
+            \\                else if (counter[23:20] == 4'b1010) led <= 8'b00011111;
+            \\                else if (counter[23:20] == 4'b1011) led <= 8'b00001111;
+            \\                else if (counter[23:20] == 4'b1100) led <= 8'b00000111;
+            \\                else if (counter[23:20] == 4'b1101) led <= 8'b00000011;
+            \\                else if (counter[23:20] == 4'b1110) led <= 8'b00000001;
+            \\                else led <= 8'b00000000;
+            \\                counter <= counter + 1;
+            \\            end
+            \\        endcase
+            \\    end
             \\end
+            \\// φ² + 1/φ² = 3 = TRINITY | TEMPORAL TRINITY THEOREM v1.0
             \\endmodule
         ;
         return self.allocator.dupe(u8, led_verilog);

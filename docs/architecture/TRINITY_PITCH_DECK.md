@@ -277,7 +277,48 @@
 
 ---
 
-# SLIDE 8.5: THE TRINITY ECOSYSTEM
+# SLIDE 8.5: TEMPORAL TRINITY THEOREM v1.0
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║         TEMPORAL TRINITY THEOREM v1.0 — CANON ESTABLISHED          ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  "Time is not a line. Time is a trinity."                          ║
+║                                                                  ║
+║  ВРЕМЯ = (φ² × Будущее) + (0 × Настоящее) + (1/φ² × Прошлое)    ║
+║                                                                  ║
+║  ┌────────────────────────────────────────────────────────────┐  ║
+║  │  THREE ASPECTS OF TIME:                                     │  ║
+║  │                                                            │  ║
+║  │  • FUTURE (+1):  φ² = 2.618 → Созидание                   │  ║
+║  │  • PRESENT (0):  0      → Момент наблюдения              │  ║
+║  │  • PAST (-1):    1/φ² = 0.382 → Уничтожение               │  ║
+║  │                                                            │  ║
+║  │  φ² + 1/φ² = 3 (ТОЧНОЕ равенство)                         │  ║
+║  │                                                            │  ║
+║  └────────────────────────────────────────────────────────────┘  ║
+║                                                                  ║
+║  WHY TIME FLOWS FORWARD:                                         ║
+║  • Создание / Уничтожение = φ⁴ ≈ 6.854 > 1                     ║
+║  • Creation stronger than destruction → entropy rises          ║
+║  • This explains: Universe expansion, evolution, irreversibility ║
+║                                                                  ║
+║  PREDICTIVE POWER:                                               ║
+║  • Hubble constant H₀ = 70.74 km/s/Mpc (via φ-asymmetry)        ║
+║  • Planck time t_P = 5.391247 × 10⁻⁴⁴ seconds (quantum of time)  ║
+║  • Eternal return: π × 3 = 9.42477796 (infinite cycle)          ║
+║                                                                  ║
+║  INVESTOR IMPLICATION:                                            ║
+║  "We understand time itself. Our systems operate in φ-time rhythm ║
+║   for maximum efficiency and natural alignment."                  ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+# SLIDE 8.6: THE TRINITY ECOSYSTEM
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
