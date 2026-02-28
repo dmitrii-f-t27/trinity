@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  tvc-coordinator:
+    image: trinity-tvc:v1.0.0-prod
+    container_name: tvc-coordinator
+    environment:
+      - TRINITY_NODE_ID=coordinator-1
+      - TRINITY_NODE_ROLE=coordinator
+    ports:
+      - "8080:8080"
+    networks:
+      - tvc-network
+    restart: unless-stopped
+
+  tvc-worker-1:
+    image: trinity-tvc:v1.0.0-prod
+    container_name: tvc-worker-1
+    environment:
+      - TRINITY_NODE_ID=worker-1
+      - TRINITY_NODE_ROLE=worker
+    ports:
+      - "8081:8080"
+    networks:
+      - tvc-network
+    restart: unless-stopped
+
+  tvc-worker-2:
+    image: trinity-tvc:v1.0.0-prod
+    container_name: tvc-worker-2
+    environment:
+      - TRINITY_NODE_ID=worker-2
+      - TRINITY_NODE_ROLE=worker
+    ports:
+      - "8082:8080"
+    networks:
+      - tvc-network
+    restart: unless-stopped
+
+networks:
+  tvc-network:
+    driver: bridge
