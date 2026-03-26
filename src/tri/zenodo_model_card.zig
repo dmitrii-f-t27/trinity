@@ -148,17 +148,17 @@ pub const EthicalConsiderations = struct {
 
         try result.appendSlice(allocator, "**Out-of-Scope Uses**:\n");
         for (self.out_of_scope_uses, 0..) |use_case, i| {
-            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{i + 1, use_case}));
+            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{ i + 1, use_case }));
         }
 
         try result.appendSlice(allocator, "\n**Risks and Harms**:\n");
         for (self.risks, 0..) |risk, i| {
-            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{i + 1, risk}));
+            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{ i + 1, risk }));
         }
 
         try result.appendSlice(allocator, "\n**Risk Mitigation**:\n");
         for (self.mitigations, 0..) |mitigation, i| {
-            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{i + 1, mitigation}));
+            try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{d}. {s}\n", .{ i + 1, mitigation }));
         }
 
         return result.toOwnedSlice(allocator);
@@ -176,8 +176,8 @@ pub const ModelCard = struct {
     architecture: ?ModelArchitecture = null,
     training_data: ?TrainingData = null,
     ethics: ?EthicalConsiderations = null,
-    limitations: ?[]const u8 = null,
-    tradeoffs: ?[]const u8 = null,
+    limitations: ?[]const []const u8 = null,
+    tradeoffs: ?[]const []const u8 = null,
     citation_bibtex: ?[]const u8 = null,
 
     pub fn formatAsMarkdown(self: *const ModelCard, allocator: std.mem.Allocator) ![]u8 {
