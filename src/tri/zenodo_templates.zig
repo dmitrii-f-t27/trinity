@@ -5347,22 +5347,22 @@ pub const CitationGraph = struct {
 
             switch (cit.citation_type) {
                 .cites, .builds_on => {
-                    try buffer.writer(allocator).print("  \\node[fill=green!10, below left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + left_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\node[fill=green!10, below left={d:.1}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + @as(f64, @floatFromInt(left_idx)) * 0.8, node_name, short_title });
                     try buffer.writer(allocator).print("  \\draw[->, thick] ({s}) -- (main);\n", .{node_name});
                     left_idx += 1;
                 },
                 .cited_by => {
-                    try buffer.writer(allocator).print("  \\node[fill=yellow!10, below right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + right_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\node[fill=yellow!10, below right={d:.1}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + @as(f64, @floatFromInt(right_idx)) * 0.8, node_name, short_title });
                     try buffer.writer(allocator).print("  \\draw[->, thick] (main) -- ({s});\n", .{node_name});
                     right_idx += 1;
                 },
                 .extends => {
-                    try buffer.writer(allocator).print("  \\node[fill=orange!10, above left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + extend_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\node[fill=orange!10, above left={d:.1}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + @as(f64, @floatFromInt(extend_idx)) * 0.8, node_name, short_title });
                     try buffer.writer(allocator).print("  \\draw[->, dashed, thick] ({s}) -- (main);\n", .{node_name});
                     extend_idx += 1;
                 },
                 .similar => {
-                    try buffer.writer(allocator).print("  \\node[fill=purple!10, above right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + similar_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\node[fill=purple!10, above right={d:.1}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + @as(f64, @floatFromInt(similar_idx)) * 0.8, node_name, short_title });
                     try buffer.writer(allocator).print("  \\draw[<->, dotted, thick] (main) -- ({s});\n", .{node_name});
                     similar_idx += 1;
                 },
@@ -5385,7 +5385,7 @@ pub const CitationGraph = struct {
         // Add text bibliography
         try buffer.appendSlice(allocator, "\\subsection*{Bibliography}\n\n");
         for (self.citations) |cit| {
-            try buffer.writer(allocator).Print("\\textbf{{{s}}}. ", .{cit.id});
+            try buffer.writer(allocator).print("\\textbf{{{s}}}. ", .{cit.id});
             try buffer.writer(allocator).print("{s}. ", .{cit.authors});
             try buffer.writer(allocator).print("{d}. ", .{cit.year});
             if (cit.venue) |v| try buffer.writer(allocator).print("{s}. ", .{v});
@@ -5684,13 +5684,13 @@ pub const ExperimentConfig = struct {
 
             // Data rows (first 10 conditions)
             const max_rows = @min(self.conditions.len, 10);
-            for (self.conditions[0..max_rows]) |cond| {
+            for (self.conditions[0..max_rows], 0..) |cond, cond_idx| {
                 for (cond.parameters, 0..) |kv, j| {
                     if (j > 0) try buffer.appendSlice(allocator, " & ");
                     try buffer.appendSlice(allocator, kv);
                 }
                 if (self.best_condition) |best| {
-                    if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
+                    if (cond_idx == best) {
                         try buffer.appendSlice(allocator, " & \\textbf{");
                         if (cond.results) |r| try buffer.appendSlice(allocator, r);
                         try buffer.appendSlice(allocator, "} \\\\\n");
@@ -5758,13 +5758,13 @@ pub const ExperimentConfig = struct {
 
             // Data rows
             const max_rows = @min(self.conditions.len, 20);
-            for (self.conditions[0..max_rows]) |cond| {
+            for (self.conditions[0..max_rows], 0..) |cond, cond_idx| {
                 try buffer.appendSlice(allocator, "| ");
                 for (cond.parameters) |kv| {
                     try buffer.writer(allocator).print("{s} | ", .{kv});
                 }
                 if (self.best_condition) |best| {
-                    if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
+                    if (cond_idx == best) {
                         try buffer.writer(allocator).print("**{s}** |\n", .{cond.results orelse "N/A"});
                     } else {
                         try buffer.writer(allocator).print("{s} |\n", .{cond.results orelse "N/A"});
