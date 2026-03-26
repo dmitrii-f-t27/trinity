@@ -115,3 +115,33 @@ pub const FundingReference = struct {
     }
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZENODO UPLOAD TYPE — Deposit Type Enumeration
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Zenodo upload type enumeration
+pub const UploadType = enum {
+    publication, // Published research output
+    dataset, // Research dataset
+    software, // Software or code
+    other, // Other type of deposit
+
+    pub fn toString(self: UploadType) []const u8 {
+        return switch (self) {
+            .publication => "publication",
+            .dataset => "dataset",
+            .software => "software",
+            .other => "other",
+        };
+    }
+
+    pub fn toDescription(self: UploadType) []const u8 {
+        return switch (self) {
+            .publication => "Published research article",
+            .dataset => "Research dataset",
+            .software => "Software or source code",
+            .other => "Other research output",
+        };
+    }
+};
