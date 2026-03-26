@@ -1,349 +1,314 @@
-# ICLR 2027 Preparation — Roadmap
-
-**Target Submission:** ICLR 2027 (Deadline: ~September 15, 2026)
-
-**Current Date:** March 26, 2026
-**Time Remaining:** ~6 months until deadline
-
----
+# ICLR 2027 — Roadmap
 
 ## Overview
 
-This roadmap provides a 7-month timeline for preparing a competitive ICLR 2027 submission, incorporating experimental gaps identified and feedback from NeurIPS 2026 review.
+This document outlines the 7-month timeline from now (March 2026) to ICLR 2027 submission (September 2026). The roadmap is organized into phases with clear milestones and dependencies.
 
 ---
 
-## Phase 1: Foundation (March - May 2026)
+## Submission Timeline
 
-### March 2026: Planning and Setup
+**ICLR 2027 Key Dates:**
+- **Abstract deadline:** ~September 2026 (exact date TBD)
+- **Paper deadline:** ~October 2026 (exact date TBD)
+- **Notification:** ~December 2026
+- **Conference:** ~May 2027
 
-**Week 1-2:**
-- [ ] Finalize paper angle (Theory vs Systems vs Robustness)
-- [ ] Review ICLR 2025 accepted papers (what works?)
-- [ ] Set up compute resources (GPU cluster access)
-- [ ] Identify experimental gaps (see EXPERIMENT_GAPS.md)
-
-**Week 3-4:**
-- [ ] Acquire datasets for cross-modal experiments
-  - CIFAR-10 (vision)
-  - LibriSpeech subset (speech)
-  - TinyStories (already have)
-- [ ] Set up training pipelines for new datasets
-- [ ] Run initial baselines (FP32 on all datasets)
-
-**Deliverables:**
-- Paper angle decision
-- Compute resources secured
-- Datasets downloaded
+**Our Timeline:**
+- **Target:** Complete paper by August 2026 (1 month buffer)
+- **Internal deadline:** July 2026 (2 months buffer)
 
 ---
 
-### April 2026: GPU Comparison Experiments
+## Phase 1: Preparation (Weeks 1-4, April 2026)
 
-**Week 1-2:**
-- [ ] Set up GPU benchmarking infrastructure
-- [ ] Measure RTX 3080/4090 throughput (tokens/second)
-- [ ] Measure GPU power consumption (power meter)
-- [ ] Calculate energy efficiency (tokens/Joule)
+### Goals
+- Complete literature review
+- Finalize experimental design
+- Set up infrastructure
 
-**Week 3-4:**
-- [ ] Compare FPGA vs GPU (throughput, energy)
-- [ ] Generate comparison figures and tables
-- [ ] Document methodology
+### Tasks
 
-**Deliverables:**
-- GPU throughput measurements
-- Energy efficiency comparison
-- Comparison table (Trinity vs GPU)
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 1 | Literature review | Annotated bibliography | PI |
+| 2 | Experimental design | Experiment specification | PI |
+| 3 | Infrastructure setup | Compute resources ready | Senior Engineer |
+| 4 | Baseline reproduction | TinyStories baseline replicated | ML Engineer |
 
----
+### Milestones
 
-### May 2026: Statistical Validation
+- M1.1: Literature review complete (20+ papers)
+- M1.2: Experimental protocol documented
+- M1.3: All systems operational
 
-**Week 1-4:**
-- [ ] Run 10 trials per ablation variant (6 ablations)
-- [ ] Total: 60 training runs (10 trials × 6 variants)
-- [ ] Collect PPL, loss curves for each run
-- [ ] Compute mean ± std, 95% confidence intervals
-- [ ] Perform two-tailed t-tests (α=0.05)
-- [ ] Calculate effect sizes (Cohen's d)
+### Dependencies
 
-**Deliverables:**
-- Statistically validated ablation study
-- Updated tables with confidence intervals
-- Statistical methods section
+- None — can start immediately
 
 ---
 
-## Phase 2: Cross-Modal Experiments (June - August 2026)
+## Phase 2: Multi-Dataset Experiments (Weeks 5-10, May-June 2026)
 
-### June 2026: Vision Experiments
+### Goals
+- Evaluate HSLM on 4 datasets
+- Validate calibration improvement across domains
 
-**Week 1-2:**
-- [ ] Train ternary CNN on CIFAR-10
-- [ ] Compare to FP32 baseline
-- [ ] Measure accuracy, model size
+### Tasks
 
-**Week 3-4:**
-- [ ] Ablation study (sacred formats on vision)
-- [ ] Analyze results
-- [ ] Document vision findings
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 5-6 | Dataset preprocessing | 4 datasets ready | ML Engineer |
+| 7-8 | Training (WikiText, C4) | 2 models trained | ML Engineer |
+| 9-10 | Training (Code, ImageNet) | 2 models trained | ML Engineer |
+| 10 | Evaluation | Results table | ML Engineer |
 
-**Deliverables:**
-- CIFAR-10 results
-- Cross-modal validation (vision)
+### Milestones
 
----
+- M2.1: All datasets preprocessed
+- M2.2: All 4 models trained
+- M2.3: ECE < 0.12 on all datasets (or analysis of failure)
 
-### July - August 2026: Speech Experiments
+### Dependencies
 
-**Week 1-2:**
-- [ ] Train ternary model on LibriSpeech subset
-- [ ] Compare to FP32 baseline
-- [ ] Measure WER (word error rate)
-
-**Week 3-8:**
-- [ ] If time permits: multimodal experiments
-- [ ] Analyze all cross-modal results
-- [ ] Update paper with cross-modal section
-
-**Deliverables:**
-- Speech recognition results
-- Cross-modal validation (speech)
-- Multimodal results (if time)
+- Requires Phase 1 completion
 
 ---
 
-## Phase 3: Larger Models (September 2026 - February 2027)
+## Phase 3: Cross-Architecture Validation (Weeks 11-16, July-August 2026)
 
-### September - October 2026: Setup
+### Goals
+- Validate ternary calibration across architectures
+- Demonstrate generality beyond transformers
 
-**Week 1-2:**
-- [ ] Acquire compute for 7B+ model (or 100M if limited)
-- [ ] Set up distributed training infrastructure
-- [ ] Initialize hyperparameters
+### Tasks
 
-**Week 3-4:**
-- [ ] Train FP32 baseline (100M or 7B)
-- [ ] Establish baseline PPL
-- [ ] Document baseline results
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 11-12 | Implement architectures | LSTM, CNN, MLP ready | Senior Engineer |
+| 13-14 | Training (all 4 arch) | 4 models trained | ML Engineer |
+| 15-16 | Evaluation + analysis | Cross-arch results table | PI |
 
-**Deliverables:**
-- Compute access secured
-- Baseline established
+### Milestones
 
----
+- M3.1: All architectures implemented
+- M3.2: All models trained
+- M3.3: Consistent calibration trend across architectures
 
-### November 2026 - January 2027: Training
+### Dependencies
 
-**Ongoing:**
-- [ ] Train ternary model at same scale
-- [ ] Monitor training stability
-- [ ] Compare PPL vs baseline
-- [ ] Document scaling behavior
-
-**Deliverables:**
-- Large-scale training results
-- Scaling analysis
+- Can run in parallel with Phase 2 (different compute)
 
 ---
 
-### February 2027: Analysis
+## Phase 4: Theoretical Analysis (Weeks 9-20, June-August 2026)
 
-**Week 1-4:**
-- [ ] Analyze scaling results
-- [ ] Generate scaling plots
-- [ ] Document scaling behavior
-- [ ] Update paper if needed
+### Goals
+- Develop mathematical explanation
+- Write theorems and proofs
+- Integrate with empirical results
 
-**Deliverables:**
-- Scaling analysis complete
-- Paper updated
+### Tasks
 
----
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 9-12 | Literature review (theory) | Theory bibliography | Research Assistant |
+| 13-16 | Theorem development | 1-2 theorems | Research Assistant |
+| 17-18 | Proof verification | Z3 verification | Research Assistant |
+| 19-20 | Paper section (theory) | 2-3 pages written | PI |
 
-## Phase 4: Paper Writing (March - May 2027)
+### Milestones
 
-### March 2027: First Draft
+- M4.1: Theorem statement complete
+- M4.2: Proof verified (Z3)
+- M4.3: Paper section written
 
-**Week 1-2:**
-- [ ] Write introduction
-- [ ] Write related work
-- [ ] Write methods section
+### Dependencies
 
-**Week 3-4:**
-- [ ] Write experiments section
-- [ ] Generate all figures and tables
-- [ ] Write discussion section
-
-**Deliverables:**
-- Complete first draft
-- All figures and tables
+- Overlaps with Phases 2-3 (uses empirical data)
 
 ---
 
-### April 2027: Revision
+## Phase 5: Baseline Comparisons (Weeks 17-22, August-September 2026)
 
-**Week 1-2:**
-- [ ] Internal review (PI + external collaborators)
-- [ ] Revise based on feedback
-- [ ] Check all claims against evidence
+### Goals
+- Compare to other calibration methods
+- Establish fair comparison
 
-**Week 3-4:**
-- [ ] Polishing (grammar, clarity, conciseness)
-- [ ] Finalize abstract
-- [ ] Format for ICLR template
+### Tasks
 
-**Deliverables:**
-- Revised draft
-- Final abstract
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 17-18 | Implement baselines | 5 methods ready | ML Engineer |
+| 19-20 | Training (all baselines) | 5 models trained | ML Engineer |
+| 21-22 | Evaluation + comparison | Results table | PI |
 
----
+### Milestones
 
-### May 2027: Final Polish
+- M5.1: All baselines implemented
+- M5.2: Comparison table complete
+- M5.3: Ternary in top 2 for ECE
 
-**Week 1-4:**
-- [ ] Final proofreading
-- [ ] Supplemental material preparation
-- [ ] Code repository preparation (anonymous)
-- [ ] Reproducibility package (Docker)
+### Dependencies
 
-**Deliverables:**
-- Submission-ready paper
-- Supplemental material
-- Code repository
+- Requires Phase 2 completion (need datasets)
 
 ---
 
-## Phase 5: Submission (June 2027)
+## Phase 6: Paper Writing (Weeks 20-26, September-October 2026)
 
-### June 2027: ICLR 2027 Submission
+### Goals
+- Complete full paper draft
+- Internal review and revision
 
-**Week 1 (Abstract Deadline):**
-- [ ] Submit abstract via ICLR portal
-- [ ] Confirm submission details
+### Tasks
 
-**Week 2-3 (Paper Deadline):**
-- [ ] Submit full paper via ICLR portal
-- [ ] Upload supplemental material
-- [ ] Upload code (anonymized GitHub)
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 20-22 | Methods section | 3 pages | PI |
+| 23-24 | Results section | 4 pages | PI |
+| 25 | Discussion + Conclusion | 2 pages | PI |
+| 26 | Internal review | Feedback from team | All |
 
-**Week 4:**
-- [ ] Confirm receipt
-- [ ] Relax and wait for reviews!
+### Milestones
 
-**Deliverables:**
-- ICLR 2027 submission complete
+- M6.1: First draft complete (9 pages)
+- M6.2: Internal review feedback incorporated
+- M6.3: Final draft ready for external review
+
+### Dependencies
+
+- Requires all experimental phases complete
 
 ---
 
-## Milestones
+## Phase 7: Final Preparation (Weeks 27-29, October 2026)
 
-| Milestone | Target Date | Dependencies | Status |
-|-----------|-------------|-------------|--------|
-| Paper angle selected | March 31 | None | Pending |
-| Compute resources secured | March 31 | Budget approval | Pending |
-| GPU comparison complete | April 30 | GPU access | Pending |
-| Statistical validation complete | May 31 | GPU comparison | Pending |
-| Vision experiments complete | June 30 | Datasets | Pending |
-| Speech experiments complete | August 31 | Vision | Pending |
-| Large model baseline | October 31 | Compute | Pending |
-| Large model ternary | February 28 | Baseline | Pending |
-| First draft complete | March 31 | All experiments | Pending |
-| Submission ready | May 31 | Internal review | Pending |
-| ICLR submission | June 15 | Paper complete | Pending |
+### Goals
+- External review
+- Final polish
+- Submission package
+
+### Tasks
+
+| Week | Task | Deliverable | Owner |
+|------|------|-------------|-------|
+| 27 | External review | Feedback from 2 reviewers | PI |
+| 28 | Revisions | Address feedback | PI |
+| 29 | Submission package | PDF, code, supplementary | PI |
+
+### Milestones
+
+- M7.1: External review complete
+- M7.2: All feedback addressed
+- M7.3: Submission uploaded
+
+### Dependencies
+
+- Requires Phase 6 complete
+
+---
+
+## Resource Plan
+
+### Personnel
+
+| Role | FTE | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 |
+|------|-----|--------|--------|--------|--------|--------|--------|--------|
+| PI | 50% | ✅ | ✅ | ✅ | ✅ | ✅ | 100% | 100% |
+| Senior Engineer | 50% | ✅ | — | ✅ | — | — | — | — |
+| ML Engineer | 100% | ✅ | ✅ | ✅ | — | ✅ | — | — |
+| Research Assistant | 100% | — | — | — | ✅ | — | ✅ | — |
+
+### Compute
+
+| Resource | Usage | Cost |
+|----------|-------|------|
+| CPU (16 cores) | 8 weeks | $800 |
+| Storage (2 TB) | 7 months | $140 |
+| Cloud backup | 7 months | $50 |
+| **Total** | — | **~$1,000** |
 
 ---
 
 ## Risk Management
 
-### Risk 1: Compute Access
+### Schedule Risks
 
-**Risk:** Cannot secure GPU cluster for 7B model training
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Experiments overrun | Medium | High | Reduce dataset count (4→2) |
+| Theoretical analysis fails | Medium | Medium | Focus on empirical contribution |
+| Compute shortage | Low | High | Cloud backup |
+| Personnel shortage | Low | Medium | Cross-train team members |
 
-**Probability:** Medium
-**Impact:** High (would limit scaling claims)
+### Quality Risks
 
-**Mitigation:**
-- Use 100M parameter model instead (requires less compute)
-- Focus on cross-modal and statistical validation
-- Present 1.95M + 100M as evidence (not 7B)
-
-**Fallback:** If 7B not feasible, present scaling analysis up to 100M and discuss extrapolation to 7B.
-
-### Risk 2: Cross-Modal Results Weak
-
-**Risk:** Ternary underperforms on vision/speech tasks
-
-**Probability:** Medium
-**Impact:** Medium (weakens broad applicability claim)
-
-**Mitigation:**
-- Focus on language modeling as primary contribution
-- Present cross-modal as exploratory
-- Discuss in limitations: "Cross-modal validation left for future work"
-
-### Risk 3: NeurIPS 2026 Rejection
-
-**Risk:** NeurIPS 2026 rejects paper
-
-**Probability:** High (NeurIPS acceptance rate ~20%)
-**Impact:** Low (ICLR 2027 is backup)
-
-**Mitigation:**
-- Use NeurIPS feedback to improve paper
-- Address reviewer concerns in ICLR version
-- Consider different track for ICLR (Systems vs Theory)
-
-### Risk 4: Time Constraints
-
-**Risk:** Insufficient time to complete all experiments
-
-**Probability:** Medium
-**Impact:** Medium (weaker submission)
-
-**Mitigation:**
-- Prioritize: GPU comparison > Statistical validation > Cross-modal > Large models
-- If time runs out, submit with available results
-- Document gaps clearly in limitations section
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Calibration not consistent | Low | High | Acknowledge in limitations |
+| Negative results | Low | Medium | Report honestly (ICLR values this) |
+| Baseline outperforms | Low | Medium | Still novel contribution |
 
 ---
 
 ## Success Criteria
 
-**Minimum Viable ICLR 2027 Submission:**
-- [ ] Paper angle clearly defined (Theory or Systems)
-- [ ] All claims supported by experimental evidence
-- [ ] Comparison to prior work (BitNet, FINN, etc.)
-- [ ] Limitations section clearly stated
-- [ ] Reproducibility package (Docker, code, data)
-- [ ] Formal proofs included (if Theory track)
+### Must Achieve (for submission)
 
-**Strong Submission:**
-- [ ] All minimum viable criteria
-- [ ] Cross-modal validation (vision + speech)
-- [ ] Larger model validation (100M+ params)
-- [ ] Direct GPU comparison (power, throughput)
-- [ ] Statistically significant ablations
-- [ ] Novel contribution clearly differentiated
+- [ ] Multi-dataset evaluation: ≥2 datasets
+- [ ] Cross-architecture validation: ≥2 architectures
+- [ ] ECE improvement demonstrated: ternary < FP32
+- [ ] Paper draft: 8-9 pages (ICLR format)
+
+### Should Achieve (for acceptance)
+
+- [ ] Multi-dataset evaluation: 4 datasets
+- [ ] Cross-architecture validation: 4 architectures
+- [ ] Theoretical contribution: 1 theorem + proof
+- [ ] Strong baselines: Top 2 for ECE
+
+### Nice to Have (for impact)
+
+- [ ] Novel theoretical insight
+- [ ] State-of-the-art ECE on ≥1 benchmark
+- [ ] Open-source release with tutorials
+
+---
+
+## Timeline Visualization
+
+```
+Phase 1: ████████████████ (Weeks 1-4)  Preparation
+Phase 2: ████████████████████████████████████████████████ (Weeks 5-10)  Multi-Dataset
+Phase 3:           ████████████████████████████████████████████████████ (Weeks 11-16)  Cross-Arch
+Phase 4:     ████████████████████████████████████████████████████████████████ (Weeks 9-20)  Theory
+Phase 5:                                         ████████████████████████████████████ (Weeks 17-22)  Baselines
+Phase 6:                                                       ████████████████████████████ (Weeks 20-26)  Writing
+Phase 7:                                                                     ██████████████ (Weeks 27-29)  Final
+         └────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴
+Month:     Apr      May      Jun      Jul      Aug      Sep      Oct      (2026)
+```
 
 ---
 
 ## Summary
 
-**Timeline:** 15 months (March 2026 - June 2027)
+**Timeline:** 29 weeks (~7 months) to submission
+**Milestones:** 18 major milestones
+**Experiments:** 4 datasets × 4 architectures = 16 models
+**Theoretical:** 1-2 theorems + proofs
+**Personnel:** 4 FTE across phases
+**Budget:** ~$1,000 compute + personnel costs
 
-**Critical Path:**
-1. Paper angle selection (March)
-2. GPU comparison (April)
-3. Statistical validation (May)
-4. Paper writing (March-May 2027)
-
-**Buffer:** 1 month between phases for contingencies
-
-**Key Decision Point:** August 2026 — Assess progress and adjust scope if needed
+**Readiness for ICLR 2027:**
+- ✅ Concept defined (ternary representation learning)
+- ✅ Preliminary results (ECE=0.084 on TinyStories)
+- 🔄 Experiments needed (multi-dataset, cross-arch)
+- 🔄 Theoretical contribution needed
+- ✅ Timeline achievable
 
 ---
 
-**Document Control:** ICLR-ROADMAP-001
-**Status:** Draft — Created March 2026
+**φ² + 1/φ² = 3 | TRINITY**
+**Document:** docs/submissions/iclr_2027/ROADMAP.md
