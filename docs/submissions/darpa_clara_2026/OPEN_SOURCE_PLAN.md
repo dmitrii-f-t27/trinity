@@ -399,5 +399,6 @@ The plan aligns with DARPA CLARA objectives for open-source deliverables while e
 ---
 
 **Document Control:** CLARA-OSS-001
-**Word Count:** ~1,400
+**Version:** 6.2 (Calibration Tools Added)
+**Word Count:** ~1,600
 **Status:** Draft for DARPA CLARA Full Proposal Submission
