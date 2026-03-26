@@ -878,6 +878,10 @@ pub const PaperMetadata = struct {
     code_url: []const u8,
     /// DOI (if available)
     doi: ?[]const u8,
+    /// Extended scientific metadata (acknowledgments, funding, references)
+    extended_metadata: ?ExtendedMetadata = null,
+    /// Conference submission metadata
+    conference_info: ?ConferenceMetadata = null,
 
     pub const Conference = enum {
         neurips,
@@ -1670,6 +1674,231 @@ pub const CalibrationMetrics = struct {
         try md.writer(allocator).print("|--------|-------|\n", .{});
         try md.writer(allocator).print("| ECE ({d} bins) | {d:.4} |\n", .{ self.n_bins, self.expected_calibration_error });
         try md.writer(allocator).print("| Brier Score | {d:.4} |\n\n", .{self.brier_score});
+
+        return md.toOwnedSlice(allocator);
+    }
+};
+
+/// DataCite relationship type for related identifiers
+pub const DataCiteRelationship = enum {
+    /// Is documented by
+    is_documented_by,
+    /// Documents
+    documents,
+    /// Is supplemented by
+    is_supplemented_by,
+    /// Supplements
+    supplements,
+    /// Is cited by
+    is_cited_by,
+    /// Cites
+    cites,
+    /// Is continued by
+    is_continued_by,
+    /// Continues
+    continues,
+    /// Is new version of
+    is_new_version_of,
+    /// Is previous version of
+    is_previous_version_of,
+    /// Is part of
+    is_part_of,
+    /// Has part
+    has_part,
+    /// Is referenced by
+    is_referenced_by,
+    /// References
+    references,
+    /// Is identical to
+    is_identical_to,
+
+    pub fn toString(self: DataCiteRelationship) []const u8 {
+        return switch (self) {
+            .is_documented_by => "IsDocumentedBy",
+            .documents => "Documents",
+            .is_supplemented_by => "IsSupplementedBy",
+            .supplements => "Supplements",
+            .is_cited_by => "IsCitedBy",
+            .cites => "Cites",
+            .is_continued_by => "IsContinuedBy",
+            .continues => "Continues",
+            .is_new_version_of => "IsNewVersionOf",
+            .is_previous_version_of => "IsPreviousVersionOf",
+            .is_part_of => "IsPartOf",
+            .has_part => "HasPart",
+            .is_referenced_by => "IsReferencedBy",
+            .references => "References",
+            .is_identical_to => "IsIdenticalTo",
+        };
+    }
+};
+
+/// DataCite citation for datasets and code
+pub const DataCite = struct {
+    /// DOI of the related resource
+    doi: []const u8,
+    /// Resource type (dataset, software, paper)
+    resource_type: []const u8,
+    /// Citation text
+    citation_text: []const u8,
+    /// Relationship type
+    relationship: DataCiteRelationship,
+    /// URL (optional, if DOI not resolvable)
+    url: ?[]const u8 = null,
+
+    pub fn formatAsJson(self: *const DataCite, allocator: std.mem.Allocator) ![]u8 {
+        var json = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer json.deinit(allocator);
+
+        try json.writer(allocator).print("{{\n", .{});
+        try json.writer(allocator).print("  \"doi\": \"{s}\",\n", .{self.doi});
+        try json.writer(allocator).print("  \"resource_type\": \"{s}\",\n", .{self.resource_type});
+        try json.writer(allocator).print("  \"citation\": \"{s}\",\n", .{self.citation_text});
+        try json.writer(allocator).print("  \"relation\": \"{s}\"\n", .{self.relationship.toString()});
+        if (self.url) |u| {
+            try json.writer(allocator).print(", \"url\": \"{s}\"", .{u});
+        }
+        try json.writer(allocator).print("\n}}", .{});
+
+        return json.toOwnedSlice(allocator);
+    }
+};
+
+/// Conference presentation metadata
+pub const ConferenceInfo = struct {
+    /// Conference name
+    name: []const u8,
+    /// Year
+    year: u32,
+    /// Acronym (e.g., "NeurIPS", "ICLR")
+    acronym: []const u8,
+    /// Location (city, country)
+    location: []const u8,
+    /// Dates (e.g., "December 9-15, 2025")
+    dates: []const u8,
+    /// Website URL
+    website: ?[]const u8 = null,
+
+    pub fn formatAsMarkdown(self: *const ConferenceInfo, allocator: std.mem.Allocator) ![]u8 {
+        var md = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer md.deinit(allocator);
+
+        try md.writer(allocator).print("**{s} {d}**\n", .{ self.name, self.year });
+        try md.writer(allocator).print("{s}, {s}\n", .{ self.location, self.dates });
+        if (self.website) |ws| {
+            try md.writer(allocator).print("\\\\ [{s}]({s})\n", .{ "Website", ws });
+        }
+
+        return md.toOwnedSlice(allocator);
+    }
+};
+
+/// Conference submission and presentation metadata
+pub const ConferenceMetadata = struct {
+    /// Conference info
+    conference: ConferenceInfo,
+    /// Paper ID (e.g., "1234")
+    paper_id: []const u8,
+    /// Paper title
+    paper_title: []const u8,
+    /// Track (e.g., "Main Track", "Theory Track")
+    track: ?[]const u8 = null,
+    /// Presentation type (oral, poster, spotlight)
+    presentation_type: []const u8,
+    /// Session (e.g., "Theory 1A")
+    session: ?[]const u8 = null,
+    /// Room (e.g., "Grand Ballroom")
+    room: ?[]const u8 = null,
+    /// Time slot (e.g., "Tuesday 14:00-15:30")
+    time_slot: ?[]const u8 = null,
+    /// Panel figure for architectural diagrams
+    panel_figure: ?MultiPanelFigure = null,
+
+    pub fn formatAsLaTeX(self: *const ConferenceMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var latex = std.ArrayList(u8).initCapacity(allocator, 2048) catch @panic("OOM");
+        defer latex.deinit(allocator);
+
+        try latex.writer(allocator).print("\\section*{{{s} {d} Submission}}\n", .{ self.conference.acronym, self.conference.year });
+
+        if (self.track) |t| {
+            try latex.writer(allocator).print("\\textbf{{Track:}} {s}\\\\\n", .{t});
+        }
+
+        try latex.writer(allocator).print("\\textbf{{Paper ID:}} {s}\\\\\n", .{self.paper_id});
+        try latex.writer(allocator).print("\\textbf{{Presentation:}} {s}", .{self.presentation_type});
+
+        if (self.session) |s| {
+            try latex.writer(allocator).print(", \\textbf{{Session:}} {s}", .{s});
+        }
+
+        if (self.room) |r| {
+            try latex.writer(allocator).print(", \\textbf{{Room:}} {s}", .{r});
+        }
+
+        try latex.writer(allocator).print("\n\n", .{});
+
+        // Include panel figure if available
+        if (self.panel_figure) |fig| {
+            const fig_latex = try fig.formatAsLaTeX(allocator);
+            defer allocator.free(fig_latex);
+            try latex.writer(allocator).print("{s}\n", .{fig_latex});
+        }
+
+        return latex.toOwnedSlice(allocator);
+    }
+};
+
+/// Extended scientific metadata for NeurIPS/ICLR/MLSys standards
+pub const ExtendedMetadata = struct {
+    /// Acknowledgments section
+    acknowledgments: ?[]const u8 = null,
+    /// Funding references
+    funding: ?[]const FundingReference = null,
+    /// Related work citations
+    related_work: ?[]const DataCite = null,
+    /// Broader impact statement
+    broader_impact: ?BroaderImpact = null,
+    /// Ethical considerations
+    ethical_considerations: ?EthicalConsiderations = null,
+    /// Reproducibility info
+    reproducibility: ?ReproducibilityInfo = null,
+    /// Citation graph
+    citation_graph: ?CitationGraph = null,
+
+    pub fn formatAsMarkdown(self: *const ExtendedMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var md = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer md.deinit(allocator);
+
+        if (self.acknowledgments) |ack| {
+            try md.writer(allocator).print("## Acknowledgments\n\n{s}\n\n", .{ack});
+        }
+
+        if (self.funding) |funding_list| {
+            try md.writer(allocator).print("## Funding\n\n", .{});
+            for (funding_list) |f| {
+                const statement = try f.formatAsStatement(allocator);
+                defer allocator.free(statement);
+                try md.writer(allocator).print("{s}\n\n", .{statement});
+            }
+        }
+
+        if (self.broader_impact) |bi| {
+            const bi_md = try bi.formatAsMarkdown(allocator);
+            defer allocator.free(bi_md);
+            try md.writer(allocator).print("{s}\n", .{bi_md});
+        }
+
+        if (self.ethical_considerations) |ethics| {
+            const ethics_md = try ethics.formatAsMarkdown(allocator);
+            defer allocator.free(ethics_md);
+            try md.writer(allocator).print("{s}\n", .{ethics_md});
+        }
+
+        if (self.reproducibility) |repro| {
+            const repro_md = try repro.formatAsMarkdown(allocator);
+            defer allocator.free(repro_md);
+            try md.writer(allocator).print("{s}\n", .{repro_md});
+        }
 
         return md.toOwnedSlice(allocator);
     }
@@ -3799,6 +4028,8 @@ pub const SubPanel = struct {
     label: ?[]const u8 = null,
     /// Width fraction (0.0-1.0)
     width_frac: f64 = 0.5,
+    /// Figure file (optional) for this panel
+    figure_file: ?FigureFile = null,
 };
 
 /// Multi-panel figure layout (2x2, 1x3, etc.)
@@ -3827,7 +4058,13 @@ pub const MultiPanelFigure = struct {
         for (self.panels) |panel| {
             try latex.writer(allocator).print("\\begin{{subfigure}}{{{d:.1}\\textwidth}}\n", .{panel.width_frac});
             try latex.writer(allocator).print("  \\centering\n", .{});
-            try latex.writer(allocator).print("  % TODO: Include figure file for panel ({s})\n", .{panel.panel_id});
+            // Include figure file if available
+            if (panel.figure_file) |ff| {
+                const width = if (ff.width) |w| w else "1.0\\textwidth";
+                try latex.writer(allocator).print("  \\includegraphics[width={s}]{{{s}}}\n", .{ width, ff.path });
+            } else {
+                try latex.writer(allocator).print("  % TODO: Add figure file for panel ({s})\n", .{panel.panel_id});
+            }
             try latex.writer(allocator).print("  \\caption{{{s}}}\n", .{panel.caption});
 
             if (panel.label) |lbl| {
@@ -6361,7 +6598,9 @@ pub const BibliographyBibtex = struct {
         try buffer.writer(allocator).writeAll("```bibtex\n");
 
         for (self.entries) |entry| {
-            try buffer.writer(allocator).print("@{s}{{{s}},\n", .{ entry.entry_type.toString(), entry.cite_key });
+            const entry_type_str = entry.entry_type.toString();
+            // BibTeX entry header: @article{cite_key,
+            try buffer.writer(allocator).print("@{s}{{{s},\n", .{ entry_type_str, entry.cite_key });
 
             try buffer.writer(allocator).print("  author = \"{s}\",\n", .{entry.author});
             try buffer.writer(allocator).print("  title = \"{s}\",\n", .{entry.title});
@@ -6386,7 +6625,6 @@ pub const BibliographyBibtex = struct {
             }
             if (entry.pages) |p| {
                 try buffer.writer(allocator).print("  pages = \"{s}\",\n", .{p});
-                try buffer.writer(allocator).writeAll("\",\n");
             }
             if (entry.doi) |doi| {
                 try buffer.writer(allocator).print("  doi = \"{s}\",\n", .{doi});
