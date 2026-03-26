@@ -5273,3 +5273,920 @@ test "MultiPanelFigure formatAsMarkdown" {
     try std.testing.expect(std.mem.indexOf(u8, md, "**Figure Multi-panel figure**") != null);
     try std.testing.expect(std.mem.indexOf(u8, md, "| (a) | Panel A | 50% |") != null);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13: CitationGraph — Bidirectional Citation Networks
+// ═══════════════════════════════════════════════════════════════════════════════
+
+pub const CitationType = enum {
+    cites, // This paper cites the reference
+    cited_by, // This paper is cited by the reference
+    extends, // This paper extends the reference
+    similar, // Similar approach/methodology
+    builds_on, // Builds upon foundation
+    contradicts, // Contradicts or disputes
+    survey_of, // Survey of the referenced work
+};
+
+pub const Citation = struct {
+    id: []const u8, // Citation ID (e.g., "cite:2025-smith")
+    title: []const u8,
+    authors: []const u8,
+    year: u32,
+    venue: ?[]const u8 = null, // Conference/journal name
+    doi: ?[]const u8 = null,
+    url: ?[]const u8 = null,
+    citation_type: CitationType,
+    notes: ?[]const u8 = null, // Brief description of relationship
+};
+
+pub const CitationGraph = struct {
+    paper_title: []const u8,
+    paper_id: []const u8,
+    citations: []const Citation,
+
+    pub fn formatAsLaTeX(self: *const CitationGraph, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.appendSlice("\\section{Citation Graph}\n\n");
+        try buffer.appendSlice("\\begin{figure}[htbp]\n");
+        try buffer.appendSlice("\\centering\n");
+        try buffer.appendSlice("\\begin{tikzpicture}[node distance=2cm, every node/.style={rectangle, draw, rounded corners, align=center, font=\\small}]\n\n");
+
+        // Add main paper node
+        try buffer.writer().print("  \\node[fill=blue!20] (main) {{{s}}};\n\n", .{self.paper_title});
+
+        // Group citations by type for layout
+        var cites_left: usize = 0;
+        var cites_right: usize = 0;
+        var extends_count: usize = 0;
+        var similar_count: usize = 0;
+
+        for (self.citations) |cit| {
+            switch (cit.citation_type) {
+                .cites, .builds_on => cites_left += 1,
+                .cited_by => cites_right += 1,
+                .extends => extends_count += 1,
+                .similar => similar_count += 1,
+                else => {},
+            }
+        }
+
+        // Position nodes by category
+        var left_idx: usize = 0;
+        var right_idx: usize = 0;
+        var extend_idx: usize = 0;
+        var similar_idx: usize = 0;
+
+        for (self.citations, 0..) |cit, i| {
+            const node_name = try std.fmt.allocPrint(allocator, "cite{d}", .{i});
+            defer allocator.free(node_name);
+
+            const short_title = if (cit.title.len > 40) cit.title[0..40] else cit.title;
+
+            switch (cit.citation_type) {
+                .cites, .builds_on => {
+                    try buffer.writer().print("  \\node[fill=green!10, below left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + left_idx * 0.8, node_name, short_title });
+                    try buffer.writer().print("  \\draw[->, thick] ({s}) -- (main);\n", .{node_name});
+                    left_idx += 1;
+                },
+                .cited_by => {
+                    try buffer.writer().print("  \\node[fill=yellow!10, below right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + right_idx * 0.8, node_name, short_title });
+                    try buffer.writer().print("  \\draw[->, thick] (main) -- ({s});\n", .{node_name});
+                    right_idx += 1;
+                },
+                .extends => {
+                    try buffer.writer().print("  \\node[fill=orange!10, above left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + extend_idx * 0.8, node_name, short_title });
+                    try buffer.writer().print("  \\draw[->, dashed, thick] ({s}) -- (main);\n", .{node_name});
+                    extend_idx += 1;
+                },
+                .similar => {
+                    try buffer.writer().print("  \\node[fill=purple!10, above right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + similar_idx * 0.8, node_name, short_title });
+                    try buffer.writer().print("  \\draw[<->, dotted, thick] (main) -- ({s});\n", .{node_name});
+                    similar_idx += 1;
+                },
+                .contradicts => {
+                    try buffer.writer().print("  \\node[fill=red!10, below=3cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
+                    try buffer.writer().print("  \\draw[->, red, very thick] (main) -- node[right] {{\\small disputes}} ({s});\n", .{node_name});
+                },
+                .survey_of => {
+                    try buffer.writer().print("  \\node[fill=cyan!10, above=2cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
+                    try buffer.writer().print("  \\draw[->, dashed] ({s}) -- (main);\n", .{node_name});
+                },
+            }
+        }
+
+        try buffer.appendSlice("\\end{tikzpicture}\n");
+        try buffer.writer().print("\\caption{{Citation graph for: {s}}}\n", .{self.paper_title});
+        try buffer.writer().print("\\label{{fig:citation-{s}}}\n", .{self.paper_id});
+        try buffer.appendSlice("\\end{figure}\n\n");
+
+        // Add text bibliography
+        try buffer.appendSlice("\\subsection*{Bibliography}\n\n");
+        for (self.citations) |cit| {
+            try buffer.writer().Print("\\textbf{{{s}}}. ", .{cit.id});
+            try buffer.writer().print("{s}. ", .{cit.authors});
+            try buffer.writer().print("{d}. ", .{cit.year});
+            if (cit.venue) |v| try buffer.writer().print("{s}. ", .{v});
+            if (cit.doi) |doi| try buffer.writer().print("DOI: \\href{{https://doi.org/{s}}}{{{s}}}. ", .{ doi, doi });
+            if (cit.url) |url| try buffer.writer().print("URL: \\href{{{s}}}{{{s}}}. ", .{ url, url });
+            if (cit.notes) |notes| try buffer.writer().print("\\textit{{{s}}}", .{notes});
+            try buffer.appendSlice("\n\n");
+        }
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn formatAsMarkdown(self: *const CitationGraph, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer().print("# Citation Graph: {s}\n\n", .{self.paper_title});
+
+        // Legend
+        try buffer.appendSlice("## Legend\n\n");
+        try buffer.appendSlice("| Symbol | Meaning |\n");
+        try buffer.appendSlice("|--------|---------|\n");
+        try buffer.appendSlice("| → Cites | This paper cites the reference |\n");
+        try buffer.appendSlice("| ← Cited by | This paper is cited by the reference |\n");
+        try buffer.appendSlice("| ⇒ Extends | This paper extends the reference |\n");
+        try buffer.appendSlice("| ↔ Similar | Similar approach/methodology |\n");
+        try buffer.appendSlice("| ↗ Builds on | Builds upon foundation |\n");
+        try buffer.appendSlice("| ✗ Contradicts | Contradicts or disputes |\n");
+        try buffer.appendSlice("| ↓ Survey | Survey of the referenced work |\n\n");
+
+        // Citations by type
+        try buffer.appendSlice("## Citations\n\n");
+
+        const types = [_]CitationType{
+            .cites,   .cited_by,    .extends,   .builds_on,
+            .similar, .contradicts, .survey_of,
+        };
+
+        for (types) |t| {
+            var has_type = false;
+            for (self.citations) |cit| {
+                if (cit.citation_type == t) {
+                    if (!has_type) {
+                        try buffer.writer().print("### {s}\n\n", .{@tagName(t)});
+                        has_type = true;
+                    }
+                    try buffer.writer().print("- **{s}**: {s} ({d})\n", .{ cit.id, cit.authors, cit.year });
+                    if (cit.venue) |v| try buffer.writer().print("  - *Venue*: {s}\n", .{v});
+                    if (cit.doi) |doi| try buffer.writer().print("  - *DOI*: [{s}](https://doi.org/{s})\n", .{ doi, doi });
+                    if (cit.url) |url| try buffer.writer().print("  - *URL*: {s}\n", .{url});
+                    if (cit.notes) |notes| try buffer.writer().print("  - *Notes*: {s}\n", .{notes});
+                    try buffer.appendSlice("\n");
+                }
+            }
+        }
+
+        return buffer.toOwnedSlice();
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13: SupplementaryCode — Complete Code Listings for Reproducibility
+// ═══════════════════════════════════════════════════════════════════════════════
+
+pub const CodeFile = struct {
+    path: []const u8,
+    description: []const u8,
+    language: []const u8, // "zig", "python", "verilog", etc.
+    lines_of_code: ?u32 = null,
+    is_entrypoint: bool = false,
+};
+
+pub const SupplementaryCode = struct {
+    title: []const u8,
+    description: []const u8,
+    repository_url: ?[]const u8 = null,
+    commit_hash: ?[]const u8 = null,
+    license: ?[]const u8 = null,
+    files: []const CodeFile,
+    total_loc: u32,
+
+    pub fn formatAsLaTeX(self: *const SupplementaryCode, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.appendSlice("\\section*{Supplementary Material: Code Listing}\n\n");
+        try buffer.writer().print("\\subsection*{{{s}}}\n\n", .{self.title});
+        try buffer.writer().print("{s}\n\n", .{self.description});
+
+        if (self.repository_url) |url| {
+            try buffer.appendSlice("\\textbf{Repository:} \\href{");
+            try buffer.appendSlice(url);
+            try buffer.appendSlice("}{");
+            try buffer.appendSlice(url);
+            try buffer.appendSlice("}\n\n");
+        }
+
+        if (self.commit_hash) |hash| {
+            try buffer.writer().print("\\textbf{Commit:} \\texttt{{{s}}}\n\n", .{hash});
+        }
+
+        if (self.license) |lic| {
+            try buffer.writer().print("\\textbf{License:} {s}\n\n", .{lic});
+        }
+
+        try buffer.writer().print("\\textbf{Total Lines of Code:} {d}\\n\n", .{self.total_loc});
+
+        try buffer.appendSlice("\\subsection*{File Structure}\n\n");
+        try buffer.appendSlice("\\begin{itemize}\n");
+
+        for (self.files) |file| {
+            if (file.is_entrypoint) {
+                try buffer.appendSlice("  \\item ");
+                try buffer.appendSlice("\\textbf{");
+                try buffer.appendSlice(file.path);
+                try buffer.appendSlice("} (entrypoint)");
+            } else {
+                try buffer.writer().print("  \\item \\texttt{{{s}}}", .{file.path});
+            }
+            if (file.lines_of_code) |loc| {
+                try buffer.writer().print(" ({d} LOC)", .{loc});
+            }
+            try buffer.writer().print(" -- {s}\n", .{file.description});
+        }
+
+        try buffer.appendSlice("\\end{itemize}\n\n");
+
+        // File listing table
+        try buffer.appendSlice("\\subsection*{File Listing}\n\n");
+        try buffer.appendSlice("\\begin{longtable}{p{0.35\\textwidth}p{0.15\\textwidth}p{0.1\\textwidth}p{0.3\\textwidth}}\n");
+        try buffer.appendSlice("\\toprule\n");
+        try buffer.appendSlice("\\textbf{Path} & \\textbf{Language} & \\textbf{LOC} & \\textbf{Description} \\\\\n");
+        try buffer.appendSlice("\\midrule\n");
+        try buffer.appendSlice("\\endhead\n");
+        try buffer.appendSlice("\\bottomrule\n");
+        try buffer.appendSlice("\\end{longtable}\n\n");
+
+        for (self.files) |file| {
+            try buffer.writer().print("\\texttt{{{s}}} & {s} & ", .{ file.path, file.language });
+            if (file.lines_of_code) |loc| {
+                try buffer.writer().print("{d}", .{loc});
+            } else {
+                try buffer.appendSlice("N/A");
+            }
+            try buffer.writer().print(" & {s} \\\\\n", .{file.description});
+        }
+
+        try buffer.appendSlice("\\end{longtable}\n\n");
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn formatAsMarkdown(self: *const SupplementaryCode, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer().print("# Supplementary Material: {s}\n\n", .{self.title});
+        try buffer.writer().print("{s}\n\n", .{self.description});
+
+        if (self.repository_url) |url| {
+            try buffer.writer().print("**Repository:** [{s}]({s})\n\n", .{ url, url });
+        }
+
+        if (self.commit_hash) |hash| {
+            try buffer.writer().print("**Commit:** `{s}`\n\n", .{hash});
+        }
+
+        if (self.license) |lic| {
+            try buffer.writer().print("**License:** {s}\n\n", .{lic});
+        }
+
+        try buffer.writer().print("**Total Lines of Code:** {d}\n\n", .{self.total_loc});
+
+        try buffer.appendSlice("## File Structure\n\n");
+
+        for (self.files) |file| {
+            if (file.is_entrypoint) {
+                try buffer.writer().print("- **`{s}`** ⭐ (entrypoint) -- {s}\n", .{ file.path, file.description });
+            } else {
+                try buffer.writer().print("- **`{s}`** -- {s}\n", .{ file.path, file.description });
+            }
+            if (file.lines_of_code) |loc| {
+                try buffer.writer().print("  - Language: {s}, LOC: {d}\n", .{ file.language, loc });
+            } else {
+                try buffer.writer().print("  - Language: {s}\n", .{file.language});
+            }
+        }
+
+        try buffer.appendSlice("\n## File Listing Table\n\n");
+        try buffer.appendSlice("| Path | Language | LOC | Description |\n");
+        try buffer.appendSlice("|------|----------|-----|-------------|\n");
+
+        for (self.files) |file| {
+            try buffer.writer().print("| `{s}` | {s} | ", .{ file.path, file.language });
+            if (file.lines_of_code) |loc| {
+                try buffer.writer().print("{d}", .{loc});
+            } else {
+                try buffer.appendSlice("N/A");
+            }
+            try buffer.writer().print(" | {s} |\n", .{file.description});
+        }
+
+        return buffer.toOwnedSlice();
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13: ExperimentConfig — Hyperparameter Sweep Documentation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+pub const SweepParameter = struct {
+    name: []const u8,
+    values: []const []const u8, // String representation of values
+    default_value: []const u8,
+    scale: []const u8, // "linear", "log", "ordinal"
+};
+
+pub const ExperimentCondition = struct {
+    name: []const u8,
+    parameters: []const []const u8, // Key-value pairs as ["param=value"]
+    results: ?[]const u8 = null, // JSON or similar
+};
+
+pub const ExperimentConfig = struct {
+    experiment_name: []const u8,
+    description: []const u8,
+    objective: []const u8, // "minimize", "maximize", "target"
+    target_metric: []const u8,
+    sweep_parameters: []const SweepParameter,
+    conditions: []const ExperimentCondition,
+    total_conditions: u32,
+    best_condition: ?u32 = null, // Index into conditions
+
+    pub fn formatAsLaTeX(self: *const ExperimentConfig, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.appendSlice("\\section*{Experiment Configuration}\n\n");
+        try buffer.writer().print("\\subsection*{{{s}}}\n\n", .{self.experiment_name});
+        try buffer.writer().print("{s}\n\n", .{self.description});
+
+        try buffer.appendSlice("\\textbf{Objective:} ");
+        try buffer.writer().print("{s} {s}\n\n", .{ self.objective, self.target_metric });
+
+        // Sweep parameters table
+        try buffer.appendSlice("\\subsection*{Sweep Parameters}\n\n");
+        try buffer.appendSlice("\\begin{table}[htbp]\n");
+        try buffer.appendSlice("\\centering\n");
+        try buffer.appendSlice("\\begin{tabular}{p{0.2\\textwidth}p{0.35\\textwidth}p{0.15\\textwidth}p{0.15\\textwidth}}\n");
+        try buffer.appendSlice("\\toprule\n");
+        try buffer.appendSlice("\\textbf{Parameter} & \\textbf{Values} & \\textbf{Default} & \\textbf{Scale} \\\\\n");
+        try buffer.appendSlice("\\midrule\n");
+
+        for (self.sweep_parameters) |param| {
+            try buffer.writer().print("\\texttt{{{s}}} & ", .{param.name});
+
+            // Format values as comma-separated list
+            if (param.values.len <= 3) {
+                for (param.values, 0..) |v, j| {
+                    try buffer.appendSlice(v);
+                    if (j < param.values.len - 1) try buffer.appendSlice(", ");
+                }
+            } else {
+                try buffer.writer().print("{d} values", .{param.values.len});
+            }
+            try buffer.writer().print(" & {s} & {s} \\\\\n", .{ param.default_value, param.scale });
+        }
+
+        try buffer.appendSlice("\\bottomrule\n");
+        try buffer.appendSlice("\\end{tabular}\n");
+        try buffer.writer().print("\\caption{{Sweep parameters for {s}}}\n", .{self.experiment_name});
+        try buffer.appendSlice("\\end{table}\n\n");
+
+        // Experiment conditions
+        try buffer.appendSlice("\\subsection*{Experiment Conditions}\n\n");
+        try buffer.writer().print("Total conditions: {d}\\n\n", .{self.total_conditions});
+
+        if (self.conditions.len > 0) {
+            try buffer.appendSlice("\\begin{table}[htbp]\n");
+            try buffer.appendSlice("\\centering\n");
+            try buffer.appendSlice("\\small\n");
+            try buffer.appendSlice("\\begin{tabular}{");
+            // Create column for each parameter + result column
+            for (self.sweep_parameters) |_| {
+                try buffer.appendSlice("l");
+            }
+            try buffer.appendSlice("l}\n");
+            try buffer.appendSlice("\\toprule\n");
+
+            // Header row
+            for (self.sweep_parameters) |param| {
+                try buffer.writer().print("& \\textbf{{{s}}} ", .{param.name});
+            }
+            try buffer.appendSlice("& \\textbf{Result} \\\\\n");
+            try buffer.appendSlice("\\midrule\n");
+
+            // Data rows (first 10 conditions)
+            const max_rows = @min(self.conditions.len, 10);
+            for (self.conditions[0..max_rows]) |cond| {
+                for (cond.parameters, 0..) |kv, j| {
+                    if (j > 0) try buffer.appendSlice(" & ");
+                    try buffer.appendSlice(kv);
+                }
+                if (self.best_condition) |best| {
+                    if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
+                        try buffer.appendSlice(" & \\textbf{");
+                        if (cond.results) |r| try buffer.appendSlice(r);
+                        try buffer.appendSlice("} \\\\\n");
+                    } else {
+                        try buffer.writer().print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
+                    }
+                } else {
+                    try buffer.writer().print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
+                }
+            }
+
+            try buffer.appendSlice("\\bottomrule\n");
+            try buffer.appendSlice("\\end{tabular}\n");
+            try buffer.writer().print("\\caption{{Experiment conditions for {s} (showing first {d}/{d})}}\n", .{ self.experiment_name, max_rows, self.conditions.len });
+            try buffer.appendSlice("\\end{table}\n\n");
+        }
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn formatAsMarkdown(self: *const ExperimentConfig, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer().print("# Experiment Configuration: {s}\n\n", .{self.experiment_name});
+        try buffer.writer().print("{s}\n\n", .{self.description});
+
+        try buffer.writer().print("**Objective:** {s} {s}\n\n", .{ self.objective, self.target_metric });
+
+        // Sweep parameters
+        try buffer.appendSlice("## Sweep Parameters\n\n");
+        try buffer.appendSlice("| Parameter | Values | Default | Scale |\n");
+        try buffer.appendSlice("|-----------|--------|---------|-------|\n");
+
+        for (self.sweep_parameters) |param| {
+            try buffer.writer().print("| `{s}` | ", .{param.name});
+
+            if (param.values.len <= 3) {
+                for (param.values, 0..) |v, j| {
+                    try buffer.appendSlice(v);
+                    if (j < param.values.len - 1) try buffer.appendSlice(", ");
+                }
+            } else {
+                try buffer.writer().print("{d} values", .{param.values.len});
+            }
+            try buffer.writer().print(" | {s} | {s} |\n", .{ param.default_value, param.scale });
+        }
+
+        // Experiment conditions
+        try buffer.appendSlice("\n## Experiment Conditions\n\n");
+        try buffer.writer().print("**Total conditions:** {d}\n\n", .{self.total_conditions});
+
+        if (self.conditions.len > 0) {
+            // Build table header
+            try buffer.appendSlice("| ");
+            for (self.sweep_parameters) |param| {
+                try buffer.writer().print("{s} | ", .{param.name});
+            }
+            try buffer.appendSlice("Result |\n");
+            try buffer.appendSlice("|");
+            for (self.sweep_parameters) |_| {
+                try buffer.appendSlice("---|");
+            }
+            try buffer.appendSlice("---|\n");
+
+            // Data rows
+            const max_rows = @min(self.conditions.len, 20);
+            for (self.conditions[0..max_rows]) |cond| {
+                try buffer.appendSlice("| ");
+                for (cond.parameters) |kv| {
+                    try buffer.writer().print("{s} | ", .{kv});
+                }
+                if (self.best_condition) |best| {
+                    if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
+                        try buffer.writer().print("**{s}** |\n", .{cond.results orelse "N/A"});
+                    } else {
+                        try buffer.writer().print("{s} |\n", .{cond.results orelse "N/A"});
+                    }
+                } else {
+                    try buffer.writer().print("{s} |\n", .{cond.results orelse "N/A"});
+                }
+            }
+
+            if (self.conditions.len > max_rows) {
+                try buffer.writer().print("\n*... and {d} more conditions*\n", .{self.conditions.len - max_rows});
+            }
+        }
+
+        return buffer.toOwnedSlice();
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13: ReviewResponse — Generator for Addressing Reviewer Comments
+// ═══════════════════════════════════════════════════════════════════════════════
+
+pub const ReviewComment = struct {
+    reviewer_id: []const u8, // "Reviewer 1", "Reviewer 2", etc.
+    comment_number: u32,
+    comment_text: []const u8,
+    response: []const u8,
+    action: ResponseAction,
+    location_in_paper: ?[]const u8 = null, // "Section 3.2", "Figure 2", etc.
+    references: ?[]const []const u8 = null, // Related papers or sections
+};
+
+pub const ResponseAction = enum {
+    accepted, // Fully accepted suggestion
+    partially_accepted, // Partially accepted
+    rejected, // Rejected with explanation
+    deferred, // Deferred to future work
+    clarified, // Clarified existing text
+    added_experiment, // Added new experiment
+};
+
+pub const ReviewResponse = struct {
+    paper_title: []const u8,
+    submission_id: []const u8,
+    venue: []const u8,
+    round: u32, // Review round (1, 2, ...)
+    comments: []const ReviewComment,
+    summary_of_changes: []const u8,
+
+    pub fn formatAsLaTeX(self: *const ReviewResponse, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.appendSlice("\\section*{Response to Reviewers}\n\n");
+        try buffer.writer().print("\\textbf{Paper:} {s}\\\\\n", .{self.paper_title});
+        try buffer.writer().print("\\textbf{Submission ID:} {s}\\\\\n", .{self.submission_id});
+        try buffer.writer().print("\\textbf{Venue:} {s}\\\\\n", .{self.venue});
+        try buffer.writer().print("\\textbf{Round:} {d}\\n\n", .{self.round});
+
+        try buffer.appendSlice("\\subsection*{Summary of Changes}\n\n");
+        try buffer.writer().print("{s}\n\n", .{self.summary_of_changes});
+
+        try buffer.appendSlice("\\subsection*{Detailed Responses}\n\n");
+
+        var current_reviewer: []const u8 = "";
+        for (self.comments) |comment| {
+            // New reviewer section
+            if (!std.mem.eql(u8, current_reviewer, comment.reviewer_id)) {
+                if (!std.mem.eql(u8, current_reviewer, "")) {
+                    try buffer.appendSlice("\\vspace{0.5cm}\n");
+                }
+                current_reviewer = comment.reviewer_id;
+                try buffer.writer().print("\\subsubsection*{{{s}}}\n\n", .{comment.reviewer_id});
+            }
+
+            try buffer.writer().print("\\textbf{{Comment {d}:}} ", .{comment.comment_number});
+            if (comment.location_in_paper) |loc| {
+                try buffer.writer().print("(\\textit{{{s}}}) ", .{loc});
+            }
+            try buffer.appendSlice("\n\n");
+            try buffer.writer().print("{s}\n\n", .{comment.comment_text});
+
+            try buffer.appendSlice("\\textbf{Response:} ");
+            const action_symbol = switch (comment.action) {
+                .accepted => "\\textcolor{green!60!black}{\\checkmark Accepted}",
+                .partially_accepted => "\\textcolor{orange}{\\sim Partially Accepted}",
+                .rejected => "\\textcolor{red}{\\times Rejected}",
+                .deferred => "\\textcolor{blue}{\\rightarrow Deferred}",
+                .clarified => "\\textcolor{cyan}{\\textbullet Clarified}",
+                .added_experiment => "\\textcolor{green!60!black}{+ Added Experiment}",
+            };
+            try buffer.writer().print("{s}\n\n", .{action_symbol});
+            try buffer.writer().print("{s}\n\n", .{comment.response});
+
+            if (comment.references) |refs| {
+                if (refs.len > 0) {
+                    try buffer.appendSlice("\\textit{References:} ");
+                    for (refs, 0..) |ref, j| {
+                        try buffer.writer().print("[{s}]", .{ref});
+                        if (j < refs.len - 1) try buffer.appendSlice(", ");
+                    }
+                    try buffer.appendSlice("\n\n");
+                }
+            }
+        }
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn formatAsMarkdown(self: *const ReviewResponse, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer().print("# Response to Reviewers\n\n", .{});
+        try buffer.writer().print("**Paper:** {s}  \n", .{self.paper_title});
+        try buffer.writer().print("**Submission ID:** {s}  \n", .{self.submission_id});
+        try buffer.writer().print("**Venue:** {s}  \n", .{self.venue});
+        try buffer.writer().print("**Round:** {d}\n\n", .{self.round});
+
+        try buffer.appendSlice("## Summary of Changes\n\n");
+        try buffer.writer().print("{s}\n\n", .{self.summary_of_changes});
+
+        try buffer.appendSlice("## Detailed Responses\n\n");
+
+        var current_reviewer: []const u8 = "";
+        for (self.comments) |comment| {
+            if (!std.mem.eql(u8, current_reviewer, comment.reviewer_id)) {
+                current_reviewer = comment.reviewer_id;
+                try buffer.writer().print("### {s}\n\n", .{comment.reviewer_id});
+            }
+
+            try buffer.writer().print("#### Comment {d}\n\n", .{comment.comment_number});
+            if (comment.location_in_paper) |loc| {
+                try buffer.writer().print("*Location: {s}*\n\n", .{loc});
+            }
+            try buffer.writer().print("**Comment:**\n\n{s}\n\n", .{comment.comment_text});
+
+            const action_badge = switch (comment.action) {
+                .accepted => "✅ Accepted",
+                .partially_accepted => "🟡 Partially Accepted",
+                .rejected => "❌ Rejected",
+                .deferred => "⏭️ Deferred",
+                .clarified => "💡 Clarified",
+                .added_experiment => "🧪 Added Experiment",
+            };
+            try buffer.writer().print("**Response:** {s}\n\n{s}\n\n", .{ action_badge, comment.response });
+
+            if (comment.references) |refs| {
+                if (refs.len > 0) {
+                    try buffer.appendSlice("**References:** ");
+                    for (refs, 0..) |ref, j| {
+                        try buffer.writer().print("[{s}]", .{ref});
+                        if (j < refs.len - 1) try buffer.appendSlice(", ");
+                    }
+                    try buffer.appendSlice("\n\n");
+                }
+            }
+        }
+
+        return buffer.toOwnedSlice();
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13: Tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "CitationGraph formatAsLaTeX" {
+    const citations = [_]Citation{
+        .{
+            .id = "vasilev2024",
+            .title = "Trinity S³AI: A Novel Architecture for Autonomous AI",
+            .authors = "D. Vasilev et al.",
+            .year = 2024,
+            .venue = "arXiv",
+            .doi = "10.48550/arxiv.2024",
+            .citation_type = .builds_on,
+            .notes = "Foundation architecture",
+        },
+        .{
+            .id = "hinton2023",
+            .title = "The Forward-Forward Algorithm",
+            .authors = "G. Hinton",
+            .year = 2023,
+            .venue = "NeurIPS",
+            .citation_type = .similar,
+        },
+    };
+
+    const graph = CitationGraph{
+        .paper_title = "HSLM Ternary Language Models",
+        .paper_id = "hslm2025",
+        .citations = &citations,
+    };
+
+    const latex = try graph.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section{Citation Graph}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\node[fill=blue!20]") != null);
+}
+
+test "CitationGraph formatAsMarkdown" {
+    const citations = [_]Citation{
+        .{
+            .id = "test2024",
+            .title = "Test Paper",
+            .authors = "A. Author",
+            .year = 2024,
+            .citation_type = .cites,
+        },
+    };
+
+    const graph = CitationGraph{
+        .paper_title = "Our Paper",
+        .paper_id = "our2025",
+        .citations = &citations,
+    };
+
+    const md = try graph.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "# Citation Graph") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "| → Cites |") != null);
+}
+
+test "SupplementaryCode formatAsLaTeX" {
+    const files = [_]CodeFile{
+        .{
+            .path = "src/vsa.zig",
+            .description = "Core VSA operations",
+            .language = "zig",
+            .lines_of_code = 500,
+            .is_entrypoint = false,
+        },
+        .{
+            .path = "src/tri/main.zig",
+            .description = "Main entry point",
+            .language = "zig",
+            .lines_of_code = 100,
+            .is_entrypoint = true,
+        },
+    };
+
+    const sup = SupplementaryCode{
+        .title = "Trinity Core Code",
+        .description = "Complete implementation of VSA and TRI-27",
+        .repository_url = "https://github.com/gHashTag/trinity",
+        .commit_hash = "abc123",
+        .license = "MIT",
+        .files = &files,
+        .total_loc = 600,
+    };
+
+    const latex = try sup.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{Supplementary Material") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "src/vsa.zig") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "(entrypoint)") != null);
+}
+
+test "SupplementaryCode formatAsMarkdown" {
+    const files = [_]CodeFile{
+        .{
+            .path = "src/core.zig",
+            .description = "Core module",
+            .language = "zig",
+            .lines_of_code = 200,
+        },
+    };
+
+    const sup = SupplementaryCode{
+        .title = "Code Listing",
+        .description = "Source code",
+        .files = &files,
+        .total_loc = 200,
+    };
+
+    const md = try sup.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "# Supplementary Material") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "`src/core.zig`") != null);
+}
+
+test "ExperimentConfig formatAsLaTeX" {
+    const params = [_]SweepParameter{
+        .{
+            .name = "learning_rate",
+            .values = &[_][]const u8{ "0.001", "0.0001", "0.00001" },
+            .default_value = "0.0001",
+            .scale = "log",
+        },
+        .{
+            .name = "batch_size",
+            .values = &[_][]const u8{ "32", "64", "128" },
+            .default_value = "64",
+            .scale = "linear",
+        },
+    };
+
+    const conds = [_]ExperimentCondition{
+        .{
+            .name = "cond1",
+            .parameters = &[_][]const u8{ "lr=0.001", "bs=32" },
+            .results = "ppl=12.5",
+        },
+    };
+
+    const config = ExperimentConfig{
+        .experiment_name = "HSLM Hyperparameter Sweep",
+        .description = "Grid search over learning rate and batch size",
+        .objective = "minimize",
+        .target_metric = "validation perplexity",
+        .sweep_parameters = &params,
+        .conditions = &conds,
+        .total_conditions = 9,
+    };
+
+    const latex = try config.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{Experiment Configuration}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "learning_rate") != null);
+}
+
+test "ExperimentConfig formatAsMarkdown" {
+    const params = [_]SweepParameter{
+        .{
+            .name = "lr",
+            .values = &[_][]const u8{ "0.01", "0.001" },
+            .default_value = "0.001",
+            .scale = "log",
+        },
+    };
+
+    const conds = [_]ExperimentCondition{
+        .{
+            .name = "c1",
+            .parameters = &[_][]const u8{"lr=0.01"},
+            .results = "acc=0.85",
+        },
+    };
+
+    const config = ExperimentConfig{
+        .experiment_name = "Test Sweep",
+        .description = "Test",
+        .objective = "maximize",
+        .target_metric = "accuracy",
+        .sweep_parameters = &params,
+        .conditions = &conds,
+        .total_conditions = 2,
+    };
+
+    const md = try config.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "# Experiment Configuration") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "| `lr` |") != null);
+}
+
+test "ReviewResponse formatAsLaTeX" {
+    const comments = [_]ReviewComment{
+        .{
+            .reviewer_id = "Reviewer 1",
+            .comment_number = 1,
+            .comment_text = "Please clarify the methodology in Section 3.",
+            .response = "We added a detailed explanation in Section 3.2.",
+            .action = .clarified,
+            .location_in_paper = "Section 3.2",
+        },
+        .{
+            .reviewer_id = "Reviewer 2",
+            .comment_number = 1,
+            .comment_text = "Consider adding an ablation study.",
+            .response = "We added Table 4 with ablation results.",
+            .action = .added_experiment,
+        },
+    };
+
+    const response = ReviewResponse{
+        .paper_title = "HSLM: Ternary Language Models",
+        .submission_id = "1234",
+        .venue = "ICLR 2025",
+        .round = 1,
+        .comments = &comments,
+        .summary_of_changes = "Major revisions: added ablation study, clarified methodology.",
+    };
+
+    const latex = try response.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{Response to Reviewers}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\checkmark Accepted") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Clarified") != null);
+}
+
+test "ReviewResponse formatAsMarkdown" {
+    const comments = [_]ReviewComment{
+        .{
+            .reviewer_id = "Reviewer 1",
+            .comment_number = 1,
+            .comment_text = "Good paper, accept.",
+            .response = "Thank you for the positive feedback.",
+            .action = .accepted,
+        },
+    };
+
+    const response = ReviewResponse{
+        .paper_title = "Test Paper",
+        .submission_id = "1",
+        .venue = "NeurIPS",
+        .round = 1,
+        .comments = &comments,
+        .summary_of_changes = "Minor revisions.",
+    };
+
+    const md = try response.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "# Response to Reviewers") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "✅ Accepted") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "#### Comment 1") != null);
+}

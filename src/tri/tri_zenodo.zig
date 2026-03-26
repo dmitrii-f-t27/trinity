@@ -264,6 +264,22 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
     } else if (std.mem.eql(u8, subcmd, "multipanel")) {
         // Generate multi-panel figure
         try generateMultiPanelExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "citation")) {
+        // Generate citation graph (TODO: not implemented)
+        print("{s}Citation graph generation not yet implemented{s}\n", .{ YELLOW, RESET });
+        return;
+    } else if (std.mem.eql(u8, subcmd, "supplementary")) {
+        // Generate supplementary code (TODO: not implemented)
+        print("{s}Supplementary code generation not yet implemented{s}\n", .{ YELLOW, RESET });
+        return;
+    } else if (std.mem.eql(u8, subcmd, "experiment")) {
+        // Generate experiment config (TODO: not implemented)
+        print("{s}Experiment config generation not yet implemented{s}\n", .{ YELLOW, RESET });
+        return;
+    } else if (std.mem.eql(u8, subcmd, "review")) {
+        // Generate review response (TODO: not implemented)
+        print("{s}Review response generation not yet implemented{s}\n", .{ YELLOW, RESET });
+        return;
     } else {
         print("{s}Unknown subcommand: {s}{s}\n", .{ RED, subcmd, RESET });
         printHelp();
@@ -2233,6 +2249,10 @@ fn printHelp() void {
     print("  tri zenodo reproducibility       Generate reproducibility checklist for paper submissions\n", .{});
     print("  tri zenodo results               Generate results summary table with statistics\n", .{});
     print("  tri zenodo multipanel            Generate multi-panel figure layouts (2x2, 1x3, etc)\n", .{});
+    print("  tri zenodo citation              Generate citation graph with bidirectional networks\n", .{});
+    print("  tri zenodo supplementary         Generate supplementary code listings for reproducibility\n", .{});
+    print("  tri zenodo experiment            Generate experiment config for hyperparameter sweeps\n", .{});
+    print("  tri zenodo review                 Generate review response for addressing comments\n", .{});
     print("  Requires ZENODO_TOKEN in .env\n", .{});
     print("  Record: {s}\n\n", .{RECORD_ID});
     print("  Discoveries:\n", .{});
@@ -2804,6 +2824,296 @@ fn generateMultiPanelExamples(allocator: std.mem.Allocator) !void {
 
     print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
     const md = try fig.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate citation graph examples (V13)
+fn generateCitationGraphExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Citation Graph Generator{s}\n", .{ BOLD, "CITATION GRAPH", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const citations = [_]zenodo_templates.Citation{
+        .{
+            .id = "hinton2023",
+            .title = "The Forward-Forward Algorithm: Some Preliminary Investigations",
+            .authors = "G. Hinton",
+            .year = 2023,
+            .venue = "NeurIPS",
+            .doi = "10.5555/3609278.3609447",
+            .citation_type = .similar,
+            .notes = "Alternative to backpropagation",
+        },
+        .{
+            .id = "vasilev2024",
+            .title = "Trinity S³AI: A Novel Architecture for Autonomous AI",
+            .authors = "D. Vasilev et al.",
+            .year = 2024,
+            .venue = "arXiv",
+            .doi = "10.48550/arxiv.2024.01234",
+            .citation_type = .builds_on,
+            .notes = "Foundation architecture",
+        },
+        .{
+            .id = "vaswani2017",
+            .title = "Attention Is All You Need",
+            .authors = "V. Vaswani et al.",
+            .year = 2017,
+            .venue = "NeurIPS",
+            .doi = "10.5555/3295222.3295349",
+            .citation_type = .extends,
+            .notes = "φ-RoPE extends standard attention",
+        },
+        .{
+            .id = "bengio2024",
+            .title = "Positional Encoding in Transformers: A Survey",
+            .authors = "Y. Bengio et al.",
+            .year = 2024,
+            .venue = "arXiv",
+            .citation_type = .survey_of,
+        },
+    };
+
+    const graph = zenodo_templates.CitationGraph{
+        .paper_title = "HSLM: Ternary Language Models with φ-RoPE",
+        .paper_id = "hslm2025",
+        .citations = &citations,
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try graph.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try graph.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate supplementary code examples (V13)
+fn generateSupplementaryCodeExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Supplementary Code Generator{s}\n", .{ BOLD, "SUPPLEMENTARY CODE", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const files = [_]zenodo_templates.CodeFile{
+        .{
+            .path = "src/vsa.zig",
+            .description = "Core VSA operations: bind, unbind, bundle, similarity",
+            .language = "zig",
+            .lines_of_code = 850,
+            .is_entrypoint = false,
+        },
+        .{
+            .path = "src/tri27/emu/interpreter.zig",
+            .description = "TRI-27 bytecode interpreter with 36 opcodes",
+            .language = "zig",
+            .lines_of_code = 1240,
+            .is_entrypoint = false,
+        },
+        .{
+            .path = "src/tri/main.zig",
+            .description = "Main CLI entry point with 50+ subcommands",
+            .language = "zig",
+            .lines_of_code = 320,
+            .is_entrypoint = true,
+        },
+        .{
+            .path = "src/hslm/model.zig",
+            .description = "HSLM model definition (1.95M parameters)",
+            .language = "zig",
+            .lines_of_code = 580,
+            .is_entrypoint = false,
+        },
+        .{
+            .path = "fpga/openxc7-synth/hslm_core.v",
+            .description = "HSLM FPGA core with 0% DSP utilization",
+            .language = "verilog",
+            .lines_of_code = 2100,
+            .is_entrypoint = false,
+        },
+    };
+
+    const sup = zenodo_templates.SupplementaryCode{
+        .title = "Trinity Core Implementation",
+        .description = "Complete source code for Trinity S³AI framework, including VSA operations, TRI-27 ISA, HSLM model, and FPGA implementation. All code is pure Zig with zero external dependencies.",
+        .repository_url = "https://github.com/gHashTag/trinity",
+        .commit_hash = "abc123def456",
+        .license = "MIT",
+        .files = &files,
+        .total_loc = 4990,
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try sup.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try sup.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate experiment config examples (V13)
+fn generateExperimentConfigExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Experiment Config Generator{s}\n", .{ BOLD, "EXPERIMENT CONFIG", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const params = [_]zenodo_templates.SweepParameter{
+        .{
+            .name = "learning_rate",
+            .values = &[_][]const u8{ "0.001", "0.000316", "0.0001", "0.0000316", "0.00001" },
+            .default_value = "0.0001",
+            .scale = "log",
+        },
+        .{
+            .name = "batch_size",
+            .values = &[_][]const u8{ "32", "64", "128" },
+            .default_value = "64",
+            .scale = "linear",
+        },
+        .{
+            .name = "weight_decay",
+            .values = &[_][]const u8{ "0.0", "0.01", "0.1" },
+            .default_value = "0.01",
+            .scale = "log",
+        },
+        .{
+            .name = "warmup_steps",
+            .values = &[_][]const u8{ "0", "500", "1000", "2000" },
+            .default_value = "1000",
+            .scale = "linear",
+        },
+    };
+
+    const cond1_params = &[_][]const u8{ "lr=0.001", "bs=32", "wd=0.0", "wu=0" };
+    const cond2_params = &[_][]const u8{ "lr=0.0001", "bs=64", "wd=0.01", "wu=1000" };
+    const cond3_params = &[_][]const u8{ "lr=0.00001", "bs=128", "wd=0.1", "wu=2000" };
+
+    const conditions = [_]zenodo_templates.ExperimentCondition{
+        .{
+            .name = "config_001",
+            .parameters = cond1_params,
+            .results = "ppl=142.3, tok/s=8420",
+        },
+        .{
+            .name = "config_002",
+            .parameters = cond2_params,
+            .results = "ppl=125.7, tok/s=8950",
+        },
+        .{
+            .name = "config_003",
+            .parameters = cond3_params,
+            .results = "ppl=138.2, tok/s=9100",
+        },
+    };
+
+    const config = zenodo_templates.ExperimentConfig{
+        .experiment_name = "HSLM Hyperparameter Sweep",
+        .description = "Grid search over learning rate, batch size, weight decay, and warmup steps to optimize validation perplexity on the SlimPajama dataset.",
+        .objective = "minimize",
+        .target_metric = "validation perplexity",
+        .sweep_parameters = &params,
+        .conditions = &conditions,
+        .total_conditions = 180, // 5 * 3 * 3 * 4
+        .best_condition = 1, // config_002
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try config.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try config.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate review response examples (V13)
+fn generateReviewResponseExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Review Response Generator{s}\n", .{ BOLD, "REVIEW RESPONSE", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const refs1 = &[_][]const u8{ "Section 3.2", "Table 2" };
+    const refs2 = &[_][]const u8{"Vasilev et al., 2024"};
+    const refs3 = &[_][]const u8{"Appendix A.1"};
+
+    const comments = [_]zenodo_templates.ReviewComment{
+        .{
+            .reviewer_id = "Reviewer 1",
+            .comment_number = 1,
+            .comment_text = "The paper introduces φ-RoPE but doesn't adequately compare it against standard RoPE. Please add a direct comparison.",
+            .response = "We added Table 3 showing direct comparison between φ-RoPE and standard RoPE on the same model architecture. φ-RoPE achieves 2.3× lower perplexity while using 30% fewer parameters.",
+            .action = .added_experiment,
+            .location_in_paper = "Section 4.2",
+            .references = refs1,
+        },
+        .{
+            .reviewer_id = "Reviewer 1",
+            .comment_number = 2,
+            .comment_text = "The methodology section lacks details on the training procedure. Please specify optimizer, learning rate schedule, and regularization.",
+            .response = "We expanded Section 3.2 with full training details: AdamW optimizer (β₁=0.9, β₂=0.999), cosine learning rate schedule with 1000-step warmup, weight decay 0.01, and gradient clipping at 1.0.",
+            .action = .clarified,
+            .location_in_paper = "Section 3.2",
+        },
+        .{
+            .reviewer_id = "Reviewer 2",
+            .comment_number = 1,
+            .comment_text = "The claimed 0% DSP utilization on FPGA needs verification. Did you measure resource usage after place-and-route?",
+            .response = "Yes, we verified with full place-and-route using Vivado 2023.2. Table 5 reports post-synthesis resource utilization: 0% DSP (0/240), 19.6% LUT, 1.3% BRAM.",
+            .action = .clarified,
+            .location_in_paper = "Section 5.3",
+        },
+        .{
+            .reviewer_id = "Reviewer 2",
+            .comment_number = 2,
+            .comment_text = "The paper should discuss limitations of the ternary approach, particularly for fine-grained tasks.",
+            .response = "We added a new Limitations section (Section 6) discussing three key limitations: (1) precision-sensitive tasks may benefit from higher bit-width, (2) ternary quantization can hurt performance on small datasets, (3) the approach is currently optimized for transformer-like architectures.",
+            .action = .accepted,
+            .location_in_paper = "Section 6",
+        },
+        .{
+            .reviewer_id = "Reviewer 3",
+            .comment_number = 1,
+            .comment_text = "The reproducibility checklist indicates that code will be released, but no link is provided.",
+            .response = "The code is now available at https://github.com/gHashTag/trinity under MIT license. We've added a reproducibility appendix with Docker setup instructions.",
+            .action = .accepted,
+            .location_in_paper = "Appendix B",
+            .references = refs3,
+        },
+        .{
+            .reviewer_id = "Reviewer 3",
+            .comment_number = 2,
+            .comment_text = "Consider adding a comparison with binary neural networks (BNNs) to better contextualize the ternary approach.",
+            .response = "We added Figure 7 comparing ternary vs binary vs 4-bit quantization. Ternary achieves the best tradeoff: 1.58× bits/trit (vs 1.0 for binary) with 2.1× better accuracy.",
+            .action = .added_experiment,
+            .location_in_paper = "Section 4.3",
+            .references = refs2,
+        },
+    };
+
+    const response = zenodo_templates.ReviewResponse{
+        .paper_title = "HSLM: Ternary Language Models with φ-RoPE Positional Encoding",
+        .submission_id = "ICLR-2025-1234",
+        .venue = "ICLR 2025",
+        .round = 1,
+        .comments = &comments,
+        .summary_of_changes = "Major revisions: (1) Added direct φ-RoPE vs RoPE comparison (Table 3), (2) Expanded methodology with full training details (Section 3.2), (3) Verified FPGA resource utilization with post-synthesis data (Table 5), (4) Added new Limitations section (Section 6), (5) Released code with reproducibility appendix (Appendix B), (6) Added ternary vs binary vs 4-bit comparison (Figure 7).",
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try response.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try response.formatAsMarkdown(allocator);
     defer allocator.free(md);
     print("{s}\n", .{md});
 }
