@@ -313,6 +313,12 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
             return;
         }
         try generateBundleJson(allocator, sub_args[0]);
+    } else if (std.mem.eql(u8, subcmd, "validate-all")) {
+        // Validate all bundles
+        try validateAllBundles(allocator);
+    } else if (std.mem.eql(u8, subcmd, "generate-all")) {
+        // Generate JSON for all bundles
+        try generateAllBundlesJson(allocator);
     } else {
         print("{s}Unknown subcommand: {s}{s}\n", .{ RED, subcmd, RESET });
         printHelp();
@@ -4107,9 +4113,128 @@ fn generateBundleJson(allocator: std.mem.Allocator, bundle_id: []const u8) !void
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════
+/// Validate all bundles
+fn validateAllBundles(allocator: std.mem.Allocator) !void {
+    const bundles = [_][]const u8{ "B001", "B002", "B003", "B004", "B005", "B006", "B007", "PARENT" };
+
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Batch Metadata Validator{s}\n", .{ BOLD, "ZENODO", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    var total_valid: usize = 0;
+    var total_errors: usize = 0;
+
+    for (bundles) |bundle_id| {
+        const bundle = parseBundleType(bundle_id) catch continue;
+
+        print("  Validating {s}...", .{bundle.fileName()});
+
+        // Generate metadata using ZenodoGenerator
+        const generator = zenodo_templates.ZenodoGenerator.init(allocator, bundle, "v7.0.0");
+        const metadata = try generator.generateMetadata();
+        defer {
+            allocator.free(metadata.title);
+            allocator.free(metadata.abstract);
+            allocator.free(metadata.keywords);
+            allocator.free(metadata.authors);
+        }
+
+        // Validate metadata
+        var validator = zenodo_templates.ZenodoValidation.init(allocator);
+        defer validator.deinit();
+        const valid = try validator.validatePaperMetadata(&metadata);
+
+        if (valid) {
+            print(" {s}✓{s}\n", .{ GREEN, RESET });
+            total_valid += 1;
+        } else {
+            print(" {s}✗{s} ({d} errors)\n", .{ RED, RESET, validator.errors.items.len });
+            total_errors += validator.errors.items.len;
+        }
+    }
+
+    print("\n{s}────────────────────────────────────────────{s}\n", .{ GOLDEN, RESET });
+    print("Summary: {d}/{d} bundles valid", .{ BOLD, total_valid, bundles.len });
+    if (total_errors > 0) {
+        print(" ({d} total error(s))", .{total_errors});
+    }
+    print("{s}\n", .{RESET});
+}
+
+/// Generate JSON for all bundles
+fn generateAllBundlesJson(allocator: std.mem.Allocator) !void {
+    const bundles = [_][]const u8{ "B001", "B002", "B003", "B004", "B005", "B006", "B007", "PARENT" };
+
+    print("\n{s}═══════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Batch JSON Generator{s}\n", .{ BOLD, "ZENODO", RESET });
+    print("{s}═══════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    for (bundles) |bundle_id| {
+        const bundle = parseBundleType(bundle_id) catch continue;
+
+        print("Generating {s} metadata...{s}", .{ bundle.fileName(), RESET });
+
+        // Generate metadata using ZenodoGenerator
+        const generator = zenodo_templates.ZenodoGenerator.init(allocator, bundle, "v7.0.0");
+        const metadata = try generator.generateMetadata();
+        defer {
+            allocator.free(metadata.title);
+            allocator.free(metadata.abstract);
+            allocator.free(metadata.keywords);
+            allocator.free(metadata.authors);
+        }
+
+        // Build JSON output
+        var json = std.ArrayList(u8).initCapacity(allocator, 8192) catch @panic("OOM");
+        defer json.deinit(allocator);
+
+        try json.writer(allocator).print("{{\n", .{});
+        try json.writer(allocator).print("  \"title\": \"{s}\",\n", .{metadata.title});
+        try json.writer(allocator).print("  \"authors\": [\n", .{});
+        for (metadata.authors, 0..) |author, i| {
+            try json.writer(allocator).print("    {{\"name\": \"{s}\", \"affiliation\": \"{s}\"}}\n", .{ author.name, author.affiliation });
+            if (author.orcid) |orcid| {
+                try json.writer(allocator).print(", \"orcid\": \"{s}\"}}\n", .{orcid});
+            }
+            if (i < metadata.authors.len - 1) {
+                try json.writer(allocator).print("  }},\n", .{});
+            } else {
+                try json.writer(allocator).print("    }}\n", .{});
+            }
+        }
+        try json.writer(allocator).print("  ],\n", .{});
+        try json.writer(allocator).print("  \"abstract\": \"{s}\",\n", .{metadata.abstract});
+        try json.writer(allocator).print("  \"keywords\": [", .{});
+        for (metadata.keywords, 0..) |kw, i| {
+            try json.writer(allocator).print("    \"{s}\"", .{kw});
+            if (i < metadata.keywords.len - 1) {
+                try json.writer(allocator).print(",\n", .{});
+            } else {
+                try json.writer(allocator).print("\n", .{});
+            }
+        }
+        try json.writer(allocator).print("  ],\n", .{});
+        try json.writer(allocator).print("  \"year\": {d},\n", .{metadata.year});
+        try json.writer(allocator).print("  \"upload_type\": \"{s}\",\n", .{metadata.upload_type.?.toString()});
+        try json.writer(allocator).print("  \"access_right\": \"{s}\",\n", .{metadata.access_right.?.toString()});
+        try json.writer(allocator).print("  \"license\": \"{s}\",\n", .{metadata.license orelse "MIT"});
+        try json.writer(allocator).print("  \"version\": \"{s}\",\n", .{metadata.version orelse "v7.0.0"});
+        try json.writer(allocator).print("  \"bundle_type\": \"{s}\"\n", .{bundle.fileName()});
+        try json.writer(allocator).print("}}\n", .{});
+
+        const json_str = try json.toOwnedSlice(allocator);
+        defer allocator.free(json_str);
+
+        // Output to console (in production, write to file)
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", .{});
+        print("{s}\n", .{json_str});
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", .{});
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ZENODO JSON HELPER — Calibration Metrics Generator
-// ═════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════
 
 pub const ZenodoJsonHelper = struct {
     pub fn generateCalibrationJson(allocator: std.mem.Allocator, ece: f64) ![]u8 {
