@@ -1,4 +1,4 @@
-# Zenodo v7.0 Manual Upload Guide
+# Zenodo v7.0 Upload Guide
 
 **Date:** 2026-03-27
 **Version:** 7.0.0
@@ -6,20 +6,103 @@
 
 ---
 
-## Overview
+## Quick Start — Two Methods
 
-This guide provides step-by-step instructions for uploading Trinity v7.0 bundles to Zenodo with V15 Scientific Rigor compliance.
+### Method 1: API Upload (Recommended, Automated)
+
+```bash
+# 1. Get your Zenodo API token
+# Visit: https://zenodo.org/account/settings/applications/tokens/new
+# Create token with "deposit:actions" and "deposit:write" permissions
+
+# 2. Set token
+export ZENODO_TOKEN=your_token_here
+
+# 3. Upload single bundle (draft mode)
+python3 tools/zenodo_api_upload.py --bundle B001
+
+# 4. Upload all bundles (draft mode)
+python3 tools/zenodo_api_upload.py --all
+
+# 5. Publish (after reviewing drafts)
+python3 tools/zenodo_api_upload.py --bundle B001 --publish
+```
+
+**Advantages:**
+- ✅ Fully automated
+- ✅ Uploads metadata + files + supplementary materials
+- ✅ Can be scripted
+- ✅ Faster than manual upload
+
+**Note:** Test first with `--sandbox` flag to use Zenodo sandbox environment.
+
+### Method 2: Manual Upload (Web UI)
+
+See "Manual Upload Instructions" section below.
 
 ---
 
-## Prerequisites
+## API Upload — Detailed Guide
+
+### Prerequisites
 
 1. **Zenodo Account:** https://zenodo.org/signup
-2. **GitHub Account:** For linking repository
-3. **ORCID:** https://orcid.org (recommended for author attribution)
-4. **Files Ready:** All enhanced descriptions and metadata JSON files
+2. **API Token:** https://zenodo.org/account/settings/applications/tokens/new
+   - Scopes: `deposit:actions`, `deposit:write`
+3. **Python 3.9+** with `requests` library
+
+### Installation
+
+```bash
+# Install requests if needed
+pip3 install requests
+```
+
+### Commands
+
+```bash
+# Upload single bundle (draft)
+python3 tools/zenodo_api_upload.py --bundle B001
+
+# Upload all bundles (draft)
+python3 tools/zenodo_api_upload.py --all
+
+# Upload and publish immediately
+python3 tools/zenodo_api_upload.py --bundle B001 --publish
+
+# Test in sandbox first
+python3 tools/zenodo_api_upload.py --bundle B001 --sandbox --publish
+```
+
+### What Gets Uploaded
+
+For each bundle, the API uploader:
+1. Creates a new deposition
+2. Uploads metadata from `.zenodo.BXXX_v7.0.json`
+3. Uploads description from `zenodo_BXXX_enhanced_v7.0.md`
+4. Uploads supplementary CSV files (if exist)
+5. Uploads V15 figures (if exist)
+6. (Optional) Publishes the deposition
+
+### Troubleshooting API Upload
+
+**Error: 401 Unauthorized**
+- Check your ZENODO_TOKEN is correct
+- Verify token has required scopes
+
+**Error: 400 Bad Request**
+- Metadata may be invalid
+- Run V15 checker first: `python3 tools/zenodo_v15_checker.py`
+
+**Error: Rate Limit**
+- Script includes 2-second delay between uploads
+- If still hit, wait and retry
 
 ---
+
+## Manual Upload Instructions
+
+**Use this method if API upload fails or for manual verification.**
 
 ## Upload Order
 
