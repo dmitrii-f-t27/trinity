@@ -6189,3 +6189,323 @@ test "ReviewResponse formatAsMarkdown" {
     try std.testing.expect(std.mem.indexOf(u8, md, "✅ Accepted") != null);
     try std.testing.expect(std.mem.indexOf(u8, md, "#### Comment 1") != null);
 }
+
+// ============================================================================
+// V14: Scientific Tools — BibTeX Citation Management
+// ============================================================================
+
+/// BibTeX entry type for academic citations
+pub const BibTexEntryType = enum {
+    article,
+    inproceedings,
+    book,
+    inbook,
+    proceedings,
+    phdthesis,
+    mastersthesis,
+    techreport,
+    unpublished,
+    misc,
+
+    pub fn toString(self: BibTexEntryType) []const u8 {
+        return switch (self) {
+            .article => "article",
+            .inproceedings => "inproceedings",
+            .book => "book",
+            .inbook => "inbook",
+            .proceedings => "proceedings",
+            .phdthesis => "phdthesis",
+            .mastersthesis => "mastersthesis",
+            .techreport => "techreport",
+            .unpublished => "unpublished",
+            .misc => "misc",
+        };
+    }
+};
+
+/// Single BibTeX citation entry
+pub const BibTexEntry = struct {
+    cite_key: []const u8,
+    entry_type: BibTexEntryType,
+    title: []const u8,
+    author: []const u8,
+    journal: ?[]const u8 = null,
+    booktitle: ?[]const u8 = null,
+    publisher: ?[]const u8 = null,
+    year: u32,
+    volume: ?u32 = null,
+    number: ?u32 = null,
+    pages: ?[]const u8 = null,
+    doi: ?[]const u8 = null,
+    url: ?[]const u8 = null,
+    note: ?[]const u8 = null,
+    series: ?[]const u8 = null,
+    editor: ?[]const u8 = null,
+    chapter: ?[]const u8 = null,
+    address: ?[]const u8 = null,
+    edition: ?[]const u8 = null,
+    howpublished: ?[]const u8 = null,
+};
+
+/// Bibliography formatted as BibTeX with LaTeX section
+pub const BibliographyBibtex = struct {
+    title: []const u8,
+    entries: []const BibTexEntry,
+    style: []const u8 = "plain",
+
+    pub fn formatAsLaTeX(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+
+        try buffer.appendSlice("\\section*{");
+        try buffer.appendSlice(self.title);
+        try buffer.appendSlice("}\n\n");
+
+        try buffer.appendSlice("\\bibliographystyle{");
+        try buffer.appendSlice(self.style);
+        try buffer.appendSlice("}\n\n");
+
+        try buffer.appendSlice("\\begin{thebibliography}{99}\n\n");
+
+        for (self.entries) |entry| {
+            try buffer.appendSlice("\\bibitem{");
+            try buffer.appendSlice(entry.cite_key);
+            try buffer.appendSlice("}\n");
+            try buffer.appendSlice("  ");
+            try buffer.appendSlice(entry.author);
+            try buffer.appendSlice(", ``");
+            try buffer.appendSlice(entry.title);
+            try buffer.appendSlice("''");
+
+            if (entry.journal) |j| {
+                try buffer.appendSlice(", ");
+                try buffer.appendSlice(j);
+            }
+            if (entry.booktitle) |bt| {
+                try buffer.appendSlice(", \\emph{");
+                try buffer.appendSlice(bt);
+                try buffer.appendSlice("}");
+            }
+            if (entry.publisher) |p| {
+                try buffer.appendSlice(", ");
+                try buffer.appendSlice(p);
+            }
+            if (entry.volume) |v| {
+                try buffer.writer().print(" {d}", .{v});
+            }
+            if (entry.number) |n| {
+                try buffer.writer().print("({d})", .{n});
+            }
+            if (entry.pages) |p| {
+                try buffer.appendSlice(", pp. ");
+                try buffer.appendSlice(p);
+            }
+            try buffer.writer().print(", {d}", .{entry.year});
+            if (entry.doi) |doi| {
+                try buffer.appendSlice(", \\href{https://doi.org/");
+                try buffer.appendSlice(doi);
+                try buffer.appendSlice("}{doi:");
+                try buffer.appendSlice(doi);
+                try buffer.appendSlice("}");
+            }
+            if (entry.url) |u| {
+                try buffer.appendSlice(", \\url{");
+                try buffer.appendSlice(u);
+                try buffer.appendSlice("}");
+            }
+            if (entry.note) |n| {
+                try buffer.appendSlice(", ");
+                try buffer.appendSlice(n);
+            }
+
+            try buffer.appendSlice(".\n\n");
+        }
+
+        try buffer.appendSlice("\\end{thebibliography}\n");
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn formatAsMarkdown(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+
+        try buffer.appendSlice("# ");
+        try buffer.appendSlice(self.title);
+        try buffer.appendSlice("\n\n");
+
+        try buffer.appendSlice("```bibtex\n");
+
+        for (self.entries) |entry| {
+            try buffer.appendSlice("@");
+            try buffer.appendSlice(entry.entry_type.toString());
+            try buffer.appendSlice("{");
+            try buffer.appendSlice(entry.cite_key);
+            try buffer.appendSlice(",\n");
+
+            try buffer.appendSlice("  author = {\"");
+            try buffer.appendSlice(entry.author);
+            try buffer.appendSlice("\"},\n");
+
+            try buffer.appendSlice("  title = {\"");
+            try buffer.appendSlice(entry.title);
+            try buffer.appendSlice("\"},\n");
+
+            if (entry.journal) |j| {
+                try buffer.appendSlice("  journal = {\"");
+                try buffer.appendSlice(j);
+                try buffer.appendSlice("\"},\n");
+            }
+            if (entry.booktitle) |bt| {
+                try buffer.appendSlice("  booktitle = {\"");
+                try buffer.appendSlice(bt);
+                try buffer.appendSlice("\"},\n");
+            }
+            if (entry.publisher) |p| {
+                try buffer.appendSlice("  publisher = {\"");
+                try buffer.appendSlice(p);
+                try buffer.appendSlice("\"},\n");
+            }
+            try buffer.writer().print("  year = {d},\n", .{entry.year});
+
+            if (entry.volume) |v| {
+                try buffer.writer().print("  volume = {d},\n", .{v});
+            }
+            if (entry.number) |n| {
+                try buffer.writer().print("  number = {d},\n", .{n});
+            }
+            if (entry.pages) |p| {
+                try buffer.appendSlice("  pages = \"");
+                try buffer.appendSlice(p);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.doi) |doi| {
+                try buffer.appendSlice("  doi = \"");
+                try buffer.appendSlice(doi);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.url) |u| {
+                try buffer.appendSlice("  url = \"");
+                try buffer.appendSlice(u);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.note) |n| {
+                try buffer.appendSlice("  note = \"");
+                try buffer.appendSlice(n);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.series) |s| {
+                try buffer.appendSlice("  series = \"");
+                try buffer.appendSlice(s);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.editor) |e| {
+                try buffer.appendSlice("  editor = \"");
+                try buffer.appendSlice(e);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.chapter) |c| {
+                try buffer.appendSlice("  chapter = \"");
+                try buffer.appendSlice(c);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.address) |a| {
+                try buffer.appendSlice("  address = \"");
+                try buffer.appendSlice(a);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.edition) |e| {
+                try buffer.appendSlice("  edition = \"");
+                try buffer.appendSlice(e);
+                try buffer.appendSlice("\",\n");
+            }
+            if (entry.howpublished) |h| {
+                try buffer.appendSlice("  howpublished = \"");
+                try buffer.appendSlice(h);
+                try buffer.appendSlice("\",\n");
+            }
+
+            // Remove trailing comma
+            if (buffer.items.len > 0 and buffer.items[buffer.items.len - 1] == ',') {
+                _ = buffer.pop();
+            }
+            try buffer.appendSlice("\n}\n\n");
+        }
+
+        try buffer.appendSlice("```\n\n");
+
+        try buffer.appendSlice("## References\n\n");
+        for (self.entries) |entry| {
+            try buffer.writer().print("- **[{s}](https://doi.org/{s})**: {s}\n", .{
+                entry.cite_key, entry.doi orelse "", entry.title,
+            });
+        }
+
+        return buffer.toOwnedSlice();
+    }
+};
+
+test "BibliographyBibtex formatAsLaTeX" {
+    const entries = [_]BibTexEntry{
+        .{
+            .cite_key = "vasilev2024",
+            .entry_type = .article,
+            .title = "Trinity S³AI: A Novel Architecture for Autonomous AI Agents",
+            .author = "D. S. Vasilev and A. J. Smith",
+            .journal = "arXiv preprint",
+            .year = 2024,
+            .volume = 1,
+            .doi = "10.48550/arxiv.2024.01234",
+        },
+        .{
+            .cite_key = "hinton2023",
+            .entry_type = .inproceedings,
+            .title = "The Forward-Forward Algorithm: Some Preliminary Investigations",
+            .author = "G. E. Hinton",
+            .booktitle = "Advances in Neural Information Processing Systems",
+            .year = 2023,
+            .pages = "14535-14544",
+            .doi = "10.5555/3609278.3609447",
+        },
+    };
+
+    const bib = BibliographyBibtex{
+        .title = "References",
+        .entries = &entries,
+    };
+
+    const latex = try bib.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{References}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\bibitem{vasilev2024}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Trinity S³AI: A Novel Architecture") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\href{https://doi.org/10.48550/arxiv.2024.01234}") != null);
+}
+
+test "BibliographyBibtex formatAsMarkdown" {
+    const entries = [_]BibTexEntry{
+        .{
+            .cite_key = "vasilev2024",
+            .entry_type = .article,
+            .title = "Trinity S³AI: A Novel Architecture",
+            .author = "D. S. Vasilev",
+            .journal = "arXiv preprint",
+            .year = 2024,
+            .doi = "10.48550/arxiv.2024.01234",
+        },
+    };
+
+    const bib = BibliographyBibtex{
+        .title = "Bibliography",
+        .entries = &entries,
+    };
+
+    const md = try bib.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "# Bibliography") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "@article{vasilev2024") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "author = \"D. S. Vasilev\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "[vasilev2024](https://doi.org/") != null);
+}
