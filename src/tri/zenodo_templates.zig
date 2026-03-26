@@ -2887,6 +2887,17 @@ pub const SignificanceLevel = enum {
             .very_high => "$^{****}$",
         };
     }
+
+    /// Convert to emoji indicator (V15 feature)
+    pub fn toEmoji(self: SignificanceLevel) []const u8 {
+        return switch (self) {
+            .none => "❌",
+            .low => "🔸",
+            .medium => "🔶",
+            .high => "✅",
+            .very_high => "🌟",
+        };
+    }
 };
 
 /// Statistical comparison table with significance indicators
@@ -6254,196 +6265,641 @@ pub const BibliographyBibtex = struct {
     style: []const u8 = "plain",
 
     pub fn formatAsLaTeX(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("\\section*{");
-        try buffer.appendSlice(self.title);
-        try buffer.appendSlice("}\n\n");
+        try buffer.writer(allocator).print("\\section*{{{s}}}\n\n", .{self.title});
 
-        try buffer.appendSlice("\\bibliographystyle{");
-        try buffer.appendSlice(self.style);
-        try buffer.appendSlice("}\n\n");
+        try buffer.writer(allocator).print("\\bibliographystyle{{{s}}}\n\n", .{self.style});
 
-        try buffer.appendSlice("\\begin{thebibliography}{99}\n\n");
+        try buffer.writer(allocator).writeAll("\\begin{thebibliography}{99}\n\n");
 
         for (self.entries) |entry| {
-            try buffer.appendSlice("\\bibitem{");
-            try buffer.appendSlice(entry.cite_key);
-            try buffer.appendSlice("}\n");
-            try buffer.appendSlice("  ");
-            try buffer.appendSlice(entry.author);
-            try buffer.appendSlice(", ``");
-            try buffer.appendSlice(entry.title);
-            try buffer.appendSlice("''");
+            try buffer.writer(allocator).print("\\bibitem{{{s}}}\n", .{entry.cite_key});
+            try buffer.writer(allocator).writeAll("  ");
+            try buffer.writer(allocator).print("{s}, ", .{entry.author});
+            try buffer.writer(allocator).writeAll("``");
+            try buffer.writer(allocator).print("{s}", .{entry.title});
+            try buffer.writer(allocator).writeAll("''");
 
             if (entry.journal) |j| {
-                try buffer.appendSlice(", ");
-                try buffer.appendSlice(j);
+                try buffer.writer(allocator).print(", {s}", .{j});
             }
             if (entry.booktitle) |bt| {
-                try buffer.appendSlice(", \\emph{");
-                try buffer.appendSlice(bt);
-                try buffer.appendSlice("}");
+                try buffer.writer(allocator).print(", \\emph{{{s}}}", .{bt});
             }
             if (entry.publisher) |p| {
-                try buffer.appendSlice(", ");
-                try buffer.appendSlice(p);
+                try buffer.writer(allocator).print(", {s}", .{p});
             }
             if (entry.volume) |v| {
-                try buffer.writer().print(" {d}", .{v});
+                try buffer.writer(allocator).print(" {d}", .{v});
             }
             if (entry.number) |n| {
-                try buffer.writer().print("({d})", .{n});
+                try buffer.writer(allocator).print("({d})", .{n});
             }
             if (entry.pages) |p| {
-                try buffer.appendSlice(", pp. ");
-                try buffer.appendSlice(p);
+                try buffer.writer(allocator).print(", pp. {s}", .{p});
             }
-            try buffer.writer().print(", {d}", .{entry.year});
+            try buffer.writer(allocator).print(", {d}", .{entry.year});
             if (entry.doi) |doi| {
-                try buffer.appendSlice(", \\href{https://doi.org/");
-                try buffer.appendSlice(doi);
-                try buffer.appendSlice("}{doi:");
-                try buffer.appendSlice(doi);
-                try buffer.appendSlice("}");
+                try buffer.writer(allocator).writeAll(", \\href{https://doi.org/");
+                try buffer.writer(allocator).print("{s}", .{doi});
+                try buffer.writer(allocator).writeAll("}{doi:");
+                try buffer.writer(allocator).print("{s}", .{doi});
+                try buffer.writer(allocator).writeAll("}");
             }
             if (entry.url) |u| {
-                try buffer.appendSlice(", \\url{");
-                try buffer.appendSlice(u);
-                try buffer.appendSlice("}");
+                try buffer.writer(allocator).writeAll(", \\url{");
+                try buffer.writer(allocator).print("{s}", .{u});
+                try buffer.writer(allocator).writeAll("}");
             }
             if (entry.note) |n| {
-                try buffer.appendSlice(", ");
-                try buffer.appendSlice(n);
+                try buffer.writer(allocator).print(", {s}", .{n});
             }
 
-            try buffer.appendSlice(".\n\n");
+            try buffer.writer(allocator).writeAll(".\n\n");
         }
 
-        try buffer.appendSlice("\\end{thebibliography}\n");
+        try buffer.writer(allocator).writeAll("\\end{thebibliography}\n");
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn formatAsMarkdown(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("# ");
-        try buffer.appendSlice(self.title);
-        try buffer.appendSlice("\n\n");
+        try buffer.writer(allocator).print("# {s}\n\n", .{self.title});
 
-        try buffer.appendSlice("```bibtex\n");
+        try buffer.writer(allocator).writeAll("```bibtex\n");
 
         for (self.entries) |entry| {
-            try buffer.appendSlice("@");
-            try buffer.appendSlice(entry.entry_type.toString());
-            try buffer.appendSlice("{");
-            try buffer.appendSlice(entry.cite_key);
-            try buffer.appendSlice(",\n");
+            try buffer.writer(allocator).print("@{s}{{{s}},\n", .{ entry.entry_type.toString(), entry.cite_key });
 
-            try buffer.appendSlice("  author = {\"");
-            try buffer.appendSlice(entry.author);
-            try buffer.appendSlice("\"},\n");
-
-            try buffer.appendSlice("  title = {\"");
-            try buffer.appendSlice(entry.title);
-            try buffer.appendSlice("\"},\n");
+            try buffer.writer(allocator).print("  author = \"{s}\",\n", .{entry.author});
+            try buffer.writer(allocator).print("  title = \"{s}\",\n", .{entry.title});
 
             if (entry.journal) |j| {
-                try buffer.appendSlice("  journal = {\"");
-                try buffer.appendSlice(j);
-                try buffer.appendSlice("\"},\n");
+                try buffer.writer(allocator).print("  journal = \"{s}\",\n", .{j});
             }
             if (entry.booktitle) |bt| {
-                try buffer.appendSlice("  booktitle = {\"");
-                try buffer.appendSlice(bt);
-                try buffer.appendSlice("\"},\n");
+                try buffer.writer(allocator).print("  booktitle = \"{s}\",\n", .{bt});
             }
             if (entry.publisher) |p| {
-                try buffer.appendSlice("  publisher = {\"");
-                try buffer.appendSlice(p);
-                try buffer.appendSlice("\"},\n");
+                try buffer.writer(allocator).print("  publisher = \"{s}\",\n", .{p});
             }
-            try buffer.writer().print("  year = {d},\n", .{entry.year});
+
+            try buffer.writer(allocator).print("  year = {d},\n", .{entry.year});
 
             if (entry.volume) |v| {
-                try buffer.writer().print("  volume = {d},\n", .{v});
+                try buffer.writer(allocator).print("  volume = {d},\n", .{v});
             }
             if (entry.number) |n| {
-                try buffer.writer().print("  number = {d},\n", .{n});
+                try buffer.writer(allocator).print("  number = {d},\n", .{n});
             }
             if (entry.pages) |p| {
-                try buffer.appendSlice("  pages = \"");
-                try buffer.appendSlice(p);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  pages = \"{s}\",\n", .{p});
+                try buffer.writer(allocator).writeAll("\",\n");
             }
             if (entry.doi) |doi| {
-                try buffer.appendSlice("  doi = \"");
-                try buffer.appendSlice(doi);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  doi = \"{s}\",\n", .{doi});
             }
             if (entry.url) |u| {
-                try buffer.appendSlice("  url = \"");
-                try buffer.appendSlice(u);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  url = \"{s}\",\n", .{u});
             }
             if (entry.note) |n| {
-                try buffer.appendSlice("  note = \"");
-                try buffer.appendSlice(n);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  note = \"{s}\",\n", .{n});
             }
             if (entry.series) |s| {
-                try buffer.appendSlice("  series = \"");
-                try buffer.appendSlice(s);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  series = \"{s}\",\n", .{s});
             }
             if (entry.editor) |e| {
-                try buffer.appendSlice("  editor = \"");
-                try buffer.appendSlice(e);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  editor = \"{s}\",\n", .{e});
             }
             if (entry.chapter) |c| {
-                try buffer.appendSlice("  chapter = \"");
-                try buffer.appendSlice(c);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  chapter = \"{s}\",\n", .{c});
             }
             if (entry.address) |a| {
-                try buffer.appendSlice("  address = \"");
-                try buffer.appendSlice(a);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  address = \"{s}\",\n", .{a});
             }
             if (entry.edition) |e| {
-                try buffer.appendSlice("  edition = \"");
-                try buffer.appendSlice(e);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  edition = \"{s}\",\n", .{e});
             }
             if (entry.howpublished) |h| {
-                try buffer.appendSlice("  howpublished = \"");
-                try buffer.appendSlice(h);
-                try buffer.appendSlice("\",\n");
+                try buffer.writer(allocator).print("  howpublished = \"{s}\",\n", .{h});
             }
 
             // Remove trailing comma
             if (buffer.items.len > 0 and buffer.items[buffer.items.len - 1] == ',') {
                 _ = buffer.pop();
             }
-            try buffer.appendSlice("\n}\n\n");
+            try buffer.writer(allocator).writeAll("}\n\n");
         }
 
-        try buffer.appendSlice("```\n\n");
+        try buffer.writer(allocator).writeAll("```\n\n");
 
-        try buffer.appendSlice("## References\n\n");
+        try buffer.writer(allocator).writeAll("## References\n\n");
         for (self.entries) |entry| {
-            try buffer.writer().print("- **[{s}](https://doi.org/{s})**: {s}\n", .{
+            try buffer.writer(allocator).print("- **[{s}](https://doi.org/{s})**: {s}\n", .{
                 entry.cite_key, entry.doi orelse "", entry.title,
             });
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 };
+
+// ============================================================================
+// V15: Scientific Rigor & Peer Review Integration
+// ============================================================================
+
+/// P-value thresholds for statistical significance (V15)
+pub const PThreshold = enum {
+    /// p < 0.001 (***)
+    very_strict,
+    /// p < 0.01 (**)
+    strict,
+    /// p < 0.05 (*)
+    moderate,
+    /// p < 0.10 (†)
+    lenient,
+
+    /// Get threshold value for checking
+    pub fn value(self: PThreshold) f64 {
+        return switch (self) {
+            .very_straight => 0.001,
+            .strict => 0.01,
+            .moderate => 0.05,
+            .lenient => 0.10,
+        };
+    }
+
+    pub fn toSymbol(self: PThreshold) []const u8 {
+        return switch (self) {
+            .very_strict => "***",
+            .strict => "**",
+            .moderate => "*",
+            .lenient => "†",
+        };
+    }
+
+    pub fn toEmoji(self: PThreshold) []const u8 {
+        return switch (self) {
+            .very_strict => "🌟",
+            .strict => "✅",
+            .moderate => "🔶",
+            .lenient => "🔸",
+        };
+    }
+
+    pub fn check(self: PThreshold, p_value: f64) bool {
+        return p_value < self.value();
+    }
+};
+
+/// Cohen's d effect size interpretation (V15)
+pub const EffectSize = enum {
+    negligible,
+    small,
+    medium,
+    large,
+    very_large,
+
+    /// Get minimum value for this effect size
+    pub fn value(self: EffectSize) f64 {
+        return switch (self) {
+            .negligible => 0.0,
+            .small => 0.2,
+            .medium => 0.5,
+            .large => 0.8,
+            .very_large => 1.2,
+        };
+    }
+
+    pub fn interpret(effect_size: f64) EffectSize {
+        if (effect_size >= 2.0) return .very_large;
+        if (effect_size >= 1.2) return .large;
+        if (effect_size >= 0.8) return .medium;
+        if (effect_size >= 0.5) return .small;
+        return .negligible;
+    }
+
+    pub fn toString(self: EffectSize) []const u8 {
+        return switch (self) {
+            .negligible => "negligible",
+            .small => "small",
+            .medium => "medium",
+            .large => "large",
+            .very_large => "very large",
+        };
+    }
+
+    pub fn toEmoji(self: EffectSize) []const u8 {
+        return switch (self) {
+            .negligible => "⚪",
+            .small => "🔵",
+            .medium => "🟢",
+            .large => "🟡",
+            .very_large => "🌟",
+        };
+    }
+};
+
+/// Confidence interval calculation method (V15)
+pub const CIMethod = enum {
+    /// Non-parametric bootstrap
+    bootstrap,
+    /// Bayesian credible interval
+    bayesian,
+    /// Closed-form (t-distribution)
+    analytical,
+
+    pub fn toString(self: CIMethod) []const u8 {
+        return switch (self) {
+            .bootstrap => "Bootstrap (10,000 resamples)",
+            .bayesian => "Bayesian (Jeffreys prior)",
+            .analytical => "Analytical (t-distribution)",
+        };
+    }
+};
+
+/// Enhanced statistical result with full rigor (V15)
+pub const StatisticalResultEnhanced = struct {
+    metric: []const u8,
+    value: f64,
+    std_err: ?f64 = null,
+    ci_95: ?struct { lower: f64, upper: f64 } = null,
+    ci_99: ?struct { lower: f64, upper: f64 } = null,
+    p_value: ?f64 = null,
+    n: u32,
+    test_name: []const u8,
+    test_type: []const u8,
+    effect_size: ?f64 = null,
+    effect_interpretation: ?EffectSize = null,
+    is_significant: bool = false,
+    ci_method: CIMethod = .analytical,
+
+    pub fn formatAsMarkdown(self: *const StatisticalResultEnhanced, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer(allocator).print("### {s}\n\n", .{self.metric});
+        try buffer.writer(allocator).print("**Value:** {d:.3} (n={d})\n\n", .{ self.value, self.n });
+
+        if (self.std_err) |se| {
+            try buffer.writer(allocator).print("**SE:** {d:.3}\n", .{se});
+        }
+
+        if (self.ci_95) |ci| {
+            try buffer.writer(allocator).print("**95% CI:** [{d:.3}, {d:.3}]\n", .{ ci.lower, ci.upper });
+        }
+
+        if (self.ci_99) |ci| {
+            try buffer.writer(allocator).print("**99% CI:** [{d:.3}, {d:.3}]\n", .{ ci.lower, ci.upper });
+        }
+
+        if (self.p_value) |pv| {
+            const sig_emoji = if (pv < 0.001) "🌟" else if (pv < 0.01) "✅" else if (pv < 0.05) "🔶" else "❌";
+            try buffer.writer(allocator).print("**p-value:** {d:.4} {s}\n", .{ pv, sig_emoji });
+        }
+
+        if (self.effect_size) |es| {
+            const interp = self.effect_interpretation orelse EffectSize.interpret(es);
+            try buffer.writer(allocator).print("**Effect size:** Cohen's d = {d:.3} ({s}) {s}\n", .{ es, interp.toString(), interp.toEmoji() });
+        }
+
+        try buffer.writer(allocator).print("**Test:** {s} ({s})\n", .{ self.test_name, self.test_type });
+        try buffer.writer(allocator).print("**Method:** {s}\n", .{self.ci_method.toString()});
+
+        return buffer.toOwnedSlice(allocator);
+    }
+};
+
+/// DOI record with automatic versioning (V15)
+pub const DOIRecord = struct {
+    concept: []const u8,
+    version: u32,
+    doi: []const u8,
+    zenodo_id: u32,
+    published_date: i64,
+    citation_count: u32,
+    metadata: ?[]const u8 = null,
+
+    pub fn formatAsMarkdown(self: *const DOIRecord, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer(allocator).print("**DOI:** [{s}](https://doi.org/{s})\n", .{ self.doi, self.doi });
+        try buffer.writer(allocator).print("**Concept:** {s} (v{d})\n", .{ self.concept, self.version });
+        try buffer.writer(allocator).print("**Zenodo ID:** {d}\n", .{self.zenodo_id});
+
+        const epoch_secs = std.time.epoch.EpochSeconds{ .secs = @intCast(self.published_date) };
+        const epoch_day = epoch_secs.getEpochDay();
+        const year = epoch_day.calculateYearDay().year;
+        try buffer.writer(allocator).print("**Published:** {d}\n", .{year});
+        try buffer.writer(allocator).print("**Citations:** {d}\n", .{self.citation_count});
+
+        return buffer.toOwnedSlice(allocator);
+    }
+};
+
+/// DOI Manager with Zenodo integration (V15)
+pub const DOIManager = struct {
+    base_url: []const u8 = "https://doi.org/",
+    zenodo_api: []const u8 = "https://zenodo.org/api/",
+    records: std.StringHashMap(DOIRecord),
+
+    pub fn init(allocator: std.mem.Allocator) DOIManager {
+        return .{
+            .records = std.StringHashMap(DOIRecord).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *DOIManager) void {
+        var iter = self.records.iterator();
+        while (iter.next()) |entry| {
+            self.records.allocator.free(entry.value_ptr.doi);
+            self.records.allocator.free(entry.value_ptr.concept);
+            if (entry.value_ptr.metadata) |m| {
+                self.records.allocator.free(m);
+            }
+        }
+        self.records.deinit();
+    }
+
+    pub fn generateDOI(self: *DOIManager, allocator: std.mem.Allocator, concept: []const u8, version: u32) !DOIRecord {
+        _ = self;
+        const doi = try std.fmt.allocPrint(allocator, "10.5281/zenodo.{d}", .{version});
+        const concept_copy = try allocator.dupe(u8, concept);
+
+        return .{
+            .concept = concept_copy,
+            .version = version,
+            .doi = doi,
+            .zenodo_id = 0,
+            .published_date = std.time.timestamp(),
+            .citation_count = 0,
+        };
+    }
+
+    pub fn addRecord(self: *DOIManager, allocator: std.mem.Allocator, record: DOIRecord) !void {
+        const key = try allocator.dupe(u8, record.doi);
+        try self.records.put(key, record);
+    }
+
+    pub fn formatAllAsMarkdown(self: *const DOIManager, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer(allocator).writeAll("# DOI Registry\n\n");
+
+        var iter = self.records.iterator();
+        while (iter.next()) |entry| {
+            const record = entry.value_ptr.*;
+            const formatted = try record.formatAsMarkdown(allocator);
+            defer allocator.free(formatted);
+            try buffer.appendSlice(allocator, formatted);
+            try buffer.writer(allocator).writeAll("\n---\n\n");
+        }
+
+        return buffer.toOwnedSlice(allocator);
+    }
+};
+
+/// Review action with emoji indicators (V15)
+pub const ReviewAction = enum {
+    accepted,
+    partially_accepted,
+    rejected,
+    deferred,
+    clarified,
+    added_experiment,
+
+    pub fn toEmoji(self: ReviewAction) []const u8 {
+        return switch (self) {
+            .accepted => "✅",
+            .partially_accepted => "🟡",
+            .rejected => "❌",
+            .deferred => "⏭️",
+            .clarified => "💡",
+            .added_experiment => "🧪",
+        };
+    }
+
+    pub fn toString(self: ReviewAction) []const u8 {
+        return switch (self) {
+            .accepted => "Accepted",
+            .partially_accepted => "Partially Accepted",
+            .rejected => "Rejected",
+            .deferred => "Deferred",
+            .clarified => "Clarified",
+            .added_experiment => "Added Experiment",
+        };
+    }
+};
+
+/// Reviewer comment with structured response (V15)
+pub const ReviewerComment = struct {
+    reviewer: []const u8,
+    comment_number: u32,
+    comment_text: []const u8,
+    response: []const u8,
+    action: ReviewAction,
+    location: ?[]const u8 = null,
+    references: ?[]const []const u8 = null,
+
+    pub fn formatAsMarkdown(self: *const ReviewerComment, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer(allocator).print("### Comment #{d}: {s} {s}\n\n", .{ self.comment_number, self.action.toString(), self.action.toEmoji() });
+        try buffer.writer(allocator).print("**Reviewer:** {s}\n\n", .{self.reviewer});
+
+        if (self.location) |loc| {
+            try buffer.writer(allocator).print("**Location:** {s}\n\n", .{loc});
+        }
+
+        try buffer.writer(allocator).print("**Comment:**\n{s}\n\n", .{self.comment_text});
+        try buffer.writer(allocator).print("**Response:**\n{s}\n\n", .{self.response});
+
+        if (self.references) |refs| {
+            try buffer.writer(allocator).writeAll("**References:**\n");
+            for (refs) |ref| {
+                try buffer.writer(allocator).print("- {s}\n", .{ref});
+            }
+            try buffer.writer(allocator).writeAll("\n");
+        }
+
+        return buffer.toOwnedSlice(allocator);
+    }
+};
+
+/// Peer review response document (V15)
+pub const PeerReviewResponse = struct {
+    title: []const u8,
+    submission_id: []const u8,
+    venue: []const u8,
+    comments: []const ReviewerComment,
+    summary_of_changes: []const u8,
+
+    pub fn formatAsMarkdown(self: *const PeerReviewResponse, allocator: std.mem.Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).initCapacity(allocator, 2048) catch @panic("OOM");
+        defer buffer.deinit(allocator);
+
+        try buffer.writer(allocator).print("# Response to Reviewers: {s}\n\n", .{self.title});
+        try buffer.writer(allocator).print("**Submission:** {s}\n", .{self.submission_id});
+        try buffer.writer(allocator).print("**Venue:** {s}\n\n", .{self.venue});
+        try buffer.writer(allocator).writeAll("---\n\n");
+
+        try buffer.writer(allocator).writeAll("## Summary of Changes\n\n");
+        try buffer.writer(allocator).print("{s}\n\n", .{self.summary_of_changes});
+        try buffer.writer(allocator).writeAll("---\n\n");
+
+        try buffer.writer(allocator).writeAll("## Detailed Responses\n\n");
+
+        for (self.comments) |comment| {
+            const formatted = try comment.formatAsMarkdown(allocator);
+            defer allocator.free(formatted);
+            try buffer.appendSlice(allocator, formatted);
+        }
+
+        return buffer.toOwnedSlice(allocator);
+    }
+};
+
+test "PThreshold toSymbol" {
+    const testing = std.testing;
+
+    try testing.expectEqualStrings("***", PThreshold.very_strict.toSymbol());
+    try testing.expectEqualStrings("**", PThreshold.strict.toSymbol());
+    try testing.expectEqualStrings("*", PThreshold.moderate.toSymbol());
+    try testing.expectEqualStrings("†", PThreshold.lenient.toSymbol());
+}
+
+test "PThreshold toEmoji" {
+    const testing = std.testing;
+
+    try testing.expectEqualStrings("🌟", PThreshold.very_strict.toEmoji());
+    try testing.expectEqualStrings("✅", PThreshold.strict.toEmoji());
+    try testing.expectEqualStrings("🔶", PThreshold.moderate.toEmoji());
+    try testing.expectEqualStrings("🔸", PThreshold.lenient.toEmoji());
+}
+
+test "EffectSize interpret" {
+    const testing = std.testing;
+
+    try testing.expectEqual(EffectSize.very_large, EffectSize.interpret(2.5));
+    try testing.expectEqual(EffectSize.large, EffectSize.interpret(1.5));
+    try testing.expectEqual(EffectSize.medium, EffectSize.interpret(1.0));
+    try testing.expectEqual(EffectSize.small, EffectSize.interpret(0.6));
+    try testing.expectEqual(EffectSize.negligible, EffectSize.interpret(0.3));
+}
+
+test "ReviewAction toEmoji" {
+    const testing = std.testing;
+
+    try testing.expectEqualStrings("✅", ReviewAction.accepted.toEmoji());
+    try testing.expectEqualStrings("🟡", ReviewAction.partially_accepted.toEmoji());
+    try testing.expectEqualStrings("❌", ReviewAction.rejected.toEmoji());
+    try testing.expectEqualStrings("⏭️", ReviewAction.deferred.toEmoji());
+    try testing.expectEqualStrings("💡", ReviewAction.clarified.toEmoji());
+    try testing.expectEqualStrings("🧪", ReviewAction.added_experiment.toEmoji());
+}
+
+test "StatisticalResultEnhanced formatAsMarkdown" {
+    const testing = std.testing;
+
+    const result = StatisticalResultEnhanced{
+        .metric = "Validation Accuracy",
+        .value = 0.9234,
+        .std_err = 0.0123,
+        .ci_95 = .{ .lower = 0.899, .upper = 0.948 },
+        .ci_99 = .{ .lower = 0.891, .upper = 0.955 },
+        .p_value = 0.0023,
+        .n = 1000,
+        .test_name = "Two-sample t-test",
+        .test_type = "parametric",
+        .effect_size = 1.45,
+        .effect_interpretation = EffectSize.large,
+        .is_significant = true,
+        .ci_method = .analytical,
+    };
+
+    const md = try result.formatAsMarkdown(testing.allocator);
+    defer testing.allocator.free(md);
+
+    try testing.expect(std.mem.indexOf(u8, md, "Validation Accuracy") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "0.923") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "Cohen's d = 1.45") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "✅") != null);
+}
+
+test "DOIManager generateDOI" {
+    const testing = std.testing;
+
+    var manager = DOIManager.init(testing.allocator);
+    defer manager.deinit();
+
+    const doi_record = try manager.generateDOI(testing.allocator, "trinity-hslm", 19227865);
+    defer {
+        testing.allocator.free(doi_record.doi);
+        testing.allocator.free(doi_record.concept);
+    }
+
+    try testing.expectEqualStrings("10.5281/zenodo.19227865", doi_record.doi);
+    try testing.expectEqual(@as(u32, 19227865), doi_record.version);
+}
+
+test "ReviewerComment formatAsMarkdown" {
+    const testing = std.testing;
+
+    const comment = ReviewerComment{
+        .reviewer = "Reviewer 1",
+        .comment_number = 1,
+        .comment_text = "Please add more details on the FPGA synthesis process.",
+        .response = "We have added a new section (Section 4.2) describing the complete synthesis workflow.",
+        .action = .accepted,
+        .location = "Section 4",
+        .references = &[_][]const u8{"[1] Xilinx Vivado Documentation"},
+    };
+
+    const md = try comment.formatAsMarkdown(testing.allocator);
+    defer testing.allocator.free(md);
+
+    try testing.expect(std.mem.indexOf(u8, md, "Comment #1") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "✅") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "Reviewer 1") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "Section 4") != null);
+}
+
+test "PeerReviewResponse formatAsMarkdown" {
+    const testing = std.testing;
+
+    const comments = [_]ReviewerComment{
+        .{
+            .reviewer = "Reviewer 1",
+            .comment_number = 1,
+            .comment_text = "Great paper!",
+            .response = "Thank you!",
+            .action = .accepted,
+        },
+    };
+
+    const response = PeerReviewResponse{
+        .title = "Trinity V15 Enhancement",
+        .submission_id = "NEURIPS-2026-1234",
+        .venue = "NeurIPS 2026",
+        .comments = &comments,
+        .summary_of_changes = "Added V15 scientific rigor structures.",
+    };
+
+    const md = try response.formatAsMarkdown(testing.allocator);
+    defer testing.allocator.free(md);
+
+    try testing.expect(std.mem.indexOf(u8, md, "Response to Reviewers") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "NEURIPS-2026-1234") != null);
+    try testing.expect(std.mem.indexOf(u8, md, "Summary of Changes") != null);
+}
 
 test "BibliographyBibtex formatAsLaTeX" {
     const entries = [_]BibTexEntry{
