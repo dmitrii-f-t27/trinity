@@ -1,6 +1,72 @@
-# Trinity Zenodo v6.0 Figures
+# Trinity Zenodo v7.0 Figures
 
-Generated 22 publication-ready figures for Trinity S³AI Framework Zenodo bundles.
+**Generated:** 2026-03-27
+**Status:** V15 Scientific Rigor Compliant
+**Format:** PNG (300 DPI), SVG
+
+---
+
+## Overview
+
+This directory contains publication-quality figures for Trinity Zenodo bundles (B001-B007) with V15 Scientific Rigor features:
+
+- **Effect Size Visualizations** — Cohen's d bar charts with significance emojis
+- **Confidence Interval Plots** — Dual 95%/99% CI with bootstrap validation
+- **Calibration Metrics** — ECE and Brier Score comparisons across bundles
+- **Cross-Bundle Analysis** — Aggregate effect size and calibration summary
+
+---
+
+## Generating Figures
+
+### Prerequisites
+
+```bash
+# Install Python dependencies
+pip install matplotlib numpy
+```
+
+### Generate All Figures
+
+```bash
+# Generate figures for all bundles
+python3 tools/zenodo_figure_generator.py --all
+
+# Or using tri CLI (if available)
+tri zenodo generate-figures
+```
+
+---
+
+## V15 Scientific Rigor Features
+
+### Significance Indicators
+
+| Emoji | Level | p-value threshold |
+|--------|-------|-------------------|
+| 🌟 | very_strict | p < 0.001 |
+| ✅ | strict | p < 0.01 |
+| 🔶 | moderate | p < 0.05 |
+| 🔸 | lenient | p < 0.10 |
+| ❌ | not_significant | p ≥ 0.10 |
+
+### Effect Size (Cohen's d)
+
+| Size | Range | Emoji |
+|------|-------|-------|
+| Very Large | d ≥ 1.2 | 🌟 |
+| Large | 0.8 ≤ d < 1.2 | 🟡 |
+| Medium | 0.5 ≤ d < 0.8 | 🟢 |
+| Small | 0.2 ≤ d < 0.5 | 🔵 |
+| Negligible | d < 0.2 | ⚪ |
+
+### Calibration Metrics (NeurIPS 2025)
+
+- **ECE (Expected Calibration Error):** Target < 0.12
+- **Brier Score:** Target < 0.25
+- **Confidence Intervals:** 95% and 99% via bootstrap (10,000 resamples)
+
+---
 
 ## Figure Inventory
 
