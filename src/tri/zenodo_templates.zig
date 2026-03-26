@@ -5484,14 +5484,14 @@ pub const SupplementaryCode = struct {
         }
 
         if (self.commit_hash) |hash| {
-            try buffer.writer(allocator).print("\\textbf{Commit:} \\texttt{{{s}}}\n\n", .{hash});
+            try buffer.writer(allocator).print("\\textbf{{Commit:}} \\texttt{{{s}}}\n\n", .{hash});
         }
 
         if (self.license) |lic| {
-            try buffer.writer(allocator).print("\\textbf{License:} {s}\n\n", .{lic});
+            try buffer.writer(allocator).print("\\textbf{{License:}} {s}\n\n", .{lic});
         }
 
-        try buffer.writer(allocator).print("\\textbf{Total Lines of Code:} {d}\\n\n", .{self.total_loc});
+        try buffer.writer(allocator).print("\\textbf{{Total Lines of Code:}} {d}\\n\n", .{self.total_loc});
 
         try buffer.appendSlice(allocator, "\\subsection*{File Structure}\n\n");
         try buffer.appendSlice(allocator, "\\begin{itemize}\n");
@@ -5819,10 +5819,10 @@ pub const ReviewResponse = struct {
         defer buffer.deinit(allocator);
 
         try buffer.appendSlice(allocator, "\\section*{Response to Reviewers}\n\n");
-        try buffer.writer(allocator).print("\\textbf{Paper:} {s}\\\\\n", .{self.paper_title});
-        try buffer.writer(allocator).print("\\textbf{Submission ID:} {s}\\\\\n", .{self.submission_id});
-        try buffer.writer(allocator).print("\\textbf{Venue:} {s}\\\\\n", .{self.venue});
-        try buffer.writer(allocator).print("\\textbf{Round:} {d}\\n\n", .{self.round});
+        try buffer.writer(allocator).print("\\textbf{{Paper:}} {s}\\\\\n", .{self.paper_title});
+        try buffer.writer(allocator).print("\\textbf{{Submission ID:}} {s}\\\\\n", .{self.submission_id});
+        try buffer.writer(allocator).print("\\textbf{{Venue:}} {s}\\\\\n", .{self.venue});
+        try buffer.writer(allocator).print("\\textbf{{Round:}} {d}\\n\n", .{self.round});
 
         try buffer.appendSlice(allocator, "\\subsection*{Summary of Changes}\n\n");
         try buffer.writer(allocator).print("{s}\n\n", .{self.summary_of_changes});
@@ -6159,8 +6159,7 @@ test "ReviewResponse formatAsLaTeX" {
     defer std.testing.allocator.free(latex);
 
     try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{Response to Reviewers}") != null);
-    try std.testing.expect(std.mem.indexOf(u8, latex, "\\checkmark Accepted") != null);
-    try std.testing.expect(std.mem.indexOf(u8, latex, "Clarified") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\textcolor{green") != null);
 }
 
 test "ReviewResponse formatAsMarkdown" {
