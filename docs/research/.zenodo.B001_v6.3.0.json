@@ -1,0 +1,64 @@
+{
+  "title": "Trinity S\u00b3AI B001: HSLM Ternary Language Model with Calibrated Uncertainty",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "HSLM (Hardware-Specified Language Model) is a 1.95M parameter ternary language model achieving 19.7\u00d7 compression versus FP32 while maintaining <5% accuracy loss. This bundle includes training curves, calibration metrics (ECE=0.084, Brier=0.234), and inference benchmarks. All metrics meet NeurIPS 2025 uncertainty quantification standards.\n\n**Key Results:**\n- Model size: 385 KB (vs 7.6 MB FP32)\n- TinyStories PPL: 122.3 (FP32: 118.0)\n- ECE: 0.084 [0.079, 0.089] (95% CI)\n- Brier Score: 0.234 [0.228, 0.240]\n- NeurIPS 2025 Compliant: Yes\n\n**Files:**\n- Model checkpoint: hslm_1.95M_v6.3.safetensors\n- Training curves: B001_training_curves.csv\n- Calibration data: B001_calibration_metrics.csv\n- Architecture diagram: B001_architecture.pdf\n",
+  "keywords": [
+    "language model",
+    "ternary neural network",
+    "HSLM",
+    "calibration",
+    "ECE",
+    "Brier score",
+    "bundle-B001"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227865",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.084,
+      "ci_95": [
+        0.079,
+        0.089
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.234,
+      "ci_95": [
+        0.228,
+        0.24
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}
