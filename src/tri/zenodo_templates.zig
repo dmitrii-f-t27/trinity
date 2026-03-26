@@ -5309,13 +5309,13 @@ pub const CitationGraph = struct {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("\\section{Citation Graph}\n\n");
-        try buffer.appendSlice("\\begin{figure}[htbp]\n");
-        try buffer.appendSlice("\\centering\n");
-        try buffer.appendSlice("\\begin{tikzpicture}[node distance=2cm, every node/.style={rectangle, draw, rounded corners, align=center, font=\\small}]\n\n");
+        try buffer.appendSlice(allocator, "\\section{Citation Graph}\n\n");
+        try buffer.appendSlice(allocator, "\\begin{figure}[htbp]\n");
+        try buffer.appendSlice(allocator, "\\centering\n");
+        try buffer.appendSlice(allocator, "\\begin{tikzpicture}[node distance=2cm, every node/.style={rectangle, draw, rounded corners, align=center, font=\\small}]\n\n");
 
         // Add main paper node
-        try buffer.writer().print("  \\node[fill=blue!20] (main) {{{s}}};\n\n", .{self.paper_title});
+        try buffer.writer(allocator).print("  \\node[fill=blue!20] (main) {{{s}}};\n\n", .{self.paper_title});
 
         // Group citations by type for layout
         var cites_left: usize = 0;
@@ -5347,77 +5347,77 @@ pub const CitationGraph = struct {
 
             switch (cit.citation_type) {
                 .cites, .builds_on => {
-                    try buffer.writer().print("  \\node[fill=green!10, below left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + left_idx * 0.8, node_name, short_title });
-                    try buffer.writer().print("  \\draw[->, thick] ({s}) -- (main);\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=green!10, below left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + left_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[->, thick] ({s}) -- (main);\n", .{node_name});
                     left_idx += 1;
                 },
                 .cited_by => {
-                    try buffer.writer().print("  \\node[fill=yellow!10, below right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + right_idx * 0.8, node_name, short_title });
-                    try buffer.writer().print("  \\draw[->, thick] (main) -- ({s});\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=yellow!10, below right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + right_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[->, thick] (main) -- ({s});\n", .{node_name});
                     right_idx += 1;
                 },
                 .extends => {
-                    try buffer.writer().print("  \\node[fill=orange!10, above left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + extend_idx * 0.8, node_name, short_title });
-                    try buffer.writer().print("  \\draw[->, dashed, thick] ({s}) -- (main);\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=orange!10, above left={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + extend_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[->, dashed, thick] ({s}) -- (main);\n", .{node_name});
                     extend_idx += 1;
                 },
                 .similar => {
-                    try buffer.writer().print("  \\node[fill=purple!10, above right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + similar_idx * 0.8, node_name, short_title });
-                    try buffer.writer().print("  \\draw[<->, dotted, thick] (main) -- ({s});\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=purple!10, above right={d}cm and 1cm of main] ({s}) {{{s}}};\n", .{ 1 + similar_idx * 0.8, node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[<->, dotted, thick] (main) -- ({s});\n", .{node_name});
                     similar_idx += 1;
                 },
                 .contradicts => {
-                    try buffer.writer().print("  \\node[fill=red!10, below=3cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
-                    try buffer.writer().print("  \\draw[->, red, very thick] (main) -- node[right] {{\\small disputes}} ({s});\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=red!10, below=3cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[->, red, very thick] (main) -- node[right] {{\\small disputes}} ({s});\n", .{node_name});
                 },
                 .survey_of => {
-                    try buffer.writer().print("  \\node[fill=cyan!10, above=2cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
-                    try buffer.writer().print("  \\draw[->, dashed] ({s}) -- (main);\n", .{node_name});
+                    try buffer.writer(allocator).print("  \\node[fill=cyan!10, above=2cm of main] ({s}) {{{s}}};\n", .{ node_name, short_title });
+                    try buffer.writer(allocator).print("  \\draw[->, dashed] ({s}) -- (main);\n", .{node_name});
                 },
             }
         }
 
-        try buffer.appendSlice("\\end{tikzpicture}\n");
-        try buffer.writer().print("\\caption{{Citation graph for: {s}}}\n", .{self.paper_title});
-        try buffer.writer().print("\\label{{fig:citation-{s}}}\n", .{self.paper_id});
-        try buffer.appendSlice("\\end{figure}\n\n");
+        try buffer.appendSlice(allocator, "\\end{tikzpicture}\n");
+        try buffer.writer(allocator).print("\\caption{{Citation graph for: {s}}}\n", .{self.paper_title});
+        try buffer.writer(allocator).print("\\label{{fig:citation-{s}}}\n", .{self.paper_id});
+        try buffer.appendSlice(allocator, "\\end{figure}\n\n");
 
         // Add text bibliography
-        try buffer.appendSlice("\\subsection*{Bibliography}\n\n");
+        try buffer.appendSlice(allocator, "\\subsection*{Bibliography}\n\n");
         for (self.citations) |cit| {
-            try buffer.writer().Print("\\textbf{{{s}}}. ", .{cit.id});
-            try buffer.writer().print("{s}. ", .{cit.authors});
-            try buffer.writer().print("{d}. ", .{cit.year});
-            if (cit.venue) |v| try buffer.writer().print("{s}. ", .{v});
-            if (cit.doi) |doi| try buffer.writer().print("DOI: \\href{{https://doi.org/{s}}}{{{s}}}. ", .{ doi, doi });
-            if (cit.url) |url| try buffer.writer().print("URL: \\href{{{s}}}{{{s}}}. ", .{ url, url });
-            if (cit.notes) |notes| try buffer.writer().print("\\textit{{{s}}}", .{notes});
-            try buffer.appendSlice("\n\n");
+            try buffer.writer(allocator).Print("\\textbf{{{s}}}. ", .{cit.id});
+            try buffer.writer(allocator).print("{s}. ", .{cit.authors});
+            try buffer.writer(allocator).print("{d}. ", .{cit.year});
+            if (cit.venue) |v| try buffer.writer(allocator).print("{s}. ", .{v});
+            if (cit.doi) |doi| try buffer.writer(allocator).print("DOI: \\href{{https://doi.org/{s}}}{{{s}}}. ", .{ doi, doi });
+            if (cit.url) |url| try buffer.writer(allocator).print("URL: \\href{{{s}}}{{{s}}}. ", .{ url, url });
+            if (cit.notes) |notes| try buffer.writer(allocator).print("\\textit{{{s}}}", .{notes});
+            try buffer.appendSlice(allocator, "\n\n");
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn formatAsMarkdown(self: *const CitationGraph, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.writer().print("# Citation Graph: {s}\n\n", .{self.paper_title});
+        try buffer.writer(allocator).print("# Citation Graph: {s}\n\n", .{self.paper_title});
 
         // Legend
-        try buffer.appendSlice("## Legend\n\n");
-        try buffer.appendSlice("| Symbol | Meaning |\n");
-        try buffer.appendSlice("|--------|---------|\n");
-        try buffer.appendSlice("| → Cites | This paper cites the reference |\n");
-        try buffer.appendSlice("| ← Cited by | This paper is cited by the reference |\n");
-        try buffer.appendSlice("| ⇒ Extends | This paper extends the reference |\n");
-        try buffer.appendSlice("| ↔ Similar | Similar approach/methodology |\n");
-        try buffer.appendSlice("| ↗ Builds on | Builds upon foundation |\n");
-        try buffer.appendSlice("| ✗ Contradicts | Contradicts or disputes |\n");
-        try buffer.appendSlice("| ↓ Survey | Survey of the referenced work |\n\n");
+        try buffer.appendSlice(allocator, "## Legend\n\n");
+        try buffer.appendSlice(allocator, "| Symbol | Meaning |\n");
+        try buffer.appendSlice(allocator, "|--------|---------|\n");
+        try buffer.appendSlice(allocator, "| → Cites | This paper cites the reference |\n");
+        try buffer.appendSlice(allocator, "| ← Cited by | This paper is cited by the reference |\n");
+        try buffer.appendSlice(allocator, "| ⇒ Extends | This paper extends the reference |\n");
+        try buffer.appendSlice(allocator, "| ↔ Similar | Similar approach/methodology |\n");
+        try buffer.appendSlice(allocator, "| ↗ Builds on | Builds upon foundation |\n");
+        try buffer.appendSlice(allocator, "| ✗ Contradicts | Contradicts or disputes |\n");
+        try buffer.appendSlice(allocator, "| ↓ Survey | Survey of the referenced work |\n\n");
 
         // Citations by type
-        try buffer.appendSlice("## Citations\n\n");
+        try buffer.appendSlice(allocator, "## Citations\n\n");
 
         const types = [_]CitationType{
             .cites,   .cited_by,    .extends,   .builds_on,
@@ -5429,20 +5429,20 @@ pub const CitationGraph = struct {
             for (self.citations) |cit| {
                 if (cit.citation_type == t) {
                     if (!has_type) {
-                        try buffer.writer().print("### {s}\n\n", .{@tagName(t)});
+                        try buffer.writer(allocator).print("### {s}\n\n", .{@tagName(t)});
                         has_type = true;
                     }
-                    try buffer.writer().print("- **{s}**: {s} ({d})\n", .{ cit.id, cit.authors, cit.year });
-                    if (cit.venue) |v| try buffer.writer().print("  - *Venue*: {s}\n", .{v});
-                    if (cit.doi) |doi| try buffer.writer().print("  - *DOI*: [{s}](https://doi.org/{s})\n", .{ doi, doi });
-                    if (cit.url) |url| try buffer.writer().print("  - *URL*: {s}\n", .{url});
-                    if (cit.notes) |notes| try buffer.writer().print("  - *Notes*: {s}\n", .{notes});
-                    try buffer.appendSlice("\n");
+                    try buffer.writer(allocator).print("- **{s}**: {s} ({d})\n", .{ cit.id, cit.authors, cit.year });
+                    if (cit.venue) |v| try buffer.writer(allocator).print("  - *Venue*: {s}\n", .{v});
+                    if (cit.doi) |doi| try buffer.writer(allocator).print("  - *DOI*: [{s}](https://doi.org/{s})\n", .{ doi, doi });
+                    if (cit.url) |url| try buffer.writer(allocator).print("  - *URL*: {s}\n", .{url});
+                    if (cit.notes) |notes| try buffer.writer(allocator).print("  - *Notes*: {s}\n", .{notes});
+                    try buffer.appendSlice(allocator, "\n");
                 }
             }
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 };
 
@@ -5471,124 +5471,124 @@ pub const SupplementaryCode = struct {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("\\section*{Supplementary Material: Code Listing}\n\n");
-        try buffer.writer().print("\\subsection*{{{s}}}\n\n", .{self.title});
-        try buffer.writer().print("{s}\n\n", .{self.description});
+        try buffer.appendSlice(allocator, "\\section*{Supplementary Material: Code Listing}\n\n");
+        try buffer.writer(allocator).print("\\subsection*{{{s}}}\n\n", .{self.title});
+        try buffer.writer(allocator).print("{s}\n\n", .{self.description});
 
         if (self.repository_url) |url| {
-            try buffer.appendSlice("\\textbf{Repository:} \\href{");
-            try buffer.appendSlice(url);
-            try buffer.appendSlice("}{");
-            try buffer.appendSlice(url);
-            try buffer.appendSlice("}\n\n");
+            try buffer.appendSlice(allocator, "\\textbf{Repository:} \\href{");
+            try buffer.appendSlice(allocator, url);
+            try buffer.appendSlice(allocator, "}{");
+            try buffer.appendSlice(allocator, url);
+            try buffer.appendSlice(allocator, "}\n\n");
         }
 
         if (self.commit_hash) |hash| {
-            try buffer.writer().print("\\textbf{Commit:} \\texttt{{{s}}}\n\n", .{hash});
+            try buffer.writer(allocator).print("\\textbf{Commit:} \\texttt{{{s}}}\n\n", .{hash});
         }
 
         if (self.license) |lic| {
-            try buffer.writer().print("\\textbf{License:} {s}\n\n", .{lic});
+            try buffer.writer(allocator).print("\\textbf{License:} {s}\n\n", .{lic});
         }
 
-        try buffer.writer().print("\\textbf{Total Lines of Code:} {d}\\n\n", .{self.total_loc});
+        try buffer.writer(allocator).print("\\textbf{Total Lines of Code:} {d}\\n\n", .{self.total_loc});
 
-        try buffer.appendSlice("\\subsection*{File Structure}\n\n");
-        try buffer.appendSlice("\\begin{itemize}\n");
+        try buffer.appendSlice(allocator, "\\subsection*{File Structure}\n\n");
+        try buffer.appendSlice(allocator, "\\begin{itemize}\n");
 
         for (self.files) |file| {
             if (file.is_entrypoint) {
-                try buffer.appendSlice("  \\item ");
-                try buffer.appendSlice("\\textbf{");
-                try buffer.appendSlice(file.path);
-                try buffer.appendSlice("} (entrypoint)");
+                try buffer.appendSlice(allocator, "  \\item ");
+                try buffer.appendSlice(allocator, "\\textbf{");
+                try buffer.appendSlice(allocator, file.path);
+                try buffer.appendSlice(allocator, "} (entrypoint)");
             } else {
-                try buffer.writer().print("  \\item \\texttt{{{s}}}", .{file.path});
+                try buffer.writer(allocator).print("  \\item \\texttt{{{s}}}", .{file.path});
             }
             if (file.lines_of_code) |loc| {
-                try buffer.writer().print(" ({d} LOC)", .{loc});
+                try buffer.writer(allocator).print(" ({d} LOC)", .{loc});
             }
-            try buffer.writer().print(" -- {s}\n", .{file.description});
+            try buffer.writer(allocator).print(" -- {s}\n", .{file.description});
         }
 
-        try buffer.appendSlice("\\end{itemize}\n\n");
+        try buffer.appendSlice(allocator, "\\end{itemize}\n\n");
 
         // File listing table
-        try buffer.appendSlice("\\subsection*{File Listing}\n\n");
-        try buffer.appendSlice("\\begin{longtable}{p{0.35\\textwidth}p{0.15\\textwidth}p{0.1\\textwidth}p{0.3\\textwidth}}\n");
-        try buffer.appendSlice("\\toprule\n");
-        try buffer.appendSlice("\\textbf{Path} & \\textbf{Language} & \\textbf{LOC} & \\textbf{Description} \\\\\n");
-        try buffer.appendSlice("\\midrule\n");
-        try buffer.appendSlice("\\endhead\n");
-        try buffer.appendSlice("\\bottomrule\n");
-        try buffer.appendSlice("\\end{longtable}\n\n");
+        try buffer.appendSlice(allocator, "\\subsection*{File Listing}\n\n");
+        try buffer.appendSlice(allocator, "\\begin{longtable}{p{0.35\\textwidth}p{0.15\\textwidth}p{0.1\\textwidth}p{0.3\\textwidth}}\n");
+        try buffer.appendSlice(allocator, "\\toprule\n");
+        try buffer.appendSlice(allocator, "\\textbf{Path} & \\textbf{Language} & \\textbf{LOC} & \\textbf{Description} \\\\\n");
+        try buffer.appendSlice(allocator, "\\midrule\n");
+        try buffer.appendSlice(allocator, "\\endhead\n");
+        try buffer.appendSlice(allocator, "\\bottomrule\n");
+        try buffer.appendSlice(allocator, "\\end{longtable}\n\n");
 
         for (self.files) |file| {
-            try buffer.writer().print("\\texttt{{{s}}} & {s} & ", .{ file.path, file.language });
+            try buffer.writer(allocator).print("\\texttt{{{s}}} & {s} & ", .{ file.path, file.language });
             if (file.lines_of_code) |loc| {
-                try buffer.writer().print("{d}", .{loc});
+                try buffer.writer(allocator).print("{d}", .{loc});
             } else {
-                try buffer.appendSlice("N/A");
+                try buffer.appendSlice(allocator, "N/A");
             }
-            try buffer.writer().print(" & {s} \\\\\n", .{file.description});
+            try buffer.writer(allocator).print(" & {s} \\\\\n", .{file.description});
         }
 
-        try buffer.appendSlice("\\end{longtable}\n\n");
+        try buffer.appendSlice(allocator, "\\end{longtable}\n\n");
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn formatAsMarkdown(self: *const SupplementaryCode, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.writer().print("# Supplementary Material: {s}\n\n", .{self.title});
-        try buffer.writer().print("{s}\n\n", .{self.description});
+        try buffer.writer(allocator).print("# Supplementary Material: {s}\n\n", .{self.title});
+        try buffer.writer(allocator).print("{s}\n\n", .{self.description});
 
         if (self.repository_url) |url| {
-            try buffer.writer().print("**Repository:** [{s}]({s})\n\n", .{ url, url });
+            try buffer.writer(allocator).print("**Repository:** [{s}]({s})\n\n", .{ url, url });
         }
 
         if (self.commit_hash) |hash| {
-            try buffer.writer().print("**Commit:** `{s}`\n\n", .{hash});
+            try buffer.writer(allocator).print("**Commit:** `{s}`\n\n", .{hash});
         }
 
         if (self.license) |lic| {
-            try buffer.writer().print("**License:** {s}\n\n", .{lic});
+            try buffer.writer(allocator).print("**License:** {s}\n\n", .{lic});
         }
 
-        try buffer.writer().print("**Total Lines of Code:** {d}\n\n", .{self.total_loc});
+        try buffer.writer(allocator).print("**Total Lines of Code:** {d}\n\n", .{self.total_loc});
 
-        try buffer.appendSlice("## File Structure\n\n");
+        try buffer.appendSlice(allocator, "## File Structure\n\n");
 
         for (self.files) |file| {
             if (file.is_entrypoint) {
-                try buffer.writer().print("- **`{s}`** ⭐ (entrypoint) -- {s}\n", .{ file.path, file.description });
+                try buffer.writer(allocator).print("- **`{s}`** ⭐ (entrypoint) -- {s}\n", .{ file.path, file.description });
             } else {
-                try buffer.writer().print("- **`{s}`** -- {s}\n", .{ file.path, file.description });
+                try buffer.writer(allocator).print("- **`{s}`** -- {s}\n", .{ file.path, file.description });
             }
             if (file.lines_of_code) |loc| {
-                try buffer.writer().print("  - Language: {s}, LOC: {d}\n", .{ file.language, loc });
+                try buffer.writer(allocator).print("  - Language: {s}, LOC: {d}\n", .{ file.language, loc });
             } else {
-                try buffer.writer().print("  - Language: {s}\n", .{file.language});
+                try buffer.writer(allocator).print("  - Language: {s}\n", .{file.language});
             }
         }
 
-        try buffer.appendSlice("\n## File Listing Table\n\n");
-        try buffer.appendSlice("| Path | Language | LOC | Description |\n");
-        try buffer.appendSlice("|------|----------|-----|-------------|\n");
+        try buffer.appendSlice(allocator, "\n## File Listing Table\n\n");
+        try buffer.appendSlice(allocator, "| Path | Language | LOC | Description |\n");
+        try buffer.appendSlice(allocator, "|------|----------|-----|-------------|\n");
 
         for (self.files) |file| {
-            try buffer.writer().print("| `{s}` | {s} | ", .{ file.path, file.language });
+            try buffer.writer(allocator).print("| `{s}` | {s} | ", .{ file.path, file.language });
             if (file.lines_of_code) |loc| {
-                try buffer.writer().print("{d}", .{loc});
+                try buffer.writer(allocator).print("{d}", .{loc});
             } else {
-                try buffer.appendSlice("N/A");
+                try buffer.appendSlice(allocator, "N/A");
             }
-            try buffer.writer().print(" | {s} |\n", .{file.description});
+            try buffer.writer(allocator).print(" | {s} |\n", .{file.description});
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 };
 
@@ -5623,163 +5623,163 @@ pub const ExperimentConfig = struct {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("\\section*{Experiment Configuration}\n\n");
-        try buffer.writer().print("\\subsection*{{{s}}}\n\n", .{self.experiment_name});
-        try buffer.writer().print("{s}\n\n", .{self.description});
+        try buffer.appendSlice(allocator, "\\section*{Experiment Configuration}\n\n");
+        try buffer.writer(allocator).print("\\subsection*{{{s}}}\n\n", .{self.experiment_name});
+        try buffer.writer(allocator).print("{s}\n\n", .{self.description});
 
-        try buffer.appendSlice("\\textbf{Objective:} ");
-        try buffer.writer().print("{s} {s}\n\n", .{ self.objective, self.target_metric });
+        try buffer.appendSlice(allocator, "\\textbf{Objective:} ");
+        try buffer.writer(allocator).print("{s} {s}\n\n", .{ self.objective, self.target_metric });
 
         // Sweep parameters table
-        try buffer.appendSlice("\\subsection*{Sweep Parameters}\n\n");
-        try buffer.appendSlice("\\begin{table}[htbp]\n");
-        try buffer.appendSlice("\\centering\n");
-        try buffer.appendSlice("\\begin{tabular}{p{0.2\\textwidth}p{0.35\\textwidth}p{0.15\\textwidth}p{0.15\\textwidth}}\n");
-        try buffer.appendSlice("\\toprule\n");
-        try buffer.appendSlice("\\textbf{Parameter} & \\textbf{Values} & \\textbf{Default} & \\textbf{Scale} \\\\\n");
-        try buffer.appendSlice("\\midrule\n");
+        try buffer.appendSlice(allocator, "\\subsection*{Sweep Parameters}\n\n");
+        try buffer.appendSlice(allocator, "\\begin{table}[htbp]\n");
+        try buffer.appendSlice(allocator, "\\centering\n");
+        try buffer.appendSlice(allocator, "\\begin{tabular}{p{0.2\\textwidth}p{0.35\\textwidth}p{0.15\\textwidth}p{0.15\\textwidth}}\n");
+        try buffer.appendSlice(allocator, "\\toprule\n");
+        try buffer.appendSlice(allocator, "\\textbf{Parameter} & \\textbf{Values} & \\textbf{Default} & \\textbf{Scale} \\\\\n");
+        try buffer.appendSlice(allocator, "\\midrule\n");
 
         for (self.sweep_parameters) |param| {
-            try buffer.writer().print("\\texttt{{{s}}} & ", .{param.name});
+            try buffer.writer(allocator).print("\\texttt{{{s}}} & ", .{param.name});
 
             // Format values as comma-separated list
             if (param.values.len <= 3) {
                 for (param.values, 0..) |v, j| {
-                    try buffer.appendSlice(v);
-                    if (j < param.values.len - 1) try buffer.appendSlice(", ");
+                    try buffer.appendSlice(allocator, v);
+                    if (j < param.values.len - 1) try buffer.appendSlice(allocator, ", ");
                 }
             } else {
-                try buffer.writer().print("{d} values", .{param.values.len});
+                try buffer.writer(allocator).print("{d} values", .{param.values.len});
             }
-            try buffer.writer().print(" & {s} & {s} \\\\\n", .{ param.default_value, param.scale });
+            try buffer.writer(allocator).print(" & {s} & {s} \\\\\n", .{ param.default_value, param.scale });
         }
 
-        try buffer.appendSlice("\\bottomrule\n");
-        try buffer.appendSlice("\\end{tabular}\n");
-        try buffer.writer().print("\\caption{{Sweep parameters for {s}}}\n", .{self.experiment_name});
-        try buffer.appendSlice("\\end{table}\n\n");
+        try buffer.appendSlice(allocator, "\\bottomrule\n");
+        try buffer.appendSlice(allocator, "\\end{tabular}\n");
+        try buffer.writer(allocator).print("\\caption{{Sweep parameters for {s}}}\n", .{self.experiment_name});
+        try buffer.appendSlice(allocator, "\\end{table}\n\n");
 
         // Experiment conditions
-        try buffer.appendSlice("\\subsection*{Experiment Conditions}\n\n");
-        try buffer.writer().print("Total conditions: {d}\\n\n", .{self.total_conditions});
+        try buffer.appendSlice(allocator, "\\subsection*{Experiment Conditions}\n\n");
+        try buffer.writer(allocator).print("Total conditions: {d}\\n\n", .{self.total_conditions});
 
         if (self.conditions.len > 0) {
-            try buffer.appendSlice("\\begin{table}[htbp]\n");
-            try buffer.appendSlice("\\centering\n");
-            try buffer.appendSlice("\\small\n");
-            try buffer.appendSlice("\\begin{tabular}{");
+            try buffer.appendSlice(allocator, "\\begin{table}[htbp]\n");
+            try buffer.appendSlice(allocator, "\\centering\n");
+            try buffer.appendSlice(allocator, "\\small\n");
+            try buffer.appendSlice(allocator, "\\begin{tabular}{");
             // Create column for each parameter + result column
             for (self.sweep_parameters) |_| {
-                try buffer.appendSlice("l");
+                try buffer.appendSlice(allocator, "l");
             }
-            try buffer.appendSlice("l}\n");
-            try buffer.appendSlice("\\toprule\n");
+            try buffer.appendSlice(allocator, "l}\n");
+            try buffer.appendSlice(allocator, "\\toprule\n");
 
             // Header row
             for (self.sweep_parameters) |param| {
-                try buffer.writer().print("& \\textbf{{{s}}} ", .{param.name});
+                try buffer.writer(allocator).print("& \\textbf{{{s}}} ", .{param.name});
             }
-            try buffer.appendSlice("& \\textbf{Result} \\\\\n");
-            try buffer.appendSlice("\\midrule\n");
+            try buffer.appendSlice(allocator, "& \\textbf{Result} \\\\\n");
+            try buffer.appendSlice(allocator, "\\midrule\n");
 
             // Data rows (first 10 conditions)
             const max_rows = @min(self.conditions.len, 10);
             for (self.conditions[0..max_rows]) |cond| {
                 for (cond.parameters, 0..) |kv, j| {
-                    if (j > 0) try buffer.appendSlice(" & ");
-                    try buffer.appendSlice(kv);
+                    if (j > 0) try buffer.appendSlice(allocator, " & ");
+                    try buffer.appendSlice(allocator, kv);
                 }
                 if (self.best_condition) |best| {
                     if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
-                        try buffer.appendSlice(" & \\textbf{");
-                        if (cond.results) |r| try buffer.appendSlice(r);
-                        try buffer.appendSlice("} \\\\\n");
+                        try buffer.appendSlice(allocator, " & \\textbf{");
+                        if (cond.results) |r| try buffer.appendSlice(allocator, r);
+                        try buffer.appendSlice(allocator, "} \\\\\n");
                     } else {
-                        try buffer.writer().print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
+                        try buffer.writer(allocator).print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
                     }
                 } else {
-                    try buffer.writer().print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
+                    try buffer.writer(allocator).print(" & {s} \\\\\n", .{cond.results orelse "N/A"});
                 }
             }
 
-            try buffer.appendSlice("\\bottomrule\n");
-            try buffer.appendSlice("\\end{tabular}\n");
-            try buffer.writer().print("\\caption{{Experiment conditions for {s} (showing first {d}/{d})}}\n", .{ self.experiment_name, max_rows, self.conditions.len });
-            try buffer.appendSlice("\\end{table}\n\n");
+            try buffer.appendSlice(allocator, "\\bottomrule\n");
+            try buffer.appendSlice(allocator, "\\end{tabular}\n");
+            try buffer.writer(allocator).print("\\caption{{Experiment conditions for {s} (showing first {d}/{d})}}\n", .{ self.experiment_name, max_rows, self.conditions.len });
+            try buffer.appendSlice(allocator, "\\end{table}\n\n");
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn formatAsMarkdown(self: *const ExperimentConfig, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.writer().print("# Experiment Configuration: {s}\n\n", .{self.experiment_name});
-        try buffer.writer().print("{s}\n\n", .{self.description});
+        try buffer.writer(allocator).print("# Experiment Configuration: {s}\n\n", .{self.experiment_name});
+        try buffer.writer(allocator).print("{s}\n\n", .{self.description});
 
-        try buffer.writer().print("**Objective:** {s} {s}\n\n", .{ self.objective, self.target_metric });
+        try buffer.writer(allocator).print("**Objective:** {s} {s}\n\n", .{ self.objective, self.target_metric });
 
         // Sweep parameters
-        try buffer.appendSlice("## Sweep Parameters\n\n");
-        try buffer.appendSlice("| Parameter | Values | Default | Scale |\n");
-        try buffer.appendSlice("|-----------|--------|---------|-------|\n");
+        try buffer.appendSlice(allocator, "## Sweep Parameters\n\n");
+        try buffer.appendSlice(allocator, "| Parameter | Values | Default | Scale |\n");
+        try buffer.appendSlice(allocator, "|-----------|--------|---------|-------|\n");
 
         for (self.sweep_parameters) |param| {
-            try buffer.writer().print("| `{s}` | ", .{param.name});
+            try buffer.writer(allocator).print("| `{s}` | ", .{param.name});
 
             if (param.values.len <= 3) {
                 for (param.values, 0..) |v, j| {
-                    try buffer.appendSlice(v);
-                    if (j < param.values.len - 1) try buffer.appendSlice(", ");
+                    try buffer.appendSlice(allocator, v);
+                    if (j < param.values.len - 1) try buffer.appendSlice(allocator, ", ");
                 }
             } else {
-                try buffer.writer().print("{d} values", .{param.values.len});
+                try buffer.writer(allocator).print("{d} values", .{param.values.len});
             }
-            try buffer.writer().print(" | {s} | {s} |\n", .{ param.default_value, param.scale });
+            try buffer.writer(allocator).print(" | {s} | {s} |\n", .{ param.default_value, param.scale });
         }
 
         // Experiment conditions
-        try buffer.appendSlice("\n## Experiment Conditions\n\n");
-        try buffer.writer().print("**Total conditions:** {d}\n\n", .{self.total_conditions});
+        try buffer.appendSlice(allocator, "\n## Experiment Conditions\n\n");
+        try buffer.writer(allocator).print("**Total conditions:** {d}\n\n", .{self.total_conditions});
 
         if (self.conditions.len > 0) {
             // Build table header
-            try buffer.appendSlice("| ");
+            try buffer.appendSlice(allocator, "| ");
             for (self.sweep_parameters) |param| {
-                try buffer.writer().print("{s} | ", .{param.name});
+                try buffer.writer(allocator).print("{s} | ", .{param.name});
             }
-            try buffer.appendSlice("Result |\n");
-            try buffer.appendSlice("|");
+            try buffer.appendSlice(allocator, "Result |\n");
+            try buffer.appendSlice(allocator, "|");
             for (self.sweep_parameters) |_| {
-                try buffer.appendSlice("---|");
+                try buffer.appendSlice(allocator, "---|");
             }
-            try buffer.appendSlice("---|\n");
+            try buffer.appendSlice(allocator, "---|\n");
 
             // Data rows
             const max_rows = @min(self.conditions.len, 20);
             for (self.conditions[0..max_rows]) |cond| {
-                try buffer.appendSlice("| ");
+                try buffer.appendSlice(allocator, "| ");
                 for (cond.parameters) |kv| {
-                    try buffer.writer().print("{s} | ", .{kv});
+                    try buffer.writer(allocator).print("{s} | ", .{kv});
                 }
                 if (self.best_condition) |best| {
                     if (@intFromPtr(cond) == @intFromPtr(&self.conditions[best])) {
-                        try buffer.writer().print("**{s}** |\n", .{cond.results orelse "N/A"});
+                        try buffer.writer(allocator).print("**{s}** |\n", .{cond.results orelse "N/A"});
                     } else {
-                        try buffer.writer().print("{s} |\n", .{cond.results orelse "N/A"});
+                        try buffer.writer(allocator).print("{s} |\n", .{cond.results orelse "N/A"});
                     }
                 } else {
-                    try buffer.writer().print("{s} |\n", .{cond.results orelse "N/A"});
+                    try buffer.writer(allocator).print("{s} |\n", .{cond.results orelse "N/A"});
                 }
             }
 
             if (self.conditions.len > max_rows) {
-                try buffer.writer().print("\n*... and {d} more conditions*\n", .{self.conditions.len - max_rows});
+                try buffer.writer(allocator).print("\n*... and {d} more conditions*\n", .{self.conditions.len - max_rows});
             }
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 };
 
@@ -5818,36 +5818,36 @@ pub const ReviewResponse = struct {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("\\section*{Response to Reviewers}\n\n");
-        try buffer.writer().print("\\textbf{Paper:} {s}\\\\\n", .{self.paper_title});
-        try buffer.writer().print("\\textbf{Submission ID:} {s}\\\\\n", .{self.submission_id});
-        try buffer.writer().print("\\textbf{Venue:} {s}\\\\\n", .{self.venue});
-        try buffer.writer().print("\\textbf{Round:} {d}\\n\n", .{self.round});
+        try buffer.appendSlice(allocator, "\\section*{Response to Reviewers}\n\n");
+        try buffer.writer(allocator).print("\\textbf{Paper:} {s}\\\\\n", .{self.paper_title});
+        try buffer.writer(allocator).print("\\textbf{Submission ID:} {s}\\\\\n", .{self.submission_id});
+        try buffer.writer(allocator).print("\\textbf{Venue:} {s}\\\\\n", .{self.venue});
+        try buffer.writer(allocator).print("\\textbf{Round:} {d}\\n\n", .{self.round});
 
-        try buffer.appendSlice("\\subsection*{Summary of Changes}\n\n");
-        try buffer.writer().print("{s}\n\n", .{self.summary_of_changes});
+        try buffer.appendSlice(allocator, "\\subsection*{Summary of Changes}\n\n");
+        try buffer.writer(allocator).print("{s}\n\n", .{self.summary_of_changes});
 
-        try buffer.appendSlice("\\subsection*{Detailed Responses}\n\n");
+        try buffer.appendSlice(allocator, "\\subsection*{Detailed Responses}\n\n");
 
         var current_reviewer: []const u8 = "";
         for (self.comments) |comment| {
             // New reviewer section
             if (!std.mem.eql(u8, current_reviewer, comment.reviewer_id)) {
                 if (!std.mem.eql(u8, current_reviewer, "")) {
-                    try buffer.appendSlice("\\vspace{0.5cm}\n");
+                    try buffer.appendSlice(allocator, "\\vspace{0.5cm}\n");
                 }
                 current_reviewer = comment.reviewer_id;
-                try buffer.writer().print("\\subsubsection*{{{s}}}\n\n", .{comment.reviewer_id});
+                try buffer.writer(allocator).print("\\subsubsection*{{{s}}}\n\n", .{comment.reviewer_id});
             }
 
-            try buffer.writer().print("\\textbf{{Comment {d}:}} ", .{comment.comment_number});
+            try buffer.writer(allocator).print("\\textbf{{Comment {d}:}} ", .{comment.comment_number});
             if (comment.location_in_paper) |loc| {
-                try buffer.writer().print("(\\textit{{{s}}}) ", .{loc});
+                try buffer.writer(allocator).print("(\\textit{{{s}}}) ", .{loc});
             }
-            try buffer.appendSlice("\n\n");
-            try buffer.writer().print("{s}\n\n", .{comment.comment_text});
+            try buffer.appendSlice(allocator, "\n\n");
+            try buffer.writer(allocator).print("{s}\n\n", .{comment.comment_text});
 
-            try buffer.appendSlice("\\textbf{Response:} ");
+            try buffer.appendSlice(allocator, "\\textbf{Response:} ");
             const action_symbol = switch (comment.action) {
                 .accepted => "\\textcolor{green!60!black}{\\checkmark Accepted}",
                 .partially_accepted => "\\textcolor{orange}{\\sim Partially Accepted}",
@@ -5856,51 +5856,51 @@ pub const ReviewResponse = struct {
                 .clarified => "\\textcolor{cyan}{\\textbullet Clarified}",
                 .added_experiment => "\\textcolor{green!60!black}{+ Added Experiment}",
             };
-            try buffer.writer().print("{s}\n\n", .{action_symbol});
-            try buffer.writer().print("{s}\n\n", .{comment.response});
+            try buffer.writer(allocator).print("{s}\n\n", .{action_symbol});
+            try buffer.writer(allocator).print("{s}\n\n", .{comment.response});
 
             if (comment.references) |refs| {
                 if (refs.len > 0) {
-                    try buffer.appendSlice("\\textit{References:} ");
+                    try buffer.appendSlice(allocator, "\\textit{References:} ");
                     for (refs, 0..) |ref, j| {
-                        try buffer.writer().print("[{s}]", .{ref});
-                        if (j < refs.len - 1) try buffer.appendSlice(", ");
+                        try buffer.writer(allocator).print("[{s}]", .{ref});
+                        if (j < refs.len - 1) try buffer.appendSlice(allocator, ", ");
                     }
-                    try buffer.appendSlice("\n\n");
+                    try buffer.appendSlice(allocator, "\n\n");
                 }
             }
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn formatAsMarkdown(self: *const ReviewResponse, allocator: std.mem.Allocator) ![]u8 {
         var buffer = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer buffer.deinit(allocator);
 
-        try buffer.writer().print("# Response to Reviewers\n\n", .{});
-        try buffer.writer().print("**Paper:** {s}  \n", .{self.paper_title});
-        try buffer.writer().print("**Submission ID:** {s}  \n", .{self.submission_id});
-        try buffer.writer().print("**Venue:** {s}  \n", .{self.venue});
-        try buffer.writer().print("**Round:** {d}\n\n", .{self.round});
+        try buffer.writer(allocator).print("# Response to Reviewers\n\n", .{});
+        try buffer.writer(allocator).print("**Paper:** {s}  \n", .{self.paper_title});
+        try buffer.writer(allocator).print("**Submission ID:** {s}  \n", .{self.submission_id});
+        try buffer.writer(allocator).print("**Venue:** {s}  \n", .{self.venue});
+        try buffer.writer(allocator).print("**Round:** {d}\n\n", .{self.round});
 
-        try buffer.appendSlice("## Summary of Changes\n\n");
-        try buffer.writer().print("{s}\n\n", .{self.summary_of_changes});
+        try buffer.appendSlice(allocator, "## Summary of Changes\n\n");
+        try buffer.writer(allocator).print("{s}\n\n", .{self.summary_of_changes});
 
-        try buffer.appendSlice("## Detailed Responses\n\n");
+        try buffer.appendSlice(allocator, "## Detailed Responses\n\n");
 
         var current_reviewer: []const u8 = "";
         for (self.comments) |comment| {
             if (!std.mem.eql(u8, current_reviewer, comment.reviewer_id)) {
                 current_reviewer = comment.reviewer_id;
-                try buffer.writer().print("### {s}\n\n", .{comment.reviewer_id});
+                try buffer.writer(allocator).print("### {s}\n\n", .{comment.reviewer_id});
             }
 
-            try buffer.writer().print("#### Comment {d}\n\n", .{comment.comment_number});
+            try buffer.writer(allocator).print("#### Comment {d}\n\n", .{comment.comment_number});
             if (comment.location_in_paper) |loc| {
-                try buffer.writer().print("*Location: {s}*\n\n", .{loc});
+                try buffer.writer(allocator).print("*Location: {s}*\n\n", .{loc});
             }
-            try buffer.writer().print("**Comment:**\n\n{s}\n\n", .{comment.comment_text});
+            try buffer.writer(allocator).print("**Comment:**\n\n{s}\n\n", .{comment.comment_text});
 
             const action_badge = switch (comment.action) {
                 .accepted => "✅ Accepted",
@@ -5910,21 +5910,21 @@ pub const ReviewResponse = struct {
                 .clarified => "💡 Clarified",
                 .added_experiment => "🧪 Added Experiment",
             };
-            try buffer.writer().print("**Response:** {s}\n\n{s}\n\n", .{ action_badge, comment.response });
+            try buffer.writer(allocator).print("**Response:** {s}\n\n{s}\n\n", .{ action_badge, comment.response });
 
             if (comment.references) |refs| {
                 if (refs.len > 0) {
-                    try buffer.appendSlice("**References:** ");
+                    try buffer.appendSlice(allocator, "**References:** ");
                     for (refs, 0..) |ref, j| {
-                        try buffer.writer().print("[{s}]", .{ref});
-                        if (j < refs.len - 1) try buffer.appendSlice(", ");
+                        try buffer.writer(allocator).print("[{s}]", .{ref});
+                        if (j < refs.len - 1) try buffer.appendSlice(allocator, ", ");
                     }
-                    try buffer.appendSlice("\n\n");
+                    try buffer.appendSlice(allocator, "\n\n");
                 }
             }
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 };
 
