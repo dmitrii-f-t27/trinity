@@ -6535,7 +6535,7 @@ pub const ExperimentComparison = struct {
         var buffer = try std.ArrayList(u8).initCapacity(allocator, 0);
         defer buffer.deinit();
 
-        try buffer.writer().writeAll("\\begin{table}[h]\n");
+        try buffer.appendSlice("\\begin{table}[h]\n");
         try buffer.appendSlice("\\centering\n");
         try buffer.appendSlice("\\caption{");
         try buffer.appendSlice(self.caption);
@@ -6623,7 +6623,7 @@ pub const ExperimentComparison = struct {
 
     fn significanceLevelFor(self: *const ExperimentComparison, result: ExperimentResult) SignificanceLevel {
         if (result.std_err == null) return .none;
-        _ = self;
+        _ = _self;
 
         // Placeholder - actual calculation requires p-values
         return .medium;
