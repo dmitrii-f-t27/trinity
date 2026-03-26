@@ -204,6 +204,107 @@ def upload_all_bundles(token: str, sandbox: bool = False, publish: bool = False)
             print(f"  {bid}: SUCCESS ✅")
             print(f"    DOI: {result.get('doi', 'pending')}")
 
+def verify_doi(doi: str) -> bool:
+    """Verify that a DOI resolves correctly"""
+    url = f"https://doi.org/{doi}"
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=10)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Warning: Could not verify DOI {doi}: {e}")
+        return False
+
+def create_github_release(version: str, doi: str, bundle_id: str) -> Dict:
+    """Create a GitHub release for the published Zenodo bundle"""
+    import subprocess
+
+    # Get GitHub repo from git remote
+    try:
+        repo_url = subprocess.check_output(
+            ['git', 'config', '--get', 'remote.origin.url'],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        # Convert to API format
+        if repo_url.startswith('git@'):
+            repo = repo_url.split(':')[1].replace('.git', '')
+        elif repo_url.startswith('https://'):
+            repo = repo_url.split('https://github.com/')[1].replace('.git', '')
+        else:
+            return {'error': 'Could not determine GitHub repo'}
+
+    except Exception as e:
+        return {'error': f'Git error: {e}'}
+
+    # Check if gh CLI is available
+    try:
+        subprocess.check_output(['gh', '--version'], stderr=subprocess.DEVNULL)
+    except Exception:
+        return {'error': 'GitHub CLI (gh) not installed'}
+
+    # Create release
+    tag = f"zenodo-v7.0-{bundle_id}"
+    title = f"Zenodo v7.0 {bundle_id}"
+    notes = f"""Zenodo v7.0 {bundle_id} published
+
+DOI: {doi}
+Bundle: {bundle_id}
+Version: 7.0.0
+Date: {time.strftime('%Y-%m-%d')}
+
+V15 Scientific Rigor Features:
+- Dual confidence intervals (95%, 99%)
+- Effect size quantification (Cohen's d)
+- Significance level indicators
+- Calibration metrics (ECE, Brier Score)
+- Bootstrap validation (10,000 resamples)
+
+φ² + 1/φ² = 3 | TRINITY
+"""
+
+    try:
+        result = subprocess.run(
+            ['gh', 'release', 'create', tag, '--title', title, '--notes', notes],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode == 0:
+            return {'success': True, 'tag': tag, 'url': f'https://github.com/{repo}/releases/tag/{tag}'}
+        else:
+            return {'error': result.stderr}
+
+    except Exception as e:
+        return {'error': str(e)}
+
+def check_deposition_status(deposition_id: str, token: str, sandbox: bool = False) -> Dict:
+    """Check the status of a deposition"""
+    api = SANDBOX_API if sandbox else ZENODO_API
+    url = f"{api}/deposit/depositions/{deposition_id}"
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+def list_depositions(token: str, sandbox: bool = False, page: int = 1) -> Dict:
+    """List all depositions for the user"""
+    api = SANDBOX_API if sandbox else ZENODO_API
+    url = f"{api}/deposit/depositions"
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    params = {'page': page, 'size': 20}
+
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
+
 def main():
     import argparse
 
@@ -218,6 +319,14 @@ def main():
                        help='Publish deposition (default: draft only)')
     parser.add_argument('--token', '-t', type=str,
                        help='Zenodo API token (or set ZENODO_TOKEN env var)')
+    parser.add_argument('--github-release', action='store_true',
+                       help='Create GitHub release after publish')
+    parser.add_argument('--verify-doi', action='store_true',
+                       help='Verify DOI resolves after publish')
+    parser.add_argument('--status', '-s', type=str, metavar='ID',
+                       help='Check status of a deposition')
+    parser.add_argument('--list', action='store_true',
+                       help='List all depositions')
 
     args = parser.parse_args()
 
@@ -229,11 +338,56 @@ def main():
         print("Then: export ZENODO_TOKEN=your_token_here")
         sys.exit(1)
 
+    # List depositions
+    if args.list:
+        print("\nListing depositions...\n")
+        depositions = list_depositions(token, args.sandbox)
+        for dep in depositions:
+            print(f"  ID: {dep.get('id')}")
+            print(f"  Title: {dep.get('title', 'N/A')}")
+            print(f"  Status: {dep.get('state', 'N/A')}")
+            print(f"  DOI: {dep.get('doi', 'pending')}")
+            print()
+        sys.exit(0)
+
+    # Check status
+    if args.status:
+        print(f"\nChecking deposition {args.status}...\n")
+        status = check_deposition_status(args.status, token, args.sandbox)
+        print(f"  ID: {status.get('id')}")
+        print(f"  Title: {status.get('title', 'N/A')}")
+        print(f"  Status: {status.get('state', 'N/A')}")
+        print(f"  DOI: {status.get('doi', 'pending')}")
+        print(f"  Created: {status.get('created', 'N/A')}")
+        print(f"  Modified: {status.get('modified', 'N/A')}")
+        sys.exit(0)
+
     # Upload
     if args.all:
         upload_all_bundles(token, args.sandbox, args.publish)
     elif args.bundle:
-        upload_bundle(args.bundle, token, args.sandbox, args.publish)
+        result = upload_bundle(args.bundle, token, args.sandbox, args.publish)
+
+        # Optional: Create GitHub release
+        if args.publish and args.github_release:
+            doi = result.get('doi')
+            if doi:
+                print("\nCreating GitHub release...")
+                gh_result = create_github_release('v7.0', doi, args.bundle)
+                if 'error' in gh_result:
+                    print(f"  Warning: {gh_result['error']}")
+                else:
+                    print(f"  Created: {gh_result['url']}")
+
+        # Optional: Verify DOI
+        if args.publish and args.verify_doi:
+            doi = result.get('doi')
+            if doi:
+                print(f"\nVerifying DOI: {doi}")
+                if verify_doi(doi):
+                    print("  DOI verified successfully!")
+                else:
+                    print("  Warning: DOI verification failed (may take time to propagate)")
     else:
         parser.print_help()
         sys.exit(1)
