@@ -273,13 +273,29 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
         print("{s}Supplementary code generation not yet implemented{s}\n", .{ YELLOW, RESET });
         return;
     } else if (std.mem.eql(u8, subcmd, "experiment")) {
-        // Generate experiment config (TODO: not implemented)
-        print("{s}Experiment config generation not yet implemented{s}\n", .{ YELLOW, RESET });
-        return;
+        // Generate experiment config
+        try generateExperimentConfigExamples(allocator);
     } else if (std.mem.eql(u8, subcmd, "review")) {
-        // Generate review response (TODO: not implemented)
-        print("{s}Review response generation not yet implemented{s}\n", .{ YELLOW, RESET });
-        return;
+        // Generate review response
+        try generateReviewResponseExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "citation")) {
+        // Generate citation graph
+        try generateCitationGraphExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "supplementary")) {
+        // Generate supplementary code
+        try generateSupplementaryCodeExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "bibtex")) {
+        // Generate BibTeX bibliography
+        try generateBibliographyBibtexExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "experiment-compare")) {
+        // Generate experiment comparison
+        try generateExperimentComparisonExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "conference")) {
+        // Generate conference metadata
+        try generateConferenceMetadataExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "authors")) {
+        // Generate author list
+        try generateAuthorListExamples(allocator);
     } else {
         print("{s}Unknown subcommand: {s}{s}\n", .{ RED, subcmd, RESET });
         printHelp();
@@ -2253,6 +2269,10 @@ fn printHelp() void {
     print("  tri zenodo supplementary         Generate supplementary code listings for reproducibility\n", .{});
     print("  tri zenodo experiment            Generate experiment config for hyperparameter sweeps\n", .{});
     print("  tri zenodo review                 Generate review response for addressing comments\n", .{});
+    print("  tri zenodo bibtex                Generate BibTeX bibliography entries\n", .{});
+    print("  tri zenodo experiment-compare     Generate cross-experiment comparison tables\n", .{});
+    print("  tri zenodo conference            Generate conference metadata and scheduling\n", .{});
+    print("  tri zenodo authors                Generate detailed author list with affiliations\n", .{});
     print("  Requires ZENODO_TOKEN in .env\n", .{});
     print("  Record: {s}\n\n", .{RECORD_ID});
     print("  Discoveries:\n", .{});
@@ -3409,4 +3429,214 @@ test "update_records_table_valid" {
         try std.testing.expect(rec.file.len > 0);
     }
     try std.testing.expectEqual(@as(usize, 5), update_records.len);
+}
+
+/// Generate BibTeX bibliography examples (V14)
+fn generateBibliographyBibtexExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} BibTeX Bibliography Generator{s}\n", .{ BOLD, "BIBLIOGRAPHY BIBTEX", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const bib_entries = [_]zenodo_templates.BibTexEntry{
+        .{
+            .cite_key = "vasilev2024",
+            .entry_type = .article,
+            .title = "Trinity S³AI: A Novel Architecture for Autonomous AI Agents",
+            .author = "D. S. Vasilev and A. J. Smith",
+            .journal = "arXiv preprint arXiv:2024.01234",
+            .year = 2024,
+            .volume = 1,
+            .doi = "10.48550/arxiv.2024.01234",
+        },
+        .{
+            .cite_key = "hinton2023",
+            .entry_type = .inproceedings,
+            .title = "The Forward-Forward Algorithm: Some Preliminary Investigations",
+            .author = "G. E. Hinton",
+            .booktitle = "Advances in Neural Information Processing Systems",
+            .year = 2023,
+            .pages = "14535-14544",
+            .doi = "10.5555/3609278.3609447",
+        },
+        .{
+            .cite_key = "vaswani2017",
+            .entry_type = .inproceedings,
+            .title = "Attention Is All You Need",
+            .author = "A. Vaswani and N. Shazeer and N. Parmar and J. Uszkoreit and L. Jones and A. N. Gomez and L. Kaiser and I. Polosukhin",
+            .booktitle = "Advances in Neural Information Processing Systems",
+            .year = 2017,
+            .pages = "5998-6008",
+        },
+    };
+
+    const bib = zenodo_templates.BibliographyBibtex{
+        .title = "References",
+        .entries = &bib_entries,
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try bib.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try bib.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate experiment comparison examples (V14)
+fn generateExperimentComparisonExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Experiment Comparison Generator{s}\n", .{ BOLD, "EXPERIMENT COMPARISON", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const results = [_]zenodo_templates.ExperimentResult{
+        .{
+            .experiment_name = "HSLM-1.95M (ours)",
+            .metric_name = "Validation Perplexity",
+            .metric_value = 125.7,
+            .std_err = 2.3,
+            .ci_lower = 121.5,
+            .ci_upper = 129.9,
+            .sample_size = 50000,
+            .is_best = true,
+        },
+        .{
+            .experiment_name = "Llama-3.2-3B",
+            .metric_name = "Validation Perplexity",
+            .metric_value = 142.3,
+            .std_err = 3.1,
+            .ci_lower = 136.8,
+            .ci_upper = 147.8,
+            .sample_size = 50000,
+        },
+        .{
+            .experiment_name = "Mistral-7B",
+            .metric_name = "Validation Perplexity",
+            .metric_value = 138.5,
+            .std_err = 2.8,
+            .ci_lower = 133.2,
+            .ci_upper = 143.8,
+            .sample_size = 50000,
+        },
+    };
+
+    const comp = zenodo_templates.ExperimentComparison{
+        .caption = "Model comparison on SlimPajama validation set",
+        .label = "tab:comparison",
+        .comparison_metric = "Perplexity",
+        .higher_is_better = false,
+        .results = &results,
+        .statistical_test = "paired t-test",
+        .significance_level = 0.05,
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try comp.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try comp.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate conference metadata examples (V14)
+fn generateConferenceMetadataExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Conference Metadata Generator{s}\n", .{ BOLD, "CONFERENCE METADATA", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const conf = zenodo_templates.ConferenceInfo{
+        .name = "International Conference on Learning Representations",
+        .year = 2025,
+        .acronym = "ICLR",
+        .location = "Singapore",
+        .dates = "April 24-28, 2025",
+        .website = "https://iclr.cc/",
+    };
+
+    const meta = zenodo_templates.ConferenceMetadata{
+        .conference = conf,
+        .paper_id = "456",
+        .paper_title = "HSLM: Ternary Language Models with φ-RoPE Positional Encoding",
+        .track = "Main Conference",
+        .presentation_type = "oral",
+        .session = "Session 1A: Efficient Transformers",
+        .room = "Grand Ballroom",
+        .time_slot = "Monday 9:00-9:20am",
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try meta.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try meta.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
+}
+
+/// Generate author list examples (V14)
+fn generateAuthorListExamples(allocator: std.mem.Allocator) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Author List Generator{s}\n", .{ BOLD, "AUTHOR LIST", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const affil1 = zenodo_templates.Affiliation{
+        .institution = "Trinity Labs",
+        .department = "AI Research",
+        .city = "San Francisco",
+        .country = "USA",
+        .email = "dev@trinity.ai",
+    };
+
+    const affil2 = zenodo_templates.Affiliation{
+        .institution = "University of Cambridge",
+        .department = "Computer Science",
+        .city = "Cambridge",
+        .country = "UK",
+    };
+
+    const authors = [_]zenodo_templates.DetailedAuthor{
+        .{
+            .first_name = "Dmitrii",
+            .last_name = "Vasilev",
+            .middle_initial = 'S',
+            .orcid = "0000-0000-0000-0001",
+            .affiliations = &.{affil1},
+            .is_corresponding = true,
+        },
+        .{
+            .first_name = "Jane",
+            .last_name = "Doe",
+            .middle_initial = 'A',
+            .orcid = "0000-0000-0000-0002",
+            .affiliations = &.{ affil1, affil2 },
+            .is_equal_contribution = true,
+        },
+        .{
+            .first_name = "John",
+            .last_name = "Smith",
+            .affiliations = &.{affil2},
+        },
+    };
+
+    const list = zenodo_templates.AuthorList{
+        .authors = &authors,
+        .paper_title = "HSLM: Ternary Language Models with φ-RoPE",
+    };
+
+    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const latex = try list.formatAsLaTeX(allocator);
+    defer allocator.free(latex);
+    print("{s}\n", .{latex});
+
+    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    const md = try list.formatAsMarkdown(allocator);
+    defer allocator.free(md);
+    print("{s}\n", .{md});
 }
