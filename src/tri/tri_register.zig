@@ -991,11 +991,11 @@ const execute_map = [_]ExecuteEntry{
             return tri_train.runTrainCommand(a, args);
         }
     }.f },
-    .{ .name = "zenodo", .execute = struct {
-        fn f(a: std.mem.Allocator, args: []const []const u8) !void {
-            return tri_zenodo.runZenodoCommand(a, args);
-        }
-    }.f },
+    // .{ .name = "zenodo", .execute = struct { // TODO: fix zenodo_templates API compatibility
+    //     fn f(a: std.mem.Allocator, args: []const []const u8) !void {
+    //         return tri_zenodo.runZenodoCommand(a, args);
+    //     }
+    // }.f },
     .{ .name = "sacred-full-cycle", .execute = struct {
         fn f(a: std.mem.Allocator, args: []const []const u8) !void {
             _ = args;
@@ -1146,11 +1146,11 @@ const execute_map = [_]ExecuteEntry{
             return tri_train.runTrainCommand(a, args);
         }
     }.f },
-    .{ .name = "zenodo", .execute = struct {
-        fn f(a: std.mem.Allocator, args: []const []const u8) !void {
-            return tri_zenodo.runZenodoCommand(a, args);
-        }
-    }.f },
+    // .{ .name = "zenodo", .execute = struct { // TODO: fix zenodo_templates API compatibility
+    //     fn f(a: std.mem.Allocator, args: []const []const u8) !void {
+    //         return tri_zenodo.runZenodoCommand(a, args);
+    //     }
+    // }.f },
     .{ .name = "forge-bench", .execute = struct {
         fn f(a: std.mem.Allocator, args: []const []const u8) !void {
             _ = args;

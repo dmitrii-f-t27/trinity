@@ -1062,7 +1062,6 @@ pub fn main() !void {
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runBrainSimulateCommand(allocator, cmd_args);
         },
-        .zenodo => return error.CommandNotSupported,
         .sebo => {
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runSeboCommand(allocator, cmd_args);
@@ -1702,11 +1701,11 @@ fn dispatchCommand(
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runBrainSimulateCommand(allocator, cmd_args);
         },
-        // Zenodo Publication Templates (v6.3)
-        .zenodo => {
-            const tri_zenodo_mod = @import("tri_zenodo.zig");
-            try tri_zenodo_mod.runZenodoCommand(allocator, cmd_args);
-        },
+        // Zenodo Publication Templates (v6.3) - TODO: fix zenodo_templates API compatibility
+        // .zenodo => {
+        //     const tri_zenodo_mod = @import("tri_zenodo.zig");
+        //     try tri_zenodo_mod.runZenodoCommand(allocator, cmd_args);
+        // },
         // SEBO - Sacred Evolutionary Bayesian Optimization
         .sebo => {
             const tri_commands_mod = @import("tri_commands.zig");

@@ -296,8 +296,8 @@ pub const Command = enum {
     stress_test,
     // Brain Simulation
     brain_simulate,
-    // Zenodo Publication Templates (v6.3)
-    zenodo,
+    // Zenodo Publication Templates (v6.3) - TODO: fix zenodo_templates API compatibility
+    // zenodo,
 };
 
 pub const CLIState = struct {
