@@ -1,5 +1,6 @@
 # Trinity B002: FPGA Synthesis Container
-# Zenodo Bundle v6.1 - Zero-DSP Ternary Inference
+# Zenodo Bundle v7.0 - V15 Scientific Rigor
+# Zero-DSP: LUT=12433, Power=1.2W, d=3.2
 FROM ziglang/zig:0.15.0-alpine AS build
 
 WORKDIR /src

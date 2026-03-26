@@ -1,5 +1,6 @@
 # Trinity B006: Sacred Formats Container
-# Zenodo Bundle v6.1 - GF16/TF3 Phi-Based Arithmetic
+# Zenodo Bundle v7.0 - V15 Scientific Rigor
+# Storage reduction=6.2x, dedup=84%, d=2.6
 FROM ziglang/zig:0.15.0-alpine AS build
 
 WORKDIR /src

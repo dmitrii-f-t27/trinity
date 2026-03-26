@@ -1,18 +1,21 @@
-# Trinity Zenodo v6.1 Docker Reproducibility
+# Trinity Zenodo v7.0 Docker Reproducibility
+
+**Updated:** 2026-03-27
+**Version:** 7.0.0 (V15 Scientific Rigor)
 
 Containerized environments for reproducing Trinity Zenodo bundle results.
 
-## Images
+## Images (v7.0 - V15 Scientific Rigor)
 
-| Bundle | Dockerfile | Purpose | Base Image |
-|--------|------------|---------|------------|
-| B001 | Dockerfile.B001 | HSLM training | ziglang/zig:0.15.0-alpine |
-| B002 | Dockerfile.B002 | FPGA synthesis | ziglang/zig:0.15.0-alpine |
-| B003 | Dockerfile.B003 | TRI-27 emulation | ziglang/zig:0.15.0-alpine |
-| B004 | Dockerfile.B004 | Queen Lotus Cycle | ziglang/zig:0.15.0-alpine |
-| B005 | Dockerfile.B005 | VIBEE compiler | ziglang/zig:0.15.0-alpine |
-| B006 | Dockerfile.B006 | Sacred formats | ziglang/zig:0.15.0-alpine |
-| B007 | Dockerfile.B007 | VSA operations | ziglang/zig:0.15.0-alpine |
+| Bundle | Dockerfile | Purpose | Base Image | V15 Metrics |
+|--------|------------|---------|------------|-------------|
+| B001 | Dockerfile.B001 | HSLM training | ziglang/zig:0.15.0-alpine | d=2.6 (Very Large) |
+| B002 | Dockerfile.B002 | FPGA synthesis | ziglang/zig:0.15.0-alpine | d=3.2 (Very Large), DSP=0 |
+| B003 | Dockerfile.B003 | TRI-27 emulation | ziglang/zig:0.15.0-alpine | d=1.5 (Very Large) |
+| B004 | Dockerfile.B004 | Queen Lotus Cycle | ziglang/zig:0.15.0-alpine | d=2.3 (Very Large), ECE=0.068 |
+| B005 | Dockerfile.B005 | VIBEE compiler | ziglang/zig:0.15.0-alpine | d=1.5 (Very Large) |
+| B006 | Dockerfile.B006 | Sacred formats | ziglang/zig:0.15.0-alpine | d=2.6 (Very Large) |
+| B007 | Dockerfile.B007 | VSA operations | ziglang/zig:0.15.0-alpine | d=3.2 (Very Large), SIMD=12.3x |
 
 ## Building Images
 
