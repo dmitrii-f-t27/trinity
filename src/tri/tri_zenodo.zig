@@ -3939,3 +3939,17 @@ fn generateAuthorListExamples(allocator: std.mem.Allocator) !void {
     defer allocator.free(md);
     print("{s}\n", .{md});
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+// ZENODO JSON HELPER — Calibration Metrics Generator
+// ═════════════════════════════════════════════════════════════════════════
+
+pub const ZenodoJsonHelper = struct {
+    pub fn generateCalibrationJson(allocator: std.mem.Allocator, ece: f64) ![]u8 {
+        var json = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer json.deinit(allocator);
+        try json.writer(allocator).print("{{\"ece\": {d:.3}, \"neurips_2025_compliant\": {s}}}", .{ ece, if (ece < 0.12) "true" else "false" });
+        return json.toOwnedSlice(allocator);
+    }
+};
+
