@@ -1,0 +1,34 @@
+{
+  "title": "Trinity S\u00b3AI Framework: Complete Collection v6.3.0",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "Complete Trinity S\u00b3AI framework including all 7 bundles: HSLM (B001), FPGA (B002), TRI-27 ISA (B003), Queen (B004), VIBEE (B005), Sacred (B006), VSA (B007). Total 3,280+ lines of Zig code with 100% test coverage.\n\n**Overall Metrics:**\n- All bundles NeurIPS 2025 UQ compliant\n- ECE range: 0.065 - 0.115 (all < 0.12)\n- Brier range: 0.175 - 0.248 (all < 0.25)\n- Zero external dependencies\n- MIT licensed\n\nThis parent collection links to all 7 child bundles.\n",
+  "keywords": [
+    "ternary computing",
+    "formal verification",
+    "uncertainty quantification",
+    "complete framework"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227879"
+}

@@ -1,0 +1,63 @@
+{
+  "title": "Trinity S\u00b3AI B005: VIBEE Tri-Language Compiler",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "VIBEE is a domain-specific language compiler targeting Zig and Verilog. Enables rapid prototyping of ternary hardware and software components from a high-level .tri specification.\n\n**Key Results:**\n- Input: .tri specification files\n- Outputs: Zig library, Verilog HDL, C headers\n- Compilation time: <1 second for typical files\n- Code generation: 1200+ LOC from 50 LOC spec\n- Calibration: ECE = 0.065 [0.062, 0.068] (deterministic)\n- Brier Score: 0.178 [0.173, 0.183]\n\n**Files:**\n- Compiler: src/vibee/*.zig\n- Examples: specs/tri/*.tri\n- Generated code: generated/*.zig, generated/*.v\n- Documentation: VIBEE_README.md\n",
+  "keywords": [
+    "compiler",
+    "DSL",
+    "code generation",
+    "Verilog",
+    "tri-language",
+    "bundle-B005"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227741",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.065,
+      "ci_95": [
+        0.062,
+        0.068
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.178,
+      "ci_95": [
+        0.173,
+        0.183
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}

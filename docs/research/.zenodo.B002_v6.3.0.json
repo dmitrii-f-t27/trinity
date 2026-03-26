@@ -1,0 +1,63 @@
+{
+  "title": "Trinity S\u00b3AI B002: Zero-DSP FPGA Inference Engine",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "Zero-DSP FPGA inference engine achieving 100% DSP elimination for ternary neural networks. Synthesized for Xilinx XC7A100T using Yosys + nextpnr open toolchain.\n\n**Key Results:**\n- DSP usage: 0% (vs 45% baseline)\n- LUT utilization: 19.6% (12,433/63,400)\n- Power consumption: 1.2W (vs 12W baseline)\n- Throughput: 8,000 tokens/sec\n- ECE: 0.092 [0.087, 0.097]\n\n**Files:**\n- Bitstream: hslm_xc7a100t_v6.3.bit\n- Synthesis report: B002_xilinx_report.txt\n- Resource utilization: B002_resources.csv\n- Power measurement: B002_power.csv\n",
+  "keywords": [
+    "FPGA",
+    "DSP-free",
+    "hardware acceleration",
+    "Xilinx",
+    "Yosys",
+    "bundle-B002"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227867",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.092,
+      "ci_95": [
+        0.087,
+        0.097
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.241,
+      "ci_95": [
+        0.234,
+        0.248
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}

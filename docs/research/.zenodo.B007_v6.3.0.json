@@ -1,0 +1,62 @@
+{
+  "title": "Trinity S\u00b3AI B007: Ternary Vector Symbolic Architecture",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "Ternary Vector Symbolic Architecture with 10K-dimensional vectors and Frequency Holographic Reduced Representation (FHRR). Supports bind, unbind, bundle (2/3-way), and permute operations with O(1) complexity.\n\n**Key Results:**\n- Dimensionality: 10,000\n- Bitflip resilience: 30% (vs 20% HRR)\n- SIMD speedup: 17\u00d7\n- ECE: 0.065 [0.062, 0.068]\n- Brier Score: 0.175 [0.170, 0.180]\n\n**Files:**\n- VSA library: vsa.zig\n- Benchmarks: B007_benchmarks.csv\n- Noise resilience: B007_bitflip.csv\n",
+  "keywords": [
+    "VSA",
+    "vector symbolic",
+    "hyperdimensional computing",
+    "FHRR",
+    "bundle-B007"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227745",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.065,
+      "ci_95": [
+        0.062,
+        0.068
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.175,
+      "ci_95": [
+        0.17,
+        0.18
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}

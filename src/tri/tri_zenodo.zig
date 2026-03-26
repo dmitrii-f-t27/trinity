@@ -286,7 +286,8 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
         try generateSupplementaryCodeExamples(allocator);
     } else if (std.mem.eql(u8, subcmd, "bibtex")) {
         // Generate BibTeX bibliography
-        try generateBibliographyBibtexExamples(allocator);
+        // TODO: BibTeXEntry struct removed
+        // try generateBibliographyBibtexExamples(allocator);
     } else if (std.mem.eql(u8, subcmd, "experiment-compare")) {
         // Generate experiment comparison
         try generateExperimentComparisonExamples(allocator);
@@ -3432,60 +3433,13 @@ test "update_records_table_valid" {
 }
 
 /// Generate BibTeX bibliography examples (V14)
+/// Generate BibTeX bibliography examples (V14)
+/// TODO: BibTeXEntry struct removed from zenodo_templates.zig
 fn generateBibliographyBibtexExamples(allocator: std.mem.Allocator) !void {
-    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}{s} BibTeX Bibliography Generator{s}\n", .{ BOLD, "BIBLIOGRAPHY BIBTEX", RESET });
-    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-
-    const bib_entries = [_]zenodo_templates.BibTexEntry{
-        .{
-            .cite_key = "vasilev2024",
-            .entry_type = .article,
-            .title = "Trinity S³AI: A Novel Architecture for Autonomous AI Agents",
-            .author = "D. S. Vasilev and A. J. Smith",
-            .journal = "arXiv preprint arXiv:2024.01234",
-            .year = 2024,
-            .volume = 1,
-            .doi = "10.48550/arxiv.2024.01234",
-        },
-        .{
-            .cite_key = "hinton2023",
-            .entry_type = .inproceedings,
-            .title = "The Forward-Forward Algorithm: Some Preliminary Investigations",
-            .author = "G. E. Hinton",
-            .booktitle = "Advances in Neural Information Processing Systems",
-            .year = 2023,
-            .pages = "14535-14544",
-            .doi = "10.5555/3609278.3609447",
-        },
-        .{
-            .cite_key = "vaswani2017",
-            .entry_type = .inproceedings,
-            .title = "Attention Is All You Need",
-            .author = "A. Vaswani and N. Shazeer and N. Parmar and J. Uszkoreit and L. Jones and A. N. Gomez and L. Kaiser and I. Polosukhin",
-            .booktitle = "Advances in Neural Information Processing Systems",
-            .year = 2017,
-            .pages = "5998-6008",
-        },
-    };
-
-    const bib = zenodo_templates.BibliographyBibtex{
-        .title = "References",
-        .entries = &bib_entries,
-    };
-
-    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
-    const latex = try bib.formatAsLaTeX(allocator);
-    defer allocator.free(latex);
-    print("{s}\n", .{latex});
-
-    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
-    const md = try bib.formatAsMarkdown(allocator);
-    defer allocator.free(md);
-    print("{s}\n", .{md});
+    _ = allocator;
+    print("\n{s}⚠️  BibTeX bibliography: TODO - BibTeXEntry struct not available{s}\n", .{ YELLOW, RESET });
+    print("Run with zenodo_templates_v13_only.zig for full functionality\n");
 }
-
-/// Generate experiment comparison examples (V14)
 fn generateExperimentComparisonExamples(allocator: std.mem.Allocator) !void {
     print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
     print("{s}{s} Experiment Comparison Generator{s}\n", .{ BOLD, "EXPERIMENT COMPARISON", RESET });

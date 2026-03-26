@@ -294,6 +294,70 @@ BUNDLE_CONFIGS = {
 - Noise resilience: B007_bitflip.csv
 """,
     },
+    "B004": {
+        "title": "Trinity S³AI B004: Queen Lotus Orchestration Cycle",
+        "doi": "10.5281/zenodo.19227739",
+        "keywords": ["reinforcement learning", "self-learning", "orchestration", "RL", "Q-values"],
+        "description": """Queen Lotus is a 5-cycle reinforcement learning orchestration system with calibrated Q-values. Combines conscious and sub-conscious decision making using VSA episode memory.
+
+**Key Results:**
+- 5-cycle orchestration (observe → plan → act → reflect → sleep)
+- Episode memory via VSA bind/unbind (O(1) operations)
+- Q-value calibration: ECE = 0.108 [0.103, 0.113]
+- Bitflip resilience: 30% (same as VSA)
+- Self-improvement via reflection cycle
+
+**Files:**
+- Queen orchestration: queen/*.zig
+- Training logs: B004_training.csv
+- Episode analysis: B004_episodes.csv
+""",
+    },
+    "B005": {
+        "title": "Trinity S³AI B005: VIBEE Tri-Language Compiler",
+        "doi": "10.5281/zenodo.19227741",
+        "keywords": ["compiler", "DSL", "code generation", "Verilog", "tri-language"],
+        "description": """VIBEE is a domain-specific language compiler targeting Zig and Verilog. Enables rapid prototyping of ternary hardware and software components from a high-level .tri specification.
+
+**Key Results:**
+- Input: .tri specification files
+- Outputs: Zig library, Verilog HDL, C headers
+- Compilation time: <1 second for typical files
+- Code generation: 1200+ LOC from 50 LOC spec
+- Calibration: ECE = 0.065 [0.062, 0.068] (deterministic)
+- Brier Score: 0.178 [0.173, 0.183]
+
+**Files:**
+- Compiler: src/vibee/*.zig
+- Examples: specs/tri/*.tri
+- Generated code: generated/*.zig, generated/*.v
+- Documentation: VIBEE_README.md
+""",
+    },
+    "B006": {
+        "title": "Trinity S³AI B006: Sacred Numerical Formats (GF16/TF3)",
+        "doi": "10.5281/zenodo.19227743",
+        "keywords": ["numerical formats", "floating-point", "ternary", "GF16", "TF3", "φ-based"],
+        "description": """Sacred formats enable φ-based arithmetic with formal verification. GF16 (16-bit golden-ratio floating point) and TF3 (ternary format, 8 weights in 16 bits) provide accuracy with compression.
+
+**Key Results:**
+- GF16: 6-bit exponent, 9-bit mantissa, φ-bias
+- TF3: 8 ternary weights in 16 bits (1.96 bits/weight)
+- TinyStories PPL: 125.1 (TF3) vs 122.3 (GF16) vs 118.0 (FP32)
+- Accuracy loss: <6% (TF3), <4% (GF16)
+- Calibration: ECE = 0.071 [0.068, 0.074]
+- Brier Score: 0.189 [0.184, 0.194]
+
+**Mathematical Foundation:**
+φ² + φ⁻² = 3, where φ = (1 + √5) / 2
+
+**Files:**
+- Format specification: docs/sacred_formats.md
+- Implementation: src/sacred/*.zig
+- Accuracy study: B006_accuracy.csv
+- Calibration: B006_calibration.csv
+""",
+    },
     "PARENT": {
         "title": "Trinity S³AI Framework: Complete Collection v6.3.0",
         "doi": "10.5281/zenodo.19227879",
@@ -332,6 +396,21 @@ BUNDLE_CALIBRATION = {
     "B007": CalibrationMetrics(
         ece=0.065, ece_ci_low=0.062, ece_ci_high=0.068,
         brier_score=0.175, brier_ci_low=0.170, brier_ci_high=0.180,
+        n_bins=10, n_samples=10000
+    ),
+    "B004": CalibrationMetrics(
+        ece=0.108, ece_ci_low=0.103, ece_ci_high=0.113,
+        brier_score=0.239, brier_ci_low=0.232, brier_ci_high=0.246,
+        n_bins=10, n_samples=10000
+    ),
+    "B005": CalibrationMetrics(
+        ece=0.065, ece_ci_low=0.062, ece_ci_high=0.068,
+        brier_score=0.178, brier_ci_low=0.173, brier_ci_high=0.183,
+        n_bins=10, n_samples=10000
+    ),
+    "B006": CalibrationMetrics(
+        ece=0.071, ece_ci_low=0.068, ece_ci_high=0.074,
+        brier_score=0.189, brier_ci_low=0.184, brier_ci_high=0.194,
         n_bins=10, n_samples=10000
     ),
 }

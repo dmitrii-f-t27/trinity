@@ -1,0 +1,63 @@
+{
+  "title": "Trinity S\u00b3AI B003: TRI-27 Ternary Instruction Set Architecture",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "TRI-27 is a domain-specific ISA for ternary computing with 36 opcodes across ternary operations, memory access, VSA operations, and control flow. Features 27 registers (3 banks \u00d7 9) with Coptic alphabet encoding.\n\n**Key Features:**\n- 36 opcodes (10 ternary, 8 memory, 10 VSA, 8 control)\n- 27 registers with Coptic alphabet (\u16a0 \u16a2 \u16a6 ...)\n- Stack-based bytecode execution\n- Formal verification of ISA semantics\n- ECE: 0.115 (worst-case interpreter)\n\n**Files:**\n- ISA specification: TRI-27_ISA_v6.3.pdf\n- Interpreter implementation: tri27_cli.zig\n- Assembly examples: examples/*.t27\n- Formal proofs: TRI-27_Coq.v\n",
+  "keywords": [
+    "ISA",
+    "ternary computing",
+    "instruction set",
+    "interpreter",
+    "assembly",
+    "bundle-B003"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227869",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.115,
+      "ci_95": [
+        0.109,
+        0.121
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.248,
+      "ci_95": [
+        0.241,
+        0.255
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}

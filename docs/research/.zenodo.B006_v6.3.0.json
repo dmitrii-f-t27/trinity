@@ -1,0 +1,64 @@
+{
+  "title": "Trinity S\u00b3AI B006: Sacred Numerical Formats (GF16/TF3)",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "Sacred formats enable \u03c6-based arithmetic with formal verification. GF16 (16-bit golden-ratio floating point) and TF3 (ternary format, 8 weights in 16 bits) provide accuracy with compression.\n\n**Key Results:**\n- GF16: 6-bit exponent, 9-bit mantissa, \u03c6-bias\n- TF3: 8 ternary weights in 16 bits (1.96 bits/weight)\n- TinyStories PPL: 125.1 (TF3) vs 122.3 (GF16) vs 118.0 (FP32)\n- Accuracy loss: <6% (TF3), <4% (GF16)\n- Calibration: ECE = 0.071 [0.068, 0.074]\n- Brier Score: 0.189 [0.184, 0.194]\n\n**Mathematical Foundation:**\n\u03c6\u00b2 + \u03c6\u207b\u00b2 = 3, where \u03c6 = (1 + \u221a5) / 2\n\n**Files:**\n- Format specification: docs/sacred_formats.md\n- Implementation: src/sacred/*.zig\n- Accuracy study: B006_accuracy.csv\n- Calibration: B006_calibration.csv\n",
+  "keywords": [
+    "numerical formats",
+    "floating-point",
+    "ternary",
+    "GF16",
+    "TF3",
+    "\u03c6-based",
+    "bundle-B006"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227743",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.071,
+      "ci_95": [
+        0.068,
+        0.074
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.189,
+      "ci_95": [
+        0.184,
+        0.194
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}

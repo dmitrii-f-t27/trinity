@@ -1,0 +1,63 @@
+{
+  "title": "Trinity S\u00b3AI B004: Queen Lotus Orchestration Cycle",
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Research Collective",
+      "corresponding": true
+    }
+  ],
+  "description": "Queen Lotus is a 5-cycle reinforcement learning orchestration system with calibrated Q-values. Combines conscious and sub-conscious decision making using VSA episode memory.\n\n**Key Results:**\n- 5-cycle orchestration (observe \u2192 plan \u2192 act \u2192 reflect \u2192 sleep)\n- Episode memory via VSA bind/unbind (O(1) operations)\n- Q-value calibration: ECE = 0.108 [0.103, 0.113]\n- Bitflip resilience: 30% (same as VSA)\n- Self-improvement via reflection cycle\n\n**Files:**\n- Queen orchestration: queen/*.zig\n- Training logs: B004_training.csv\n- Episode analysis: B004_episodes.csv\n",
+  "keywords": [
+    "reinforcement learning",
+    "self-learning",
+    "orchestration",
+    "RL",
+    "Q-values",
+    "bundle-B004"
+  ],
+  "publication_date": "2026-03-27",
+  "version": "6.3.0",
+  "license": {
+    "id": "CC-BY-4.0"
+  },
+  "communities": [
+    {
+      "id": "neurips"
+    },
+    {
+      "id": "iclr"
+    },
+    {
+      "id": "mlsys"
+    }
+  ],
+  "doi": "10.5281/zenodo.19227739",
+  "related_identifiers": [
+    {
+      "relation": "isPartOf",
+      "identifier": "10.5281/zenodo.19227879",
+      "scheme": "doi",
+      "resource_type": "publication"
+    }
+  ],
+  "calibration_metrics": {
+    "ece": {
+      "value": 0.108,
+      "ci_95": [
+        0.103,
+        0.113
+      ],
+      "n_bins": 10,
+      "n_samples": 10000
+    },
+    "brier_score": {
+      "value": 0.239,
+      "ci_95": [
+        0.232,
+        0.246
+      ]
+    },
+    "neurips_2025_compliant": true
+  }
+}
