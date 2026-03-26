@@ -1,0 +1,44 @@
+% IEEE citations for Trinity S³AI bundles
+% Generated: 2026-03-27
+% Format: IEEE 7th edition (2020)
+
+% Parent Bundle
+D. Vasilev, "Trinity S³AI: High-assurance compositional reasoning via ternary computing," *Trinity S³AI*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227879. [Online]. Available: https://github.com/gHashTag/trinity.
+
+% B001: HSLM
+D. Vasilev, "Trinity S³AI B001: HSLM ternary language model with calibrated uncertainty," *Trinity S³AI B001*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227865. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/hslm.
+
+% B002: Ternary NN Library
+D. Vasilev, "Trinity S³AI B002: Ternary neural network library," *Trinity S³AI B002*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227867. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/ternary.
+
+% B003: Zero-DSP FPGA
+D. Vasilev, "Trinity S³AI B003: Zero-DSP FPGA synthesis for ternary inference," *Trinity S³AI B003*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227869. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/fpga/openxc7-synth.
+
+% B004: Queen Lotus
+D. Vasilev, "Trinity S³AI B004: Queen Lotus orchestration cycle," *Trinity S³AI B004*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227739. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/tri/queen.
+
+% B005: VIBEE Compiler
+D. Vasilev, "Trinity S³AI B005: VIBEE tri-language compiler," *Trinity S³AI B005*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227741. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/vibee.
+
+% B006: VSA Library
+D. Vasilev, "Trinity S³AI B006: VSA operations library," *Trinity S³AI B006*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227743. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/vsa.
+
+% B007: Trinity Proofs
+D. Vasilev, "Trinity S³AI B007: Trinity identity proofs," *Trinity S³AI B007*, v6.3.0, Mar. 2026. doi: 10.5281/zenodo.19227745. [Online]. Available: https://github.com/gHashTag/trinity/tree/main/src/temple.
+
+% GitHub Repository
+D. Vasilev, "Trinity S³AI," GitHub repository. [Online]. Available: https://github.com/gHashTag/trinity.
+
+% Conference Papers (to be submitted)
+D. Vasilev, "Ternary neural networks with calibrated uncertainty: A high-assurance approach via sacred computing," in *Proc. Adv. Neural Inf. Process. Syst.*, 2026. [To be submitted].
+
+D. Vasilev, "Learning in ternary: Why discrete representations improve uncertainty quantification," in *Proc. Int. Conf. Learn. Rep.*, 2027. [To be submitted].
+
+% References
+[1] C. Guo et al., "On calibration of modern neural networks," in *Proc. Int. Conf. Mach. Learn.*, pp. 1321–1330, 2017.
+[2] Y. Gal and Z. Ghahramani, "Dropout as a Bayesian approximation: Representing model uncertainty in deep learning," in *Proc. Int. Conf. Mach. Learn.*, pp. 1050–1059, 2016.
+[3] S. Lin et al., "BitNet: Scaling 1-bit transformers for large language models," *arXiv preprint* arXiv:2310.08826, 2023.
+[4] NeurIPS 2025 Program Committee, "NeurIPS 2025 uncertainty quantification standards," 2025.
+
+% Note: IEEE 7th edition uses title case for article titles, italics for journal/proceeding names,
+% and [Online] for software citations.

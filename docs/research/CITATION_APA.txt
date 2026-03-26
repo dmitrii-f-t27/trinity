@@ -1,0 +1,44 @@
+% APA 7th Edition citations for Trinity S³AI bundles
+% Generated: 2026-03-27
+
+% Parent Bundle
+Vasilev, D. (2026). *Trinity S³AI: High-assurance compositional reasoning via ternary computing* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227879
+
+% B001: HSLM
+Vasilev, D. (2026). *Trinity S³AI B001: HSLM ternary language model with calibrated uncertainty* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227865
+
+% B002: Ternary NN Library
+Vasilev, D. (2026). *Trinity S³AI B002: Ternary neural network library* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227867
+
+% B003: Zero-DSP FPGA
+Vasilev, D. (2026). *Trinity S³AI B003: Zero-DSP FPGA synthesis for ternary inference* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227869
+
+% B004: Queen Lotus
+Vasilev, D. (2026). *Trinity S³AI B004: Queen Lotus orchestration cycle* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227739
+
+% B005: VIBEE Compiler
+Vasilev, D. (2026). *Trinity S³AI B005: VIBEE tri-language compiler* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227741
+
+% B006: VSA Library
+Vasilev, D. (2026). *Trinity S³AI B006: VSA operations library* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227743
+
+% B007: Trinity Proofs
+Vasilev, D. (2026). *Trinity S³AI B007: Trinity identity proofs* (Version 6.3.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.19227745
+
+% GitHub Repository
+Vasilev, D. (2026). *Trinity S³AI* [Computer software]. https://github.com/gHashTag/trinity
+
+% Conference Papers (to be submitted)
+Vasilev, D. (2026). Ternary neural networks with calibrated uncertainty: A high-assurance approach via sacred computing. *Advances in Neural Information Processing Systems*.
+
+Vasilev, D. (2027). Learning in ternary: Why discrete representations improve uncertainty quantification. *International Conference on Learning Representations*.
+
+% References
+Guo, C., Pleiss, G., Sun, Y., & Weinberger, K. Q. (2017). On calibration of modern neural networks. *International Conference on Machine Learning, 1321–1330*.
+
+Gal, Y., & Ghahramani, Z. (2016). Dropout as a Bayesian approximation: Representing model uncertainty in deep learning. *International Conference on Machine Learning, 1050–1059*.
+
+Lin, S., Tang, H., Wang, Z., & Lv, Q. (2023). BitNet: Scaling 1-bit transformers for large language models. *arXiv preprint arXiv:2310.08826*.
+
+% Note: APA 7th edition uses sentence case for article titles, title case for journal names,
+% and includes DOIs as URLs. For software, include version number and platform in brackets.
