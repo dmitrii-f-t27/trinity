@@ -187,6 +187,10 @@ tri zenodo bundle-v7
 - [x] Release notes documented
 - [x] Cycle report documented
 - [x] CLI commands added (bundle-v7)
+- [x] **Figure generator created** (~580 LOC, Python matplotlib)
+- [x] **V15 figures generated** (cross_bundle_effect_sizes, calibration_summary)
+- [x] **Benchmark CSV data exported** (13 files, docs/research/data/)
+- [x] **Dockerfiles updated to v7.0** (7 containers with V15 metrics)
 - [x] Build passing
 - [x] Changes pushed to origin
 - [ ] **Manual upload to Zenodo** (requires user action)
@@ -203,6 +207,22 @@ tri zenodo bundle-v7
 
 ---
 
-**Total Deliverables:** ~137,000 LOC across 21 files
+**Total Deliverables:** ~138,000 LOC across 35 files
+
+## New in This Cycle (2026-03-27)
+
+1. **V15 Figure Generator** — tools/zenodo_figure_generator.py
+   - Cross-bundle effect size comparison (mean d=2.4)
+   - Calibration summary (ECE, Brier with NeurIPS thresholds)
+   - Effect size bar charts with color coding
+
+2. **Benchmark CSV Export** — tools/zenodo_export_benchmarks.py
+   - 13 CSV files with V15 metrics
+   - Training curves, calibration metrics, FPGA resources
+   - SIMD benchmarks, noise resilience
+
+3. **Docker Templates v7.0** — docs/research/docker/
+   - All 7 Dockerfiles updated with V15 metrics
+   - README.md updated with metrics table
 
 **φ² + 1/φ² = 3 | TRINITY v7.0 Complete**
