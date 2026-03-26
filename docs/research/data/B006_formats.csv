@@ -1,0 +1,5 @@
+format,bits,phi_distance,bandwidth_efficiency,storage_reduction_x
+FP32,32,0.083,1.0,1.0
+BF16,16,0.125,1.5,1.5
+GF16,16,0.042,3.0,3.0
+TF3,3,0.0,6.2,6.2

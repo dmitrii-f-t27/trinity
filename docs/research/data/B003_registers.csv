@@ -1,0 +1,4 @@
+bank,registers,prefix,description
+Alpha,9,a,General purpose + accumulator
+Iota,9,i,Index/pointer registers
+Sigma,9,s,Special purpose + system

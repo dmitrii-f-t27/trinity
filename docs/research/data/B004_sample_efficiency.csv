@@ -1,0 +1,4 @@
+metric,lotus_value,baseline_value,improvement_factor,cohens_d
+sample_efficiency,2.3,1.0,2.3,2.3
+episodes_to_convergence,450,1050,2.33,2.3
+reward_variance,0.12,0.34,0.35,2.3

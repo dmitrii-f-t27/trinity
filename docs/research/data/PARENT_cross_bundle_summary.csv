@@ -1,0 +1,8 @@
+bundle,name,mean_cohens_d,ece,brier_score,neurips_compliant
+B001,HSLM,2.2,0.084,0.234,YES
+B002,Zero-DSP FPGA,3.2,0.092,0.241,YES
+B003,TRI-27,1.5,0.089,0.238,YES
+B004,Queen Lotus,2.3,0.068,0.189,YES
+B005,VIBEE,1.5,0.076,0.201,YES
+B006,Sacred Formats,2.6,0.081,0.214,YES
+B007,VSA SIMD,3.2,0.087,0.226,YES

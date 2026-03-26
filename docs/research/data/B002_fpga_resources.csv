@@ -1,0 +1,6 @@
+resource,fp32_baseline,ternary_implementation,unit,reduction_percent
+DSP,96,0,count,100.0
+LUT,8500,12433,count,-46.3
+FF,12000,8234,count,31.4
+BRAM,45,28,count,37.8
+Power,12.0,1.2,W,90.0

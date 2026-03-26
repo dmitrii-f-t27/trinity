@@ -1,0 +1,4 @@
+metric,vibee_value,baseline_value,improvement_percent,cohens_d
+parse_speedup,1.33,1.0,33.0,1.5
+code_size_reduction,55.0,0,55.0,1.5
+compile_time_ms,42,38,-10.5,0.8
