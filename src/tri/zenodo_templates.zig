@@ -515,6 +515,60 @@ pub const ReproducibilityInfo = struct {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CALIBRATION METRICS — NeurIPS 2025 Uncertainty Quantification
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Calibration metrics for NeurIPS 2025 uncertainty quantification requirements
+pub const CalibrationMetrics = struct {
+    /// Expected Calibration Error (ECE)
+    ece: f64,
+    /// 95% confidence interval lower bound
+    ci_lower: f64,
+    /// 95% confidence interval upper bound
+    ci_upper: f64,
+    /// Brier Score
+    brier_score: f64,
+    /// Number of bins (for reliability diagrams)
+    n_bins: u32,
+    /// Number of samples
+    n_samples: u32,
+    /// Whether ECE is below NeurIPS 2025 threshold (0.12)
+    neurips_compliant: bool,
+
+    pub fn formatAsJSON(self: *const CalibrationMetrics, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\{{"ece": {d:.3}, "ci_95": [{d:.3}, {d:.3}], "brier_score": {d:.3}, "n_bins": {d}, "n_samples": {d}, "neurips_2025_compliant": {s}}}}
+        , .{ self.ece, self.ci_lower, self.ci_upper, self.brier_score, self.n_bins, self.n_samples, if (self.neurips_compliant) "true" else "false" });
+    }
+
+    pub fn formatAsLaTeX(self: *const CalibrationMetrics, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\Calibration: ECE = {d:.3} (95\\% CI: [{d:.3}, {d:.3}]), Brier Score = {d:.3}, {s}NeurIPS 2025 compliant{s}
+        , .{ self.ece, self.ci_lower, self.ci_upper, self.brier_score, if (self.neurips_compliant) "\\textbf{\\textcolor{green}{YES}}" else "\\textbf{\\textcolor{red}{NO}}" });
+    }
+
+    pub fn validate(self: *const CalibrationMetrics) !bool {
+        // Check if ECE is below NeurIPS 2025 threshold
+        if (self.ece >= 0.12) {
+            return error.EceTooHigh;
+        }
+        // Check if CI bounds are valid
+        if (self.ci_lower >= self.ci_upper) {
+            return error.InvalidCI;
+        }
+        // Check if ECE is within CI
+        if (self.ece < self.ci_lower or self.ece > self.ci_upper) {
+            return error.EceOutsideCI;
+        }
+        // Check if Brier Score is in valid range [0, 1]
+        if (self.brier_score < 0.0 or self.brier_score > 1.0) {
+            return error.InvalidBrierScore;
+        }
+        return true;
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PAPER METADATA — Complete Publication Metadata
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -560,6 +614,8 @@ pub const PaperMetadata = struct {
     version: ?[]const u8 = null,
     /// Communities
     communities: ?[]const []const u8 = null,
+    /// Calibration metrics (NeurIPS 2025 requirement)
+    calibration_metrics: ?CalibrationMetrics = null,
 
     pub fn formatAsAbstract(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
         var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
