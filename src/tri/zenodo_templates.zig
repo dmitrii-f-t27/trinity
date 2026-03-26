@@ -2007,6 +2007,24 @@ pub const Equation = struct {
     }
 };
 
+/// Figure file information for LaTeX inclusion
+pub const FigureFile = struct {
+    /// Path to figure file (relative to docs/figures/ or project root)
+    path: []const u8,
+    /// File extension (determines LaTeX inclusion method)
+    extension: []const u8,
+    /// Optional width specification (e.g., "0.8\\textwidth", "\\columnwidth")
+    width: ?[]const u8 = null,
+
+    pub fn getIncludeCommand(self: *const FigureFile) []const u8 {
+        if (self.width) |w| {
+            // Custom width specified
+            return w;
+        }
+        return "0.8\\textwidth"; // Default width
+    }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // FIGURE CAPTION — Publication-Ready Figure Descriptions
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2020,6 +2038,8 @@ pub const FigureCaption = struct {
     description: ?[]const u8 = null,
     /// References to related equations/theorems
     references: []const []const u8 = &.{},
+    /// Optional figure file path (relative to docs/figures/)
+    figure_file: ?FigureFile = null,
 
     /// Format as LaTeX figure caption
     pub fn formatAsLaTeX(self: *const FigureCaption, allocator: std.mem.Allocator) ![]u8 {
@@ -2028,7 +2048,14 @@ pub const FigureCaption = struct {
 
         try fig.writer(allocator).print("\\begin{{figure}}[htbp]\n", .{});
         try fig.writer(allocator).print("  \\centering\n", .{});
-        try fig.writer(allocator).print("  % TODO: Add \\includegraphics here\n", .{});
+
+        // Include figure file if available (supports .pdf, .png, .jpg, .eps)
+        if (self.figure_file) |ff| {
+            try fig.writer(allocator).print("  \\includegraphics[width=0.8\\textwidth]{{{s}}}\n\n", .{ff.path});
+        } else {
+            // Placeholder comment if no figure file specified
+            try fig.writer(allocator).print("  % TODO: Add \\includegraphics here (no figure_file specified)\n", .{});
+        }
 
         // Build caption with references
         try fig.writer(allocator).writeAll("  \\caption{");
