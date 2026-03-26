@@ -20,7 +20,7 @@ const tri_job = @import("tri_job.zig");
 const tri_register = @import("tri_register.zig");
 // const sacred_fpga = @import("tri_sacred_fpga.zig");
 const tri_train = @import("metabolism.zig");
-const tri_zenodo = @import("tri_zenodo.zig");
+// const tri_zenodo = @import("tri_zenodo.zig"); // TODO: fix zenodo_templates API compatibility
 const dev_workflow = @import("dev_commands.zig");
 
 // Conditional worker modules (graceful degradation)
@@ -887,7 +887,7 @@ pub fn main() !void {
         .fpga_demo => commands.runFpgaDemoCommand(allocator, cmd_args),
         .fpga => try tri_register.runFpgaCommand(allocator, cmd_args),
         .train => try tri_train.runTrainCommand(allocator, cmd_args),
-        .zenodo => try tri_zenodo.runZenodoCommand(allocator, cmd_args),
+        //.zenodo => try tri_zenodo.runZenodoCommand(allocator, cmd_args), // TODO: fix zenodo_templates API compatibility
         .cloud => try tri_cloud.runCloudCommand(allocator, cmd_args),
         .farm => try tri_farm.runFarmCommand(allocator, cmd_args),
         .loop => try tri_loop.runLoopCommand(allocator, cmd_args),
@@ -1062,6 +1062,7 @@ pub fn main() !void {
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runBrainSimulateCommand(allocator, cmd_args);
         },
+        .zenodo => return error.CommandNotSupported,
         .sebo => {
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runSeboCommand(allocator, cmd_args);
@@ -1700,6 +1701,11 @@ fn dispatchCommand(
         .brain_simulate => {
             const tri_commands_mod = @import("tri_commands.zig");
             try tri_commands_mod.runBrainSimulateCommand(allocator, cmd_args);
+        },
+        // Zenodo Publication Templates (v6.3)
+        .zenodo => {
+            const tri_zenodo_mod = @import("tri_zenodo.zig");
+            try tri_zenodo_mod.runZenodoCommand(allocator, cmd_args);
         },
         // SEBO - Sacred Evolutionary Bayesian Optimization
         .sebo => {

@@ -270,8 +270,8 @@ pub const Command = enum {
     sync_check,
     // GitHub Integration (Protocol v2)
     github,
-    // Zenodo DOI Publishing
-    zenodo,
+    // Zenodo DOI Publishing (TODO: fix zenodo_templates API compatibility)
+    // zenodo,
     // Autonomous Loop (Ralph Pattern)
     loop,
     // Experience (episode storage & recall)
@@ -296,6 +296,8 @@ pub const Command = enum {
     stress_test,
     // Brain Simulation
     brain_simulate,
+    // Zenodo Publication Templates (v6.3)
+    zenodo,
 };
 
 pub const CLIState = struct {
@@ -992,7 +994,7 @@ pub fn parseCommand(arg: []const u8) Command {
     if (std.mem.eql(u8, arg, "board")) return .github;
     if (std.mem.eql(u8, arg, "protocol")) return .github;
     if (std.mem.eql(u8, arg, "github")) return .github;
-    if (std.mem.eql(u8, arg, "zenodo")) return .zenodo;
+    // if (std.mem.eql(u8, arg, "zenodo")) return .zenodo; // TODO: fix zenodo_templates API compatibility
     // Autonomous Loop (Ralph Pattern)
     if (std.mem.eql(u8, arg, "loop")) return .loop;
     // Experience (episode storage & recall)

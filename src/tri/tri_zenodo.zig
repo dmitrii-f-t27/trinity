@@ -3545,7 +3545,6 @@ fn generateAuthorListExamples(allocator: std.mem.Allocator) !void {
         .department = "AI Research",
         .city = "San Francisco",
         .country = "USA",
-        .email = "dev@trinity.ai",
     };
 
     const affil2 = zenodo_templates.Affiliation{
@@ -3581,7 +3580,7 @@ fn generateAuthorListExamples(allocator: std.mem.Allocator) !void {
 
     const list = zenodo_templates.AuthorList{
         .authors = &authors,
-        .paper_title = "HSLM: Ternary Language Models with φ-RoPE",
+        .corresponding_email = "dmitrii@trinity.ai",
     };
 
     print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
