@@ -297,6 +297,22 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
     } else if (std.mem.eql(u8, subcmd, "authors")) {
         // Generate author list
         try generateAuthorListExamples(allocator);
+    } else if (std.mem.eql(u8, subcmd, "validate")) {
+        // Validate metadata for a bundle
+        if (sub_args.len < 1) {
+            print("{s}Usage: tri zenodo validate <bundle>{s}\n", .{ RED, RESET });
+            print("  Bundles: B001, B002, B003, B004, B005, B006, B007, PARENT\n", .{});
+            return;
+        }
+        try validateBundle(allocator, sub_args[0]);
+    } else if (std.mem.eql(u8, subcmd, "generate")) {
+        // Generate full JSON metadata for a bundle
+        if (sub_args.len < 1) {
+            print("{s}Usage: tri zenodo generate <bundle>{s}\n", .{ RED, RESET });
+            print("  Bundles: B001, B002, B003, B004, B005, B006, B007, PARENT\n", .{});
+            return;
+        }
+        try generateBundleJson(allocator, sub_args[0]);
     } else {
         print("{s}Unknown subcommand: {s}{s}\n", .{ RED, subcmd, RESET });
         printHelp();
@@ -3940,6 +3956,157 @@ fn generateAuthorListExamples(allocator: std.mem.Allocator) !void {
     print("{s}\n", .{md});
 }
 
+/// Validate metadata for a bundle
+fn validateBundle(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} Metadata Validator{s}\n", .{ BOLD, "ZENODO", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+    print("Bundle: {s}{s}{s}\n\n", .{ BOLD, bundle_id, RESET });
+
+    // Parse bundle ID to BundleType
+    const bundle = parseBundleType(bundle_id) catch |err| {
+        if (err == error.InvalidBundleId) {
+            print("{s}Error: Unknown bundle ID '{s}'{s}\n", .{ RED, bundle_id, RESET });
+            print("Valid bundles: B001-A, B002-B, B003-C, B004-D, B005-E, B006-F, B007-G, PARENT\n", .{});
+        } else {
+            print("{s}Error: {s}{s}\n", .{ RED, @errorName(err), RESET });
+        }
+        return;
+    };
+
+    // Generate metadata using ZenodoGenerator
+    const generator = zenodo_templates.ZenodoGenerator.init(allocator, bundle, "v7.0.0");
+    const metadata = try generator.generateMetadata();
+    defer {
+        allocator.free(metadata.title);
+        allocator.free(metadata.abstract);
+        allocator.free(metadata.keywords);
+        allocator.free(metadata.authors);
+    }
+
+    // Validate metadata
+    var validator = zenodo_templates.ZenodoValidation.init(allocator);
+    defer validator.deinit();
+
+    const valid = try validator.validatePaperMetadata(&metadata);
+
+    // Print validation results
+    if (valid and validator.errors.items.len == 0) {
+        print("{s}✓ Metadata is valid!{s}\n\n", .{ GREEN, RESET });
+    } else {
+        const errors = try validator.formatErrors(allocator);
+        defer allocator.free(errors);
+        print("{s}\n", .{errors});
+    }
+}
+
+/// Generate full JSON metadata for a bundle
+fn generateBundleJson(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} JSON Metadata Generator{s}\n", .{ BOLD, "ZENODO", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+    print("Bundle: {s}{s}{s}\n\n", .{ BOLD, bundle_id, RESET });
+
+    // Parse bundle ID to BundleType
+    const bundle = parseBundleType(bundle_id) catch |err| {
+        if (err == error.InvalidBundleId) {
+            print("{s}Error: Unknown bundle ID '{s}'{s}\n", .{ RED, bundle_id, RESET });
+            print("Valid bundles: B001-A, B002-B, B003-C, B004-D, B005-E, B006-F, B007-G, PARENT\n", .{});
+        } else {
+            print("{s}Error: {s}{s}\n", .{ RED, @errorName(err), RESET });
+        }
+        return;
+    };
+
+    // Generate metadata using ZenodoGenerator
+    const generator = zenodo_templates.ZenodoGenerator.init(allocator, bundle, "v7.0.0");
+    const metadata = try generator.generateMetadata();
+    defer {
+        allocator.free(metadata.title);
+        allocator.free(metadata.abstract);
+        allocator.free(metadata.keywords);
+        allocator.free(metadata.authors);
+    }
+
+    // Build JSON output
+    var json = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+    defer json.deinit(allocator);
+
+    try json.writer(allocator).print("{{\n", .{});
+    try json.writer(allocator).print("  \"title\": \"{s}\",\n", .{metadata.title});
+    try json.writer(allocator).print("  \"authors\": [\n", .{});
+    for (metadata.authors, 0..) |author, i| {
+        try json.writer(allocator).print("    {{\"name\": \"{s}\", \"affiliation\": \"{s}\"}", .{ author.name, author.affiliation });
+        if (author.orcid) |orcid| {
+            try json.writer(allocator).print(", \"orcid\": \"{s}\"", .{orcid});
+        }
+        if (i < metadata.authors.len - 1) {
+            try json.writer(allocator).print("}},\n", .{});
+        } else {
+            try json.writer(allocator).print("}}\n", .{});
+        }
+    }
+    try json.writer(allocator).print("  ],\n", .{});
+    try json.writer(allocator).print("  \"abstract\": \"{s}\",\n", .{metadata.abstract});
+    try json.writer(allocator).print("  \"keywords\": [", .{});
+    for (metadata.keywords, 0..) |kw, i| {
+        try json.writer(allocator).print("\"{s}\"", .{kw});
+        if (i < metadata.keywords.len - 1) {
+            try json.writer(allocator).print(", ", .{});
+        }
+    }
+    try json.writer(allocator).print("],\n", .{});
+    try json.writer(allocator).print("  \"year\": {d},\n", .{metadata.year});
+    if (metadata.doi) |doi| {
+        try json.writer(allocator).print("  \"doi\": \"{s}\",\n", .{doi});
+    }
+    if (metadata.code_url) |url| {
+        try json.writer(allocator).print("  \"code_url\": \"{s}\",\n", .{url});
+    }
+    if (metadata.upload_type) |ut| {
+        try json.writer(allocator).print("  \"upload_type\": \"{s}\",\n", .{ut.toString()});
+    }
+    if (metadata.access_right) |ar| {
+        try json.writer(allocator).print("  \"access_right\": \"{s}\",\n", .{ar.toString()});
+    }
+    if (metadata.license) |lic| {
+        try json.writer(allocator).print("  \"license\": \"{s}\",\n", .{lic});
+    }
+    if (metadata.version) |ver| {
+        try json.writer(allocator).print("  \"version\": \"{s}\",\n", .{ver});
+    }
+    if (metadata.communities) |comms| {
+        try json.writer(allocator).print("  \"communities\": [", .{});
+        for (comms, 0..) |c, i| {
+            try json.writer(allocator).print("\"{s}\"", .{c});
+            if (i < comms.len - 1) {
+                try json.writer(allocator).print(", ", .{});
+            }
+        }
+        try json.writer(allocator).print("],\n", .{});
+    }
+    try json.writer(allocator).print("  \"bundle_type\": \"{s}\"\n", .{bundle.fileName()});
+    try json.writer(allocator).print("}}\n", .{});
+
+    const json_str = try json.toOwnedSlice(allocator);
+    defer allocator.free(json_str);
+
+    print("{s}{s} JSON Output:{s}\n\n", .{ CYAN, BOLD, RESET });
+    print("{s}\n", .{json_str});
+
+    // Print validation status
+    var validator = zenodo_templates.ZenodoValidation.init(allocator);
+    defer validator.deinit();
+    const valid = try validator.validatePaperMetadata(&metadata);
+
+    print("\n{s}{s} Validation Status:{s} ", .{ CYAN, BOLD, RESET });
+    if (valid) {
+        print("{s}Valid{s}\n", .{ GREEN, RESET });
+    } else {
+        print("{s}Invalid{s}\n", .{ RED, RESET });
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════
 // ZENODO JSON HELPER — Calibration Metrics Generator
 // ═════════════════════════════════════════════════════════════════════════
@@ -3952,4 +4119,3 @@ pub const ZenodoJsonHelper = struct {
         return json.toOwnedSlice(allocator);
     }
 };
-
