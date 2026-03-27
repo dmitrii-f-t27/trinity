@@ -2159,11 +2159,43 @@ pub const ZenodoValidation = struct {
     }
 
     /// Validate calibration metrics against NeurIPS 2025 standards
-    pub fn validateCalibrationMetrics(self: *const ZenodoValidation, metrics: *const anyopaque) !ValidationResult {
-        _ = self;
-        _ = metrics;
-        print("{s}TODO: CalibrationMetrics structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
-        return error.UnsupportedOperation;
+    pub fn validateCalibrationMetrics(self: *const ZenodoValidation, metrics: *const zenodo_templates.CalibrationMetrics) !ValidationResult {
+        var errors = std.ArrayList([]const u8).init(self.allocator);
+        defer {
+            for (errors.items) |err| self.allocator.free(err);
+            errors.deinit(self.allocator);
+        }
+        var warnings = std.ArrayList([]const u8).init(self.allocator);
+        defer {
+            for (warnings.items) |warn| self.allocator.free(warn);
+            warnings.deinit(self.allocator);
+        }
+
+        // Validate ECE
+        if (metrics.ece >= 0.12) {
+            try errors.append(self.allocator, try std.fmt.allocPrint(self.allocator, "ECE too high: {d:.3} >= 0.12 (NeurIPS 2025 threshold)", .{metrics.ece}));
+        }
+
+        // Validate CI bounds
+        if (metrics.ci_lower >= metrics.ci_upper) {
+            try errors.append(self.allocator, try std.fmt.allocPrint(self.allocator, "Invalid CI: lower ({d:.3}) >= upper ({d:.3})", .{ metrics.ci_lower, metrics.ci_upper }));
+        }
+
+        // Validate Brier Score (should be <= 0.25 for good calibration)
+        if (metrics.brier_score > 0.25) {
+            try warnings.append(self.allocator, try std.fmt.allocPrint(self.allocator, "Brier Score high: {d:.3} > 0.25", .{metrics.brier_score}));
+        }
+
+        // Validate sample count
+        if (metrics.n_samples < 1000) {
+            try warnings.append(self.allocator, try std.fmt.allocPrint(self.allocator, "Low sample count: {d} < 1000", .{metrics.n_samples}));
+        }
+
+        return ValidationResult{
+            .is_valid = errors.items.len == 0,
+            .errors = try errors.toOwnedSlice(self.allocator),
+            .warnings = try warnings.toOwnedSlice(self.allocator),
+        };
     }
 };
 
