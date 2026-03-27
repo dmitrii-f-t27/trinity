@@ -441,7 +441,48 @@ zig build sacred-formats
 
 ---
 
-## Code and Data Availability
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Storage Efficiency and Democratization:**
+- 6.2× storage reduction enables larger datasets on same hardware
+- 2.6× bandwidth improvement (1.62 GB/s vs 0.62 GB/s)
+- 68% deduplication reduces storage costs significantly
+- Deterministic storage enables reliable data retrieval
+
+**Open Science and Accessibility:**
+- Fully open-source (MIT License) enables research worldwide
+- Pure Zig implementation eliminates external dependencies
+- Content-addressed storage paradigm novel and accessible
+
+**Scientific Advancement:**
+- First production φ-based content-addressed storage with formal proofs
+- Collision rate matches theoretical (χ² p = 0.76)
+- 68% deduplication exceeds code-only 31.5%
+
+### 9.2 Negative Impacts and Limitations
+
+**Storage Trade-offs:**
+- Content-addressing may not benefit all workloads
+- Requires careful planning for optimal chunk sizes
+- Hash collisions possible in dense data (mitigated with φ-hash)
+
+**Ethical Considerations:**
+- **Data Access:** Content-addressed storage may restrict data deletion (GDPR concern)
+- **Environmental Impact:** Positive: 6.2× storage reduction lowers energy consumption
+- **Auditability:** Hash-based verification provides tamper evidence
+
+### 9.3 Mitigation Strategies
+
+- Implement proper data deletion and retention policies
+- Use hybrid storage strategies for different workload types
+- Document privacy implications and compliance requirements
+- Provide hash verification tools for integrity checking
+
+---
+
+## 10. Code and Data Availability
 
 ### Source Code
 

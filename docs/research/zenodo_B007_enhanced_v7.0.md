@@ -444,7 +444,47 @@ zig build vsa
 
 ---
 
-## Code and Data Availability
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Computational Efficiency and Democratization:**
+- 12.3× SIMD speedup enables real-time VSA operations
+- Noise resilience 94.8% vs 67.2% baseline enables edge deployment
+- Enables hyperdimensional computing on commodity hardware
+
+**Open Science and Accessibility:**
+- Fully open-source (MIT License) enables global VSA research
+- Pure Zig implementation eliminates external dependencies
+- Cross-platform (ARM NEON, AVX, x86) via SIMD abstractions
+
+**Scientific Advancement:**
+- First production SIMD-accelerated VSA library with formal theorems
+- Noise tolerance theory: E[cos(s, ẗ)] ≈ exp(-σ²/d)
+- Bind-unbind inverse: error ≤ O(1/√d) proven
+
+### 9.2 Negative Impacts and Limitations
+
+**Dimensionality Limitations:**
+- High-dimensional representations require large memory
+- Noise tolerance degrades with increasing dimension
+- Not optimized for sparse data representations
+
+**Ethical Considerations:**
+- **Potential Misuse:** High-dimensional computing could enable surveillance applications
+- **Data Privacy:** Representational learning may memorize sensitive training data
+- **Environmental Impact:** Positive: 12.3× speedup reduces energy per operation
+
+### 9.3 Mitigation Strategies
+
+- Document noise tolerance characteristics and limitations
+- Provide privacy-preserving learning options
+- Consider federated learning for sensitive applications
+- Implement differential privacy mechanisms
+
+---
+
+## 10. Code and Data Availability
 
 ### Source Code
 

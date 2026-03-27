@@ -420,7 +420,51 @@ zig build queen-lotus
 
 ---
 
-## Code and Data Availability
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Calibrated Uncertainty for Safety:**
+- ECE reduction 71% improves reliability in safety-critical RL applications
+- Proper uncertainty quantification prevents overconfident decisions
+- Sample efficiency 2.3× reduces computational cost for policy learning
+
+**Scientific Advancement:**
+- Six-phase Lotus Cycle provides novel calibrated RL framework
+- Monte Carlo dropout for uncertainty without extra computation
+- Robustness under distribution shift (94% vs 78% baseline)
+
+**Democratization:**
+- Open-source implementation enables research in resource-constrained environments
+- Pure Zig implementation eliminates Python dependencies
+
+### 9.2 Negative Impacts and Limitations
+
+**RL-Specific Considerations:**
+- Sample efficiency improvement may incentivize replacing human labor
+- RL policies may exhibit unexpected behavior in novel environments
+- Calibration does not guarantee safety — validation required
+
+**Ethical Considerations:**
+- **Automation Risk:** Could displace human decision-making in autonomous systems
+- **Environmental Impact:** Positive: 2.3× sample efficiency reduces training carbon footprint
+- **Dual Use:** Calibrated RL applicable to autonomous weapons (requires responsible deployment)
+
+**Limitations:**
+- Validated on CartPole, LunarLander, BipedalWalker, Atari Pong only
+- Not validated on high-stakes applications (healthcare, autonomous vehicles)
+- Calibration may degrade under extreme distribution shift
+
+### 9.3 Mitigation Strategies
+
+- Implement human-in-the-loop validation for policy deployment
+- Use conservative uncertainty thresholds in safety-critical applications
+- Document distribution shift assumptions and failure modes
+- Consider adversarial training for robustness
+
+---
+
+## 10. Code and Data Availability
 
 ### Source Code
 

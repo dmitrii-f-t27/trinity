@@ -469,6 +469,46 @@ zig build vibee
 
 ---
 
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Open Science and Software Engineering:**
+- Fully open-source compiler (MIT License) enables global compiler research
+- Pure Zig implementation eliminates external build dependencies
+- φ-based encoding provides novel mathematical optimization framework
+- Enables research in ternary computing (emerging field)
+
+**Scientific Advancement:**
+- First production φ-optimized ternary compiler
+- Information-theoretic foundation: MSE minimization proven
+- Linear parse time: T ≤ α·n + β where α = 1.49 ns/char
+- Contributes to sustainable compiler design research
+
+### 9.2 Negative Impacts and Limitations
+
+**Scope Limitations:**
+- Optimized for Trinity ternary ecosystem (not general Zig)
+- Limited to .tri specification format
+- Not compatible with existing compiler toolchains
+
+**Ethical Considerations:**
+- **Environmental Impact:** Positive: reduces compilation time and resource usage
+- **Code Quality:** Generated code quality depends on specification correctness
+- **Intellectual Property:** MIT license enables commercial use with attribution
+- **Software Supply Chain:** Compiler could introduce vulnerabilities (requires review)
+
+### 9.3 Mitigation Strategies
+
+- Provide comprehensive specification documentation
+- Implement compiler validation and verification tools
+- Support multiple backends for flexibility
+- Security audit of generated code for production deployments
+
+---
+
+## 10. Code and Data Availability
+
 ## Code and Data Availability
 
 ### Source Code

@@ -425,6 +425,43 @@ Generated during verification (68 tests, all passing):
 
 ---
 
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Open Science and Accessibility:**
+- Fully open-source (MIT License) enables global research
+- Pure Zig implementation eliminates external dependencies
+- Coptic alphabet enables novel ternary computing research
+- ISA available for academic use and extension
+
+**Scientific Advancement:**
+- First production 27-register ternary instruction set with formal security proofs
+- Information-theoretic foundation: 1.585 bits/trit efficiency
+- Contributes to low-power computer architecture research
+
+### 9.2 Negative Impacts and Limitations
+
+**Scope Limitations:**
+- Limited to embedded systems (not general-purpose CPUs)
+- Code density improvements not applicable to RISC-V ecosystem
+- Requires specialized hardware knowledge for deployment
+
+**Ethical Considerations:**
+- **Environmental Impact:** Lower power consumption (83% of baseline) reduces carbon footprint
+- **Potential Misuse:** Could be used for embedded malware
+- **Deployment:** Hardware deployment may require security review
+
+### 9.3 Mitigation Strategies
+
+- Document security implications for embedded deployments
+- Provide clear usage guidelines and restrictions
+- Consider formal verification for security-critical applications
+
+---
+
+## 10. Included in this Deposit
+
 ## 7. DOI Versioning (V15)
 
 **DOI Record:**

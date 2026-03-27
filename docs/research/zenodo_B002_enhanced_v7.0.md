@@ -416,7 +416,51 @@ zig build test --test-filter fpga_b002
 
 ---
 
-## Citations (V15 Enhanced)
+## 9. Broader Impact and Ethical Considerations (NeurIPS 2025+)
+
+### 9.1 Positive Impacts
+
+**Energy Efficiency and Democratization:**
+- 100% DSP elimination enables deployment on resource-constrained FPGAs
+- 1.2W power consumption enables battery-powered edge AI
+- 90% power reduction (1.2W vs 12W baseline) reduces data center carbon footprint
+- Estimated annual CO₂ savings: ~7.8 kg per deployed device
+
+**Open Science and Accessibility:**
+- Fully open-source (MIT License) enables research worldwide
+- Pure Zig implementation eliminates external dependencies
+- No licensing restrictions for commercial deployment
+- Enables research in low-resource environments
+
+**Scientific Advancement:**
+- First production zero-DSP ternary neural network
+- Formal theorem: DSP elimination proven for ternary arithmetic
+- Contributes to sustainable AI research community
+
+### 9.2 Negative Impacts and Limitations
+
+**Quantization Trade-offs:**
+- Ternary encoding introduces accuracy degradation
+- LUT overhead (46% increase) may limit applicability
+- Matrix size limited to 128×128 (BRAM constraints)
+
+**Ethical Considerations:**
+- **Environmental Impact:** Positive: significant carbon reduction via efficient inference
+- **Potential Misuse:** Could be used for unauthorized surveillance
+- **Safety:** Neural network predictions require validation in critical applications
+- **Bias:** Training data biases may propagate through model
+
+### 9.3 Mitigation Strategies
+
+- Apply proper calibration and uncertainty quantification
+- Document known limitations and failure modes
+- Implement human oversight for safety-critical applications
+- Use adversarial training for robustness
+- Consider environmental impact in deployment decisions
+
+---
+
+## 10. Citations (V15 Enhanced)
 
 ### BibTeX
 
