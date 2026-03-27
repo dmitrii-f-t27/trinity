@@ -3424,3 +3424,406 @@ test "SimpleTable - generates LaTeX table" {
     try std.testing.expect(std.mem.indexOf(u8, latex, "Benchmark results") != null);
     try std.testing.expect(std.mem.indexOf(u8, latex, "\\hline") != null);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V105: SUBMISSION CHECKLISTS & AVAILABILITY STATEMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Conference type for submission checklists
+pub const ConferenceType = enum {
+    /// NeurIPS (Conference on Neural Information Processing Systems)
+    neurips,
+    /// ICLR (International Conference on Learning Representations)
+    iclr,
+    /// MLSys (Conference on Machine Learning and Systems)
+    mlsys,
+    /// ICML (International Conference on Machine Learning)
+    icml,
+    /// AAAI (Association for the Advancement of Artificial Intelligence)
+    aaai,
+    /// IJCAI (International Joint Conference on Artificial Intelligence)
+    ijcai,
+    /// CVPR (Computer Vision and Pattern Recognition)
+    cvpr,
+    /// ACL (Association for Computational Linguistics)
+    acl,
+
+    pub fn toString(self: ConferenceType) []const u8 {
+        return switch (self) {
+            .neurips => "NeurIPS",
+            .iclr => "ICLR",
+            .mlsys => "MLSys",
+            .icml => "ICML",
+            .aaai => "AAAI",
+            .ijcai => "IJCAI",
+            .cvpr => "CVPR",
+            .acl => "ACL",
+        };
+    }
+
+    pub fn checklistUrl(self: ConferenceType) []const u8 {
+        return switch (self) {
+            .neurips => "https://neurips.cc/Conferences/2025/PaperInformation/ReviewerGuide",
+            .iclr => "https://iclr.cc/Conferences/2025/SubmissionChecklist",
+            .mlsys => "https://mlsys.org/Conferences/2025/AuthorGuidelines",
+            .icml => "https://icml.cc/2025/author-guidelines",
+            .aaai => "https://aaai.org/conference/aaai/aaai-26/submission-guidelines/",
+            .ijcai => "https://ijcai26.org/submission-guidelines/",
+            .cvpr => "https://cvpr.thecvf.com/Conferences/2025",
+            .acl => "https://acl2025.org/submission-guidelines/",
+        };
+    }
+};
+
+/// Checklist item status
+pub const ChecklistStatus = enum {
+    /// Item completed and verified
+    complete,
+    /// Item in progress
+    in_progress,
+    /// Item not started
+    pending,
+    /// Item not applicable
+    na,
+
+    pub fn toSymbol(self: ChecklistStatus) []const u8 {
+        return switch (self) {
+            .complete => "✓",
+            .in_progress => "○",
+            .pending => " ",
+            .na => "N/A",
+        };
+    }
+
+    pub fn toString(self: ChecklistStatus) []const u8 {
+        return switch (self) {
+            .complete => "Complete",
+            .in_progress => "In Progress",
+            .pending => "Pending",
+            .na => "N/A",
+        };
+    }
+};
+
+/// Individual checklist item
+pub const ChecklistItem = struct {
+    /// Item description
+    description: []const u8,
+    /// Current status
+    status: ChecklistStatus,
+    /// Optional notes
+    notes: ?[]const u8 = null,
+
+    pub fn formatAsMarkdown(self: *const ChecklistItem, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("{s} {s}", .{ self.status.toSymbol(), self.description });
+
+        if (self.notes) |n| {
+            try result.writer(allocator).print (" — {s}", .{n});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Conference submission checklist
+pub const SubmissionChecklist = struct {
+    /// Target conference
+    conference: ConferenceType,
+    /// Checklist items
+    items: []const ChecklistItem,
+    /// Review deadline (optional)
+    review_deadline: ?[]const u8 = null,
+    /// Submission deadline (optional)
+    submission_deadline: ?[]const u8 = null,
+
+    /// Generate NeurIPS-specific checklist
+    pub fn forNeurIPS(allocator: std.mem.Allocator) !SubmissionChecklist {
+        const items = [_]ChecklistItem{
+            .{ .description = "Abstract follows 5-sentence format (context, gap, method, results, impact)", .status = .pending },
+            .{ .description = "Paper within 8 pages (excluding references and appendix)", .status = .pending },
+            .{ .description = "Broader impact statement included", .status = .pending },
+            .{ .description = "Computational resources section included", .status = .pending },
+            .{ .description = "Reproducibility checklist completed", .status = .pending },
+            .{ .description = "Code and data availability specified", .status = .pending },
+            .{ .description = "Ethics statement included if applicable", .status = .pending },
+            .{ .description = "Prior work clearly cited", .status = .pending },
+            .{ .description = "Limitations section included", .status = .pending },
+        };
+
+        const item_ptrs = try allocator.alloc(*const ChecklistItem, items.len);
+        defer allocator.free(item_ptrs);
+        for (items, 0..) |*item, i| {
+            item_ptrs[i] = item;
+        }
+
+        return SubmissionChecklist{
+            .conference = .neurips,
+            .items = items,
+            .review_deadline = null,
+            .submission_deadline = null,
+        };
+    }
+
+    /// Generate ICLR-specific checklist
+    pub fn forICLR(_allocator: std.mem.Allocator) !SubmissionChecklist {
+        const items = [_]ChecklistItem{
+            .{ .description = "Abstract within 250 words", .status = .pending },
+            .{ .description = "Main text within 8 pages (excluding references and appendices)", .status = .pending },
+            .{ .description = "Broader impact statement included", .status = .pending },
+            .{ .description = "Reproducibility checklist completed", .status = .pending },
+            .{ .description = "Code availability specified", .status = .pending },
+            .{ .description = "Data availability specified", .status = .pending },
+            .{ .description = "Prior work and related work clearly distinguished", .status = .pending },
+            .{ .description = "Limitations and future work included", .status = .pending },
+        };
+
+        return SubmissionChecklist{
+            .conference = .iclr,
+            .items = items,
+        };
+    }
+
+    /// Calculate completion percentage
+    pub fn completionRate(self: *const SubmissionChecklist) f32 {
+        var complete: usize = 0;
+        var applicable: usize = 0;
+
+        for (self.items) |item| {
+            if (item.status != .na) {
+                applicable += 1;
+                if (item.status == .complete) {
+                    complete += 1;
+                }
+            }
+        }
+
+        if (applicable == 0) return 100.0;
+        return @as(f32, @floatFromInt(complete)) / @as(f32, @floatFromInt(applicable)) * 100.0;
+    }
+
+    /// Generate formatted checklist as markdown
+    pub fn generateMarkdown(self: *const SubmissionChecklist, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print ("# {s} Submission Checklist\n\n", .{self.conference.toString()});
+        try result.writer(allocator).print ("Completion: {d:.1}%\n\n", .{self.completionRate()});
+
+        if (self.submission_deadline) |deadline| {
+            try result.writer(allocator).print ("**Submission Deadline:** {s}\n\n", .{deadline});
+        }
+
+        if (self.review_deadline) |deadline| {
+            try result.writer(allocator).print ("**Review Deadline:** {s}\n\n", .{deadline});
+        }
+
+        try result.appendSlice(allocator, "## Checklist\n\n");
+
+        for (self.items) |item| {
+            const line = try item.formatAsMarkdown(allocator);
+            defer allocator.free(line);
+            try result.appendSlice(allocator, line);
+            try result.append(allocator, '\n');
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Code/data availability statement following FAIR principles
+pub const AvailabilityStatement = struct {
+    /// Code repository URL
+    code_url: ?[]const u8 = null,
+    /// Dataset URL or DOI
+    data_url: ?[]const u8 = null,
+    /// License type
+    license: []const u8 = "MIT",
+    /// Additional notes
+    notes: ?[]const u8 = null,
+
+    /// Generate FAIR-compliant availability statement
+    pub fn generateStatement(self: *const AvailabilityStatement, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "Availability Statement\n");
+        try result.appendSlice(allocator, "====================\n\n");
+
+        if (self.code_url) |url| {
+            try result.writer(allocator).print ("**Code:** The source code is available at {s} under the {s} license.\n", .{ url, self.license });
+        } else {
+            try result.appendSlice(allocator, "**Code:** The source code will be released upon acceptance.\n");
+        }
+
+        try result.append(allocator, '\n');
+
+        if (self.data_url) |url| {
+            try result.writer(allocator).print ("**Data:** The datasets used in this work are available at {s}.\n", .{url});
+        } else {
+            try result.appendSlice(allocator, "**Data:** The datasets used in this work are publicly available from cited sources.\n");
+        }
+
+        try result.append(allocator, '\n');
+
+        if (self.notes) |n| {
+            try result.writer(allocator).print ("**Notes:** {s}\n", .{n});
+        }
+
+        try result.appendSlice(allocator, "\nAll materials follow FAIR principles (Findable, Accessible, Interoperable, Reusable).\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Generate LaTeX version of availability statement
+    pub fn generateLatex(self: *const AvailabilityStatement, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "\\section*{Availability of Materials}\n\n");
+
+        if (self.code_url) |url| {
+            try result.writer(allocator).print ("\\textbf{{Code:}} The source code is available at \\url{{{s}}} under the {s} license.\n\n", .{ url, self.license });
+        } else {
+            try result.appendSlice(allocator, "\\textbf{Code:} The source code will be released upon acceptance.\n\n");
+        }
+
+        if (self.data_url) |url| {
+            try result.writer(allocator).print ("\\textbf{{Data:}} The datasets used in this work are available at \\url{{{s}}}.\n\n", .{url});
+        } else {
+            try result.appendSlice(allocator, "\\textbf{Data:} The datasets used in this work are publicly available from cited sources.\n\n");
+        }
+
+        if (self.notes) |n| {
+            try result.writer(allocator).print ("\\textbf{{Notes:}} {s}\n\n", .{n});
+        }
+
+        try result.appendSlice(allocator, "All materials follow FAIR principles (Findable, Accessible, Interoperable, Reusable).\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V105 TESTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "ConferenceType - enum to string" {
+    try std.testing.expectEqualStrings("NeurIPS", ConferenceType.neurips.toString());
+    try std.testing.expectEqualStrings("ICLR", ConferenceType.iclr.toString());
+    try std.testing.expectEqualStrings("MLSys", ConferenceType.mlsys.toString());
+    try std.testing.expectEqualStrings("ICML", ConferenceType.icml.toString());
+}
+
+test "ConferenceType - checklist URL" {
+    const neurips_url = ConferenceType.neurips.checklistUrl();
+    try std.testing.expect(std.mem.indexOf(u8, neurips_url, "neurips.cc") != null);
+
+    const iclr_url = ConferenceType.iclr.checklistUrl();
+    try std.testing.expect(std.mem.indexOf(u8, iclr_url, "iclr.cc") != null);
+}
+
+test "ChecklistStatus - symbols" {
+    try std.testing.expectEqualStrings("✓", ChecklistStatus.complete.toSymbol());
+    try std.testing.expectEqualStrings("○", ChecklistStatus.in_progress.toSymbol());
+    try std.testing.expectEqualStrings(" ", ChecklistStatus.pending.toSymbol());
+    try std.testing.expectEqualStrings("N/A", ChecklistStatus.na.toSymbol());
+}
+
+test "ChecklistItem - format as markdown" {
+    const item = ChecklistItem{
+        .description = "Abstract included",
+        .status = .complete,
+        .notes = "5 sentences, 250 words",
+    };
+
+    const md = try item.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "✓") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Abstract included") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "5 sentences") != null);
+}
+
+test "SubmissionChecklist - completion rate" {
+    const items = [_]ChecklistItem{
+        .{ .description = "Item 1", .status = .complete },
+        .{ .description = "Item 2", .status = .complete },
+        .{ .description = "Item 3", .status = .pending },
+        .{ .description = "Item 4", .status = .na },
+    };
+
+    const checklist = SubmissionChecklist{
+        .conference = .neurips,
+        .items = &items,
+    };
+
+    // 2 complete out of 3 applicable (excluding NA) = 66.67%
+    const rate = checklist.completionRate();
+    try std.testing.expect(rate > 66.0 and rate < 67.0);
+}
+
+test "SubmissionChecklist - generate markdown" {
+    const items = [_]ChecklistItem{
+        .{ .description = "Abstract included", .status = .complete },
+        .{ .description = "Broader impact", .status = .pending },
+    };
+
+    const checklist = SubmissionChecklist{
+        .conference = .neurips,
+        .items = &items,
+        .submission_deadline = "2026-05-06",
+    };
+
+    const md = try checklist.generateMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "NeurIPS Submission Checklist") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "50.0%") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "2026-05-06") != null);
+}
+
+test "AvailabilityStatement - generate statement" {
+    const statement = AvailabilityStatement{
+        .code_url = "https://github.com/gHashTag/trinity",
+        .data_url = "https://zenodo.org/record/XXXXX",
+        .license = "MIT",
+        .notes = "Pre-trained models available on request",
+    };
+
+    const text = try statement.generateStatement(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+
+    try std.testing.expect(std.mem.indexOf(u8, text, "github.com/gHashTag/trinity") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "zenodo.org") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "MIT") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "FAIR") != null);
+}
+
+test "AvailabilityStatement - generate LaTeX" {
+    const statement = AvailabilityStatement{
+        .code_url = "https://github.com/gHashTag/trinity",
+        .license = "MIT",
+    };
+
+    const latex = try statement.generateLatex(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\section*{Availability") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\url{https://github.com/gHashTag/trinity}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "FAIR") != null);
+}
+
+test "AvailabilityStatement - pending release" {
+    const statement = AvailabilityStatement{
+        .code_url = null,
+        .data_url = null,
+    };
+
+    const text = try statement.generateStatement(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+
+    try std.testing.expect(std.mem.indexOf(u8, text, "will be released upon acceptance") != null);
+}
