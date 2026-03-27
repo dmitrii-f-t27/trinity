@@ -1,0 +1,96 @@
+# Trinity Zenodo v7.3 - Docker Compose
+# =====================================
+#
+# Orchestrates all 7 bundle containers for testing and demonstration.
+#
+# Usage:
+#   docker-compose up -d        # Start all containers
+#   docker-compose ps           # Show status
+#   docker-compose logs b001    # Show B001 logs
+#   docker-compose down        # Stop all containers
+
+version: "3.9"
+
+services:
+  # B001: HSLM Training
+  b001-hslm:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B001
+    image: trinity-b001:v7.3
+    container_name: trinity-b001
+    volumes:
+      - ../../../data:/src/data:rw
+      - ../../../src/hslm:/src/hslm:ro
+    environment:
+      - HSLM_MODEL_SIZE=1.95M
+      - HSLM_DATASET=tinystories
+    command: ["--help"]
+
+  # B002: FPGA Synthesis
+  b002-fpga:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B002
+    image: trinity-b002:v7.3
+    container_name: trinity-b002
+    volumes:
+      - ../../../fpga:/src/fpga:ro
+    command: ["--help"]
+
+  # B003: TRI-27 Toolchain
+  b003-tri27:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B003
+    image: trinity-b003:v7.3
+    container_name: trinity-b003
+    volumes:
+      - ../../../specs/tri:/src/specs:ro
+    command: ["--help"]
+
+  # B004: Queen Lotus RL
+  b004-queen:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B004
+    image: trinity-b004:v7.3
+    container_name: trinity-b004
+    volumes:
+      - ../../../src/queen:/src/queen:ro
+    environment:
+      - LOTUS_EPISODES=1000
+    command: ["--help"]
+
+  # B005: VIBEE Compiler
+  b005-vibee:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B005
+    image: trinity-b005:v7.3
+    container_name: trinity-b005
+    volumes:
+      - ../../../specs/tri:/src/specs:rw
+    command: ["--help"]
+
+  # B006: Sacred Formats
+  b006-sacred:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B006
+    image: trinity-b006:v7.3
+    container_name: trinity-b006
+    volumes:
+      - ../../../src/sacred:/src/sacred:ro
+    command: ["--help"]
+
+  # B007: VSA Library
+  b007-vsa:
+    build:
+      context: ../../..
+      dockerfile: docs/research/docker/Dockerfile.B007
+    image: trinity-b007:v7.3
+    container_name: trinity-b007
+    volumes:
+      - ../../../src/vsa:/src/vsa:ro
+    command: ["--help"]
