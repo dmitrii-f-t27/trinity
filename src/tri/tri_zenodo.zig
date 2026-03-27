@@ -264,14 +264,6 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
     } else if (std.mem.eql(u8, subcmd, "multipanel")) {
         // Generate multi-panel figure
         try generateMultiPanelExamples(allocator);
-    } else if (std.mem.eql(u8, subcmd, "citation")) {
-        // Generate citation graph (TODO: not implemented)
-        print("{s}Citation graph generation not yet implemented{s}\n", .{ YELLOW, RESET });
-        return;
-    } else if (std.mem.eql(u8, subcmd, "supplementary")) {
-        // Generate supplementary code (TODO: not implemented)
-        print("{s}Supplementary code generation not yet implemented{s}\n", .{ YELLOW, RESET });
-        return;
     } else if (std.mem.eql(u8, subcmd, "experiment")) {
         // Generate experiment config
         try generateExperimentConfigExamples(allocator);
