@@ -1,4 +1,4 @@
-# B003: TRI-27 ISA - Ternary Instruction Set Architecture v7.0
+# B003: TRI-27 ISA - Ternary Instruction Set Architecture v7.3
 
 **Authors:** Dmitrii Vasilev (https://orcid.org/0000-0000-0000-0000)
 **Affiliation:** Trinity Research Collective

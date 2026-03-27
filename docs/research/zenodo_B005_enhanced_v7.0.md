@@ -1,7 +1,7 @@
-# Zenodo B005: VIBEE - Ternary Compiler (v7.0)
+# Zenodo B005: VIBEE - Ternary Compiler (v7.3)
 
 **Bundle ID:** B005
-**Version:** 7.0.0
+**Version:** 7.3.0
 **Date:** 2026-03-27
 **Status:** V15 Scientific Rigor Enhanced
 **DOI:** 10.5281/zenodo.19227873
