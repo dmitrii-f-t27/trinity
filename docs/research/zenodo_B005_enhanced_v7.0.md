@@ -469,6 +469,44 @@ zig build vibee
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/vibee/          # VIBEE compiler implementation
+│   ├── parser.zig     # .tri file parser
+│   ├── codegen.zig     # Zig/Verilog generator
+│   └── ast.zig         # Abstract syntax tree
+├── src/ternary/        # Ternary operations
+├── specs/tri/          # VIBEE specification files
+└── tools/              # Compiler CLI
+```
+
+**Build Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build VIBEE compiler
+zig build vibee
+
+# Compile .tri spec to Zig
+./zig-out/bin/vibee specs/tri/hslm.tri --output src/hslm/model.zig
+```
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B005_vibee_metrics.csv` — Parse time and output size
+- `B005-Fig1_type_hierarchy.png` — VIBEE type system
+
+---
+
 ## Version History
 
 | Version | Date | Changes | DOI |

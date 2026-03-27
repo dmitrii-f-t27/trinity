@@ -381,6 +381,50 @@ zig build tri27-codegen
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/tri27/          # TRI-27 ISA implementation
+│   ├── emu.zig       # Ternary VM emulator
+│   ├── isa.zig        # Instruction definitions
+│   └── registers.zig  # 27-register file
+├── src/temple/         # Sacred math (φ, trits)
+├── src/ternary/        # Ternary operations
+└── tests/              # ISA test suite (68 tests)
+```
+
+**Build Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build TRI-27 tools
+zig build tri27-tools
+
+# Run ISA tests
+./zig-out/bin/tri27-test
+```
+
+**Test Data:**
+Generated during verification (68 tests, all passing):
+- `trinity_tests_output.csv` — Individual test results
+- Coverage: 100% instruction set coverage
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B003_registers.csv` — 27-register layout
+- `B003_metrics.csv` — Instruction cache metrics
+- `B003-Fig1_register_layout.png` — Register file visualization
+
+---
+
 ## 7. DOI Versioning (V15)
 
 **DOI Record:**

@@ -420,6 +420,51 @@ zig build queen-lotus
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/queen/          # Queen Lotus RL implementation
+│   ├── cycle.zig      # 6-phase training cycle
+│   ├── calibration.zig  # Uncertainty quantification
+│   └── policy.zig      # SAC policy with sacred scaling
+├── src/hslm/           # HSLM reference for embedding
+└── tools/              # Training and evaluation
+```
+
+**Build Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build Queen Lotus
+zig build queen-lotus
+
+# Run training (example)
+./zig-out/bin/queen-lotus --env CartPole-v1 --steps 10000
+```
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B004_calibration.csv` — ECE and Brier across environments
+- `B004_sample_efficiency.csv` — Learning curve data
+- `B004-Fig1_lotus_cycle.png` — Lotus Cycle visualization
+
+### Docker Image
+
+```bash
+docker pull ghcr.io/ghashag/trinity:b004-v7.0
+# Contains Python 3.11 for Gym environments
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes | DOI |

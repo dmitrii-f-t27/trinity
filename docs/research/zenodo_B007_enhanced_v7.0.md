@@ -444,6 +444,53 @@ zig build vsa
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/vsa/            # VSA library implementation
+│   ├── bind.zig       # Bind/unbind operations
+│   ├── bundle.zig     # Majority voting
+│   ├── similarity.zig  # Cosine similarity
+│   └── simd.zig       # NEON/AVX acceleration
+├── src/ternary/        # Ternary sparse representations
+└── tests/              # VSA mathematical proofs
+```
+
+**Build Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build VSA library
+zig build vsa
+
+# Run SIMD benchmarks
+./zig-out/bin/vsa-benchmark --dimension 10000 --iterations 10000
+```
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B007_simd_benchmarks.csv` — SIMD speedup data
+- `B007_noise_resilience.csv` — Noise tolerance results
+- `B007_simd_comparison_v15.png` — Figure: SIMD vs scalar
+- `B007_noise_resilience_v15.png` — Figure: Noise tolerance
+
+### Docker Image
+
+```bash
+docker pull ghcr.io/ghashag/trinity:b007-v7.0
+# Contains benchmark suite with NEON detection
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes | DOI |

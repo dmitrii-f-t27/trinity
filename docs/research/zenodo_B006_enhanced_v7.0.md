@@ -441,6 +441,51 @@ zig build sacred-formats
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/sacred/          # Sacred formats implementation
+│   ├── formats.zig    # GF16, TF3, GF4 formats
+│   ├── hash.zig       # φ-based content-addressed hashing
+│   └── dedup.zig       # Deduplication engine
+├── src/ternary/        # Ternary operations
+└── tools/              # Storage and retrieval benchmarks
+```
+
+**Build Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build Sacred formats tools
+zig build sacred-tools
+
+# Run storage benchmark
+./zig-out/bin/sacred-benchmark --size 1GB --iterations 1000
+```
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B006_formats.csv` — Format specification and performance
+- `B006-Fig1_gf16_layout.png` — GF16 structure
+- `B006-Fig2_phi_heatmap.png` — Hash distribution visualization
+
+### Docker Image
+
+```bash
+docker pull ghcr.io/ghashag/trinity:b006-v7.0
+# Contains storage benchmark tools
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes | DOI |

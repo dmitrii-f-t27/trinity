@@ -452,6 +452,68 @@ zig build test --test-filter fpga_b002
 
 ---
 
+## Code and Data Availability
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/fpga/
+│   ├── openxc7-synth/  # XC7A100T synthesis
+│   │   ├── hslm.v      # Ternary neural network Verilog
+│   │   └── ternary_mac.v # Zero-DSP multiply-accumulate
+│   └── xdc/            # Constraint files
+├── src/ternary/        # Ternary arithmetic
+└── tools/              # Synthesis scripts
+```
+
+**Synthesis Instructions:**
+```bash
+git clone https://github.com/gHashTag/trinity.git
+cd trinity/fpga/openxc7-synth
+
+# Install Vivado 2023.2
+source /opt/Xilinx/Vivado/2023.2/settings64.sh
+
+# Synthesize for XC7A100T
+vivado -mode batch -source synth_hslm.tcl
+```
+
+**Bitstream:** Available in this deposit
+- Filename: `B002_hslm_xc7a100t_v7.0.bit`
+- Target: QMTech XC7A100T-CSG324
+- Size: ~3 MB
+
+### FPGA Resources
+
+**Resource Report (Vivado Synthesis):**
+| Resource | Used | Available | Utilization |
+|----------|------|-----------|-------------|
+| LUT | 12,433 | 63,400 | 19.6% |
+| FF | 8,234 | 126,800 | 6.5% |
+| BRAM | 28 | 270 | 10.4% |
+| DSP | **0** | 240 | **0%** ✅ |
+
+### Supplementary Materials
+
+**Included in this deposit:**
+- `B002_fpga_synthesis.csv` — Resource utilization with 95% CIs
+- `B002_calibration.csv` — ECE and Brier scores
+- `B002_fpga_resources_v15.png` — Figure: Resource comparison
+- `B002_calibration_v15.png` — Figure: Reliability diagram
+
+### Docker Image
+
+```bash
+docker pull ghcr.io/ghashag/trinity:b002-v7.0
+# Contains Vivado 2023.2 for synthesis
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes | DOI |

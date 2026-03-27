@@ -344,6 +344,78 @@ Vasilev, D. (2026). Trinity S³AI: Complete Scientific Framework v7.0 (Version 7
 
 ---
 
+## Code and Data Availability (Complete Trinity S³AI Framework)
+
+### Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Complete Framework Structure:**
+```
+trinity/
+├── src/hslm/           # B001: HSLM language model
+├── src/fpga/           # B002: Zero-DSP FPGA synthesis
+├── src/tri27/          # B003: TRI-27 ISA implementation
+├── src/queen/          # B004: Queen Lotus RL
+├── src/vibee/          # B005: VIBEE ternary compiler
+├── src/sacred/         # B006: Sacred formats storage
+├── src/vsa/            # B007: VSA SIMD library
+├── src/ternary/        # Shared ternary operations
+├── src/temple/         # Sacred math (φ, trits)
+├── specs/tri/          # VIBEE specifications
+├── tools/              # Automation and CLI tools
+└── docs/research/      # This Zenodo publication materials
+```
+
+**Build Instructions:**
+```bash
+# Clone complete framework
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Build all 50+ binaries
+zig build
+
+# Run test suite (3000+ tests)
+zig build test
+```
+
+### Component-Specific Availability
+
+| Bundle | Source Path | Docker Image | Model/Data |
+|--------|-------------|--------------|------------|
+| B001 (HSLM) | src/hslm/ | ghcr.io/ghashag/trinity:b001-v7.0 | HSLM weights |
+| B002 (FPGA) | src/fpga/ | ghcr.io/ghashag/trinity:b002-v7.0 | Bitstreams |
+| B003 (TRI-27) | src/tri27/ | — | ISA tests |
+| B004 (RL) | src/queen/ | ghcr.io/ghashag/trinity:b004-v7.0 | Policies |
+| B005 (VIBEE) | src/vibee/ | — | AST specs |
+| B006 (Formats) | src/sacred/ | ghcr.io/ghashag/trinity:b006-v7.0 | Format docs |
+| B007 (VSA) | src/vsa/ | ghcr.io/ghashag/trinity:b007-v7.0 | Benchmarks |
+
+### Complete Supplementary Materials
+
+**CSV Data (13 files):**
+- `B001_training.csv`, `B001_calibration.csv`
+- `B002_fpga_synthesis.csv`, `B002_calibration.csv`
+- `B003_registers.csv`, `B003_metrics.csv`
+- `B004_calibration.csv`, `B004_sample_efficiency.csv`
+- `B005_vibee_metrics.csv`
+- `B006_formats.csv`
+- `B007_simd_benchmarks.csv`, `B007_noise_resilience.csv`
+- `PARENT_cross_bundle_summary.csv`
+
+**Figures (44 PNG/SVG files):**
+- Bundle-specific figures (B001-B007)
+- Cross-bundle comparisons
+- Calibration visualizations
+- Architecture diagrams
+
+**Dockerfiles (8 files):**
+- `docker/Dockerfile.B001` through `docker/Dockerfile.B007`
+- Multi-stage builds with Zig 0.15.2
+
+---
+
 ## 7. Acknowledgments
 
 Research supported by Trinity Research Collective. FPGA hardware provided by QMTech. Training datasets from Eldan & Li (2023). V15 Scientific Rigor framework informed by NeurIPS 2025, ICLR 2027, and MLSys 2025 standards.

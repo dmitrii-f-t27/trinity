@@ -403,7 +403,101 @@ Step 30000: loss=2.13, ppl=125.3, 95% CI=[123, 127] ✅
 
 ---
 
-## 8. DOI Versioning (V15)
+## 8. Code and Data Availability
+
+### 8.1 Source Code
+
+**Repository:** https://github.com/gHashTag/trinity
+
+**Directory Structure:**
+```
+trinity/
+├── src/hslm/           # HSLM model implementation
+│   ├── model.zig       # Ternary transformer
+│   ├── training.zig    # Training loop
+│   └── sacred_scale.zig # φ-based attention scaling
+├── src/ternary/        # Ternary arithmetic primitives
+├── src/fpga/           # FPGA synthesis
+│   └── openxc7-synth/  # XC7A100T bitstreams
+├── specs/tri/          # VIBEE specifications
+└── tools/              # Training and evaluation tools
+```
+
+**Build Instructions:**
+```bash
+# Clone repository
+git clone https://github.com/gHashTag/trinity.git
+cd trinity
+
+# Install Zig 0.15.2
+# macOS: brew install zig
+# Linux: Download from ziglang.org
+
+# Build HSLM training binary
+zig build hslm-train
+
+# Run training
+./zig-out/bin/hslm-train --dataset data/TinyStories_train.txt
+```
+
+**License:** MIT License (SPDX: MIT)
+
+### 8.2 Pre-trained Models
+
+**Model Weights:** Available on Zenodo (this deposit)
+- Filename: `B001_hslm_1.95M_v7.0.safetensors`
+- Format: SafeTensors (ternary TF3 encoding)
+- Size: 385 KB (compressed)
+
+**Loading:**
+```zig
+// Load model in Zig
+const model = try hslm.Model.load("B001_hslm_1.95M_v7.0.safetensors");
+```
+
+### 8.3 Datasets
+
+**TinyStories:** https://huggingface.co/datasets/roneneldan/TinyStories
+- License: MIT
+- Size: ~1.7 GB (training), 32 MB (validation)
+- Stories: 30K training, 1K validation
+
+**Download Script:**
+```bash
+# Provided in tools/download_tinystories.sh
+wget https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStories_all_data.tar.gz
+tar -xzf TinyStories_all_data.tar.gz
+```
+
+### 8.4 Supplementary Materials
+
+**Included in this deposit:**
+- `B001_training.csv` — Training curve data with 95%/99% CIs
+- `B001_calibration.csv` — ECE and Brier scores per bin
+- `B001_training_curve_v15.png` — Figure: Training loss with CIs
+- `B001_calibration_v15.png` — Figure: Reliability diagram
+- `B001_effect_size_bar.png` — Figure: Cohen's d visualization
+
+**Docker Image:**
+```bash
+docker pull ghcr.io/ghashag/trinity:b001-v7.0
+docker run ghcr.io/ghashag/trinity:b001-v7.0 --help
+```
+
+### 8.5 Reproducibility Checklist (NeurIPS 2020+)
+
+- [x] **Code available:** https://github.com/gHashTag/trinity
+- [x] **Pre-trained models:** This Zenodo deposit
+- [x] **Training data:** Publicly available (TinyStories)
+- [x] **Hyperparameters:** Documented in Section 2.3
+- [x] **Random seeds:** Fixed (seed=42) for reproducibility
+- [x] **Compute resources:** Documented in Section 5.1
+- [x] **Number of parameters:** 1.95M (Table 1)
+- [x] **Evaluation metrics:** Perplexity, ECE, Brier Score
+
+---
+
+## 9. DOI Versioning (V15)
 
 **DOI Record:**
 - **Concept DOI:** 10.5281/zenodo.19227865
