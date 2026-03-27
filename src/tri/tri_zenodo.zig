@@ -278,8 +278,7 @@ pub fn runZenodoCommand(allocator: std.mem.Allocator, args: []const []const u8) 
         try generateSupplementaryCodeExamples(allocator);
     } else if (std.mem.eql(u8, subcmd, "bibtex")) {
         // Generate BibTeX bibliography
-        // TODO: BibTeXEntry struct removed
-        // try generateBibliographyBibtexExamples(allocator);
+        try generateBibliographyBibtexExamples(allocator);
     } else if (std.mem.eql(u8, subcmd, "experiment-compare")) {
         // Generate experiment comparison
         try generateExperimentComparisonExamples(allocator);
@@ -3794,12 +3793,44 @@ test "update_records_table_valid" {
 }
 
 /// Generate BibTeX bibliography examples (V14)
-/// Generate BibTeX bibliography examples (V14)
-/// TODO: BibTeXEntry struct removed from zenodo_templates.zig
 fn generateBibliographyBibtexExamples(allocator: std.mem.Allocator) !void {
-    _ = allocator;
-    print("\n{s}⚠️  BibTeX bibliography: TODO - BibTeXEntry struct not available{s}\n", .{ YELLOW, RESET });
-    print("Run with zenodo_templates_v13_only.zig for full functionality\n");
+    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
+    print("{s}{s} BibTeX Bibliography Generator{s}\n", .{ BOLD, "BIBTEX BIBLIOGRAPHY", RESET });
+    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
+
+    const bib = zenodo_templates.BibliographyBibtex{
+        .authors = &[_][]const u8{"Vasilev, Dmitrii"},
+        .title = "Trinity: Ternary Sparse Sacred Scalable AI",
+        .year = 2025,
+        .doi = "10.5281/zenodo.19227865",
+        .publisher = "Zenodo",
+        .url = "https://github.com/gHashTag/trinity",
+        .version = "v7.0",
+    };
+
+    const bibtex = try bib.generateSoftwareEntry(allocator);
+    defer allocator.free(bibtex);
+
+    print("{s}Software Entry:{s}\n", .{ CYAN, RESET });
+    print("{s}\n", .{bibtex});
+
+    // Example with multiple authors
+    const bib_multi = zenodo_templates.BibliographyBibtex{
+        .authors = &[_][]const u8{ "Smith, John", "Doe, Jane", "Johnson, Bob" },
+        .title = "Hierarchical Sacred Language Models for Edge AI",
+        .year = 2025,
+        .doi = "10.5281/zenodo.12345678",
+        .publisher = "NeurIPS",
+        .url = "https://example.com/paper",
+    };
+
+    const bibtex_multi = try bib_multi.generateSoftwareEntry(allocator);
+    defer allocator.free(bibtex_multi);
+
+    print("\n{s}Multiple Authors:{s}\n", .{ CYAN, RESET });
+    print("{s}\n", .{bibtex_multi});
+
+    print("\n{s}✓ BibTeX entries generated successfully{s}\n\n", .{ GREEN, RESET });
 }
 fn generateExperimentComparisonExamples(allocator: std.mem.Allocator) !void {
     print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
