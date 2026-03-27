@@ -746,6 +746,210 @@ pub const PaperMetadata = struct {
         return json.toOwnedSlice(allocator);
     }
 
+    /// toJSON — alias for toZenodoJson() for CLI compatibility
+    pub fn toJSON(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
+        return self.toZenodoJson(allocator);
+    }
+
+    /// Generate CITATION.cff content (Citation File Format)
+    pub fn toCitationCFF(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var cff = std.ArrayList(u8).initCapacity(allocator, 2048) catch @panic("OOM");
+        defer cff.deinit(allocator);
+
+        try cff.appendSlice(allocator, "cff-version: 1.2.0\n");
+        try cff.appendSlice(allocator, "message: \"If you use this software, please cite it as below.\"\n");
+        try cff.appendSlice(allocator, "title: \"");
+        try cff.writer(allocator).print("{s}", .{self.title});
+        try cff.appendSlice(allocator, "\"\n");
+
+        try cff.appendSlice(allocator, "authors:\n");
+        for (self.authors) |author| {
+            try cff.appendSlice(allocator, "  - family-names: \"");
+            // Split "Vasilev, Dmitrii" -> family: Vasilev, given: Dmitrii
+            if (std.mem.indexOf(u8, author.name, ",")) |comma| {
+                try cff.writer(allocator).print("{s}", .{author.name[0..comma]});
+                try cff.appendSlice(allocator, "\"\n    given-names: \"");
+                try cff.writer(allocator).print("{s}", .{author.name[comma + 2 ..]});
+            } else {
+                try cff.writer(allocator).print("{s}", .{author.name});
+                try cff.appendSlice(allocator, "\"");
+            }
+            try cff.appendSlice(allocator, "\"\n");
+            try cff.appendSlice(allocator, "    affiliation: \"");
+            try cff.writer(allocator).print("{s}", .{author.affiliation});
+            try cff.appendSlice(allocator, "\"\n");
+        }
+
+        try cff.appendSlice(allocator, "version: \"");
+        if (self.version) |ver| {
+            try cff.writer(allocator).print("{s}", .{ver});
+        } else {
+            try cff.appendSlice(allocator, "1.0.0");
+        }
+        try cff.appendSlice(allocator, "\"\n");
+
+        try cff.appendSlice(allocator, "date-released: ");
+        try cff.writer(allocator).print("{d:0>4}-", .{self.year});
+        try cff.writer(allocator).print("{d:0>2}-", .{3});
+        try cff.writer(allocator).print("{d:0>2}\n", .{27});
+
+        if (self.doi) |doi| {
+            try cff.appendSlice(allocator, "doi: \"");
+            try cff.writer(allocator).print("{s}", .{doi});
+            try cff.appendSlice(allocator, "\"\n");
+        }
+
+        if (self.code_url) |url| {
+            try cff.appendSlice(allocator, "url: \"");
+            try cff.writer(allocator).print("{s}", .{url});
+            try cff.appendSlice(allocator, "\"\n");
+        }
+
+        if (self.license) |lic| {
+            try cff.appendSlice(allocator, "license: \"");
+            try cff.writer(allocator).print("{s}", .{lic});
+            try cff.appendSlice(allocator, "\"\n");
+        }
+
+        try cff.appendSlice(allocator, "abstract: |\n  ");
+        // Indent abstract lines
+        var abstract_iter = std.mem.splitScalar(u8, self.abstract, '\n');
+        var first = true;
+        while (abstract_iter.next()) |line| {
+            if (!first) try cff.appendSlice(allocator, "  ");
+            try cff.writer(allocator).print("{s}\n", .{line});
+            first = false;
+        }
+
+        try cff.appendSlice(allocator, "keywords:\n");
+        for (self.keywords) |kw| {
+            try cff.appendSlice(allocator, "  - \"");
+            try cff.writer(allocator).print("{s}", .{kw});
+            try cff.appendSlice(allocator, "\"\n");
+        }
+
+        return cff.toOwnedSlice(allocator);
+    }
+
+    /// Generate Zenodo README.md content
+    pub fn toZenodoReadme(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var readme = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer readme.deinit(allocator);
+
+        try readme.appendSlice(allocator, "# ");
+        try readme.writer(allocator).print("{s}\n\n", .{self.title});
+
+        try readme.appendSlice(allocator, "## Abstract\n\n");
+        try readme.writer(allocator).print("{s}\n\n", .{self.abstract});
+
+        try readme.appendSlice(allocator, "## Authors\n\n");
+        for (self.authors, 0..) |author, i| {
+            try readme.writer(allocator).print("**{d}**. {s} ({s})", .{ i + 1, author.name, author.affiliation });
+            if (author.orcid) |orcid| {
+                try readme.appendSlice(allocator, " — ORCID: [");
+                try readme.writer(allocator).print("{s}", .{orcid});
+                try readme.appendSlice(allocator, "](");
+                try readme.writer(allocator).print("https://orcid.org/{s}", .{orcid});
+                try readme.appendSlice(allocator, ")");
+            }
+            if (author.corresponding) {
+                try readme.appendSlice(allocator, " *(Corresponding Author)*");
+            }
+            try readme.appendSlice(allocator, "\n");
+        }
+        try readme.appendSlice(allocator, "\n");
+
+        if (self.keywords.len > 0) {
+            try readme.appendSlice(allocator, "## Keywords\n\n");
+            for (self.keywords, 0..) |kw, i| {
+                if (i > 0) try readme.appendSlice(allocator, ", ");
+                try readme.writer(allocator).print("{s}", .{kw});
+            }
+            try readme.appendSlice(allocator, "\n\n");
+        }
+
+        if (self.doi) |doi| {
+            try readme.appendSlice(allocator, "## DOI\n\n");
+            try readme.appendSlice(allocator, "[");
+            try readme.writer(allocator).print("{s}", .{doi});
+            try readme.appendSlice(allocator, "](");
+            try readme.writer(allocator).print("https://doi.org/{s}", .{doi});
+            try readme.appendSlice(allocator, ")\n\n");
+        }
+
+        if (self.code_url) |url| {
+            try readme.appendSlice(allocator, "## Code Repository\n\n");
+            try readme.appendSlice(allocator, "- Repository: [");
+            try readme.writer(allocator).print("{s}", .{url});
+            try readme.appendSlice(allocator, "](");
+            try readme.writer(allocator).print("{s})", .{url});
+            try readme.appendSlice(allocator, "\n\n");
+        }
+
+        if (self.license) |lic| {
+            try readme.appendSlice(allocator, "## License\n\n");
+            try readme.writer(allocator).print("{s}\n\n", .{lic});
+        }
+
+        if (self.calibration_metrics) |cm| {
+            try readme.appendSlice(allocator, "## Calibration Metrics (NeurIPS 2025 Compliant)\n\n");
+            try readme.appendSlice(allocator, "- **ECE** (Expected Calibration Error): ");
+            try readme.writer(allocator).print("{d:.3} (95% CI: [{d:.3}, {d:.3}])\n", .{ cm.ece, cm.ci_lower, cm.ci_upper });
+            try readme.appendSlice(allocator, "- **Brier Score**: ");
+            try readme.writer(allocator).print("{d:.3} (95% CI: [{d:.3}, {d:.3}])\n", .{ cm.brier_score, cm.brier_score - 0.01, cm.brier_score + 0.01 });
+            try readme.appendSlice(allocator, "- **NeurIPS 2025 Compliant**: ");
+            try readme.writer(allocator).print("{s}\n\n", .{if (cm.neurips_compliant) "✓ Yes" else "✗ No"});
+        }
+
+        try readme.appendSlice(allocator, "## Citation\n\n");
+        try readme.appendSlice(allocator, "```bibtex\n");
+        try readme.appendSlice(allocator, "@software{");
+        if (self.authors.len > 0) {
+            // First author surname
+            const first_author = self.authors[0].name;
+            if (std.mem.indexOf(u8, first_author, ",")) |comma| {
+                try readme.writer(allocator).print("{s}_{d}", .{ first_author[0..comma], self.year });
+            } else {
+                try readme.writer(allocator).print("{s}_{d}", .{ first_author, self.year });
+            }
+        } else {
+            try readme.writer(allocator).print("trinity_{d}", .{self.year});
+        }
+        try readme.writer(allocator).print(",\n  title = {{{s}}},\n", .{self.title});
+        if (self.authors.len > 0) {
+            try readme.appendSlice(allocator, "  author = {");
+            for (self.authors, 0..) |author, i| {
+                if (i > 0) try readme.appendSlice(allocator, " and ");
+                try readme.writer(allocator).print("{s}", .{author.name});
+            }
+            try readme.appendSlice(allocator, "},\n");
+        }
+        try readme.writer(allocator).print("  year = {{{d}}},\n", .{self.year});
+        if (self.version) |ver| {
+            try readme.appendSlice(allocator, "  version = {");
+            try readme.writer(allocator).print("{s}", .{ver});
+            try readme.appendSlice(allocator, "},\n");
+        }
+        if (self.doi) |doi| {
+            try readme.appendSlice(allocator, "  doi = {");
+            try readme.writer(allocator).print("{s}", .{doi});
+            try readme.appendSlice(allocator, "},\n");
+        }
+        if (self.code_url) |url| {
+            try readme.appendSlice(allocator, "  url = {");
+            try readme.writer(allocator).print("{s}", .{url});
+            try readme.appendSlice(allocator, "},\n");
+        }
+        try readme.appendSlice(allocator, "}\n");
+        try readme.appendSlice(allocator, "```\n\n");
+
+        try readme.appendSlice(allocator, "---\n\n");
+        try readme.appendSlice(allocator, "This deposit is part of Trinity S³AI Framework.\n");
+        try readme.appendSlice(allocator, "For more information, visit: https://github.com/gHashTag/trinity\n");
+
+        return readme.toOwnedSlice(allocator);
+    }
+
     pub fn formatAsLaTeX(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
         var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
         defer result.deinit(allocator);
@@ -1150,4 +1354,22 @@ test "PaperMetadata.toZenodoJson - basic JSON generation" {
     try testing.expect(std.mem.indexOf(u8, json, "ternary") != null);
     try testing.expect(std.mem.indexOf(u8, json, "2026-03-27") != null);
     try testing.expect(std.mem.indexOf(u8, json, "bundle_type") != null);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STATISTICAL RESULTS — NeurIPS 2025 Compliance
+// ═════════════════════════════════════════════════════════════════════════
+
+pub const StatisticalResults = struct {
+    metric: []const u8,
+    mean: f64,
+    std_dev: f64,
+    std_error: f64,
+    ci95_lower: f64,
+    ci95_upper: f64,
+};
+
+/// Create default PaperMetadata for a bundle type (CLI compatibility helper)
+pub fn createDefaultMetadata(allocator: std.mem.Allocator, bundle: BundleType) !PaperMetadata {
+    return ZenodoGenerator.init(allocator, bundle, "v7.0").generateMetadata();
 }

@@ -1632,7 +1632,7 @@ fn generateMetadataTemplate(allocator: std.mem.Allocator, bundle_id: []const u8)
     const metadata = try zenodo_templates.createDefaultMetadata(allocator, bundle_type);
     // Note: metadata fields are static string literals, no need to free them
 
-    const json = try metadata.toJSON(allocator);
+    const json = try metadata.toZenodoJson(allocator);
     defer allocator.free(json);
 
     print("{s}[{s}]{s} Zenodo JSON Metadata\n\n", .{ CYAN, bundle_type.fileName(), RESET });
@@ -1684,10 +1684,12 @@ fn generateZenodoReadme(allocator: std.mem.Allocator, bundle_id: []const u8) !vo
 /// Generate enhanced metadata with NeurIPS/ICLR/MLSys 2025 compliant fields
 fn generateEnhancedMetadata(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
     const bundle_type = try parseBundleType(bundle_id);
-    const metadata = try zenodo_templates.createEnhancedMetadata(allocator, bundle_type);
+    const metadata = try zenodo_templates.createDefaultMetadata(allocator, bundle_type);
     defer {
-        if (metadata.broader_impact) |s| allocator.free(s);
-        if (metadata.ethics) |s| allocator.free(s);
+        allocator.free(metadata.title);
+        allocator.free(metadata.abstract);
+        allocator.free(metadata.keywords);
+        allocator.free(metadata.authors);
     }
 
     const json = try metadata.toJSON(allocator);
@@ -1700,26 +1702,31 @@ fn generateEnhancedMetadata(allocator: std.mem.Allocator, bundle_id: []const u8)
     print("{s}📋 Metadata Fields:{s}\n", .{ CYAN, RESET });
     print("  • Funding: {d} reference(s)\n", .{if (metadata.funding) |f| f.len else 0});
     print("  • Broader Impact: {s}\n", .{if (metadata.broader_impact != null) "Included" else "None"});
-    print("  • Ethical Considerations: {s}\n", .{if (metadata.ethics != null) "Included" else "None"});
+    print("  • Ethical Considerations: {s}\n", .{if (metadata.ethical_considerations != null) "Included" else "None"});
     print("  • Reproducibility Info: {s}\n\n", .{if (metadata.reproducibility != null) "Included" else "None"});
 
     if (metadata.broader_impact) |impact| {
-        print("{s}🌍 Broader Impact Statement:{s}\n", .{ GREEN, RESET });
-        print("{s}\n\n", .{impact});
+        print("{s}🌍 Broader Impact:{s}\n", .{ GREEN, RESET });
+        if (impact.societal_benefit) |s| print("  Benefit: {s}\n", .{s});
+        if (impact.negative_impact) |s| print("  Risks: {s}\n", .{s});
+        if (impact.mitigation) |s| print("  Mitigation: {s}\n", .{s});
+        print("\n", .{});
     }
 
-    if (metadata.ethics) |eth| {
+    if (metadata.ethical_considerations) |eth| {
         print("{s}⚖️  Ethical Considerations:{s}\n", .{ YELLOW, RESET });
-        print("{s}\n\n", .{eth});
+        if (eth.concerns) |c| print("  Concerns: {d} item(s)\n", .{c.len});
+        if (eth.guidelines) |g| print("  Guidelines: {d} item(s)\n", .{g.len});
+        print("\n", .{});
     }
 
     if (metadata.reproducibility) |repro| {
         print("{s}🔬 Reproducibility Checklist:{s}\n", .{ CYAN, RESET });
-        print("  Code: {s}\n", .{repro.code_url});
-        print("  Commit: {s}\n", .{repro.commit_hash});
-        if (repro.docker_image) |img| print("  Docker: {s}\n", .{img});
-        if (repro.dataset_url) |url| print("  Dataset: {s}\n", .{url});
-        print("  Hardware: {s}\n\n", .{repro.hardware});
+        if (repro.code_url) |url| print("  Code: {s}\n", .{url});
+        if (repro.data_availability) |data| print("  Data: {s}\n", .{data});
+        if (repro.hardware) |hw| print("  Hardware: {s}\n", .{hw});
+        if (repro.dependencies) |deps| print("  Dependencies: {d} item(s)\n", .{deps.len});
+        print("\n", .{});
     }
 
     print("{s}📄 JSON Metadata (for Zenodo upload):{s}\n", .{ BOLD, RESET });
@@ -1730,134 +1737,34 @@ fn generateEnhancedMetadata(allocator: std.mem.Allocator, bundle_id: []const u8)
 
 /// Generate statistical results table with confidence intervals
 fn generateStatsTable(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
-    const bundle_type = try parseBundleType(bundle_id);
-
-    const stats = zenodo_templates.StatisticalResults{
-        .metric = "Validation Perplexity",
-        .mean = 125.3,
-        .std_dev = 2.1,
-        .std_error = 0.94,
-        .ci95_lower = 123.2,
-        .ci95_upper = 127.4,
-        .n = 5,
-        .p_value = 0.001,
-        .effect_size = 1.8,
-    };
-
-    const md = try stats.formatAsMarkdown(allocator);
-    defer allocator.free(md);
-
-    print("\n{s}═══════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}Statistical Results — {s}{s}\n", .{ BOLD, bundle_type.displayName(), RESET });
-    print("{s}═══════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{md});
-    print("{s}✓ Statistical table generated for {s}{s}\n", .{ GREEN, bundle_type.fileName(), RESET });
+    _ = allocator;
+    _ = bundle_id;
+    print("{s}TODO: StatisticalResults structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 /// Generate algorithm box with mathematical notation
 fn generateAlgorithmBox(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
-    const bundle_type = try parseBundleType(bundle_id);
-
-    const algo = switch (bundle_type) {
-        .ternary_nn => zenodo_templates.AlgorithmBox{
-            .name = "HSLM Forward Pass",
-            .problem = "Efficient ternary neural network forward pass using {-1, 0, +1} weights",
-            .input = "W ∈ {-1,0,+1}^{d×h}, x ∈ ℝ^h, where d=3072, h=256",
-            .assumptions = &[_][]const u8{
-                "Weights are statically quantized to {-1, 0, +1}",
-                "Input features are normalized to zero mean, unit variance",
-                "No bias term (absorbed into layer normalization)",
-            },
-            .complexity = "O(d×h) time, O(d×h) memory",
-        },
-        .zero_dsp => zenodo_templates.AlgorithmBox{
-            .name = "Zero-DSP Ternary Inference",
-            .problem = "FPGA inference engine using only LUTs and BRAMs",
-            .input = "W ∈ {-1,0,+1}^{d×h}, x ∈ ℤ^h (8-bit quantized)",
-            .assumptions = &[_][]const u8{
-                "FPGA: XC7A100T (101,760 LUTs, 3,960 BRAMs)",
-                "No DSP48 blocks used",
-                "100MHz clock frequency",
-            },
-            .complexity = "O(d×h) time (parallel), O(d×h) BRAM",
-        },
-        else => zenodo_templates.AlgorithmBox{
-            .name = bundle_type.displayName(),
-            .problem = "See full documentation for details",
-            .input = "TBD",
-            .assumptions = &[_][]const u8{},
-            .complexity = null,
-        },
-    };
-
-    const md = try algo.formatAsMarkdown(allocator);
-    defer allocator.free(md);
-
-    print("\n{s}═══════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}Algorithm Box — {s}{s}\n", .{ BOLD, bundle_type.displayName(), RESET });
-    print("{s}═══════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{md});
-    print("{s}✓ Algorithm box generated for {s}{s}\n", .{ GREEN, bundle_type.fileName(), RESET });
+    _ = allocator;
+    _ = bundle_id;
+    print("{s}TODO: AlgorithmBox structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 /// Generate comparison table with baseline models
 fn generateComparisonTable(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
-    const bundle_type = try parseBundleType(bundle_id);
-
-    const rows = switch (bundle_type) {
-        .ternary_nn => &[_]zenodo_templates.ComparisonTable.Row{
-            .{ .name = "HSLM-1.95M (Ours)", .metric = "PPL", .ours = 125.3, .baseline = 145.2, .improvement = "-13.7%" },
-            .{ .name = "TinyStories-1M", .metric = "PPL", .ours = 125.3, .baseline = 145.2, .improvement = "-13.7%" },
-            .{ .name = "GPT-2 (125M)", .metric = "PPL", .ours = 125.3, .baseline = 8.5, .improvement = "+1374%" },
-        },
-        else => &[_]zenodo_templates.ComparisonTable.Row{
-            .{ .name = bundle_type.displayName(), .metric = "TBD", .ours = 0.0, .baseline = 0.0, .improvement = "-" },
-        },
-    };
-
-    const table = zenodo_templates.ComparisonTable{
-        .caption = "Performance comparison on TinyStories validation set",
-        .rows = rows,
-    };
-
-    const md = try table.formatAsMarkdown(allocator);
-    defer allocator.free(md);
-
-    print("\n{s}═══════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}Comparison Table — {s}{s}\n", .{ BOLD, bundle_type.displayName(), RESET });
-    print("{s}═══════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{md});
-    print("{s}✓ Comparison table generated for {s}{s}\n", .{ GREEN, bundle_type.fileName(), RESET });
+    _ = allocator;
+    _ = bundle_id;
+    print("{s}TODO: ComparisonTable structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 /// Generate LaTeX table for NeurIPS/ICLR papers
 fn generateLatexTable(allocator: std.mem.Allocator, bundle_id: []const u8) !void {
-    const bundle_type = try parseBundleType(bundle_id);
-
-    const rows = switch (bundle_type) {
-        .ternary_nn => &[_]zenodo_templates.ComparisonTable.Row{
-            .{ .name = "HSLM-1.95M (Ours)", .metric = "PPL", .ours = 125.3, .baseline = 145.2, .improvement = "-13.7%" },
-            .{ .name = "TinyStories-1M", .metric = "PPL", .ours = 125.3, .baseline = 145.2, .improvement = "-13.7%" },
-            .{ .name = "GPT-2 (125M)", .metric = "PPL", .ours = 125.3, .baseline = 8.5, .improvement = "+1374%" },
-        },
-        else => &[_]zenodo_templates.ComparisonTable.Row{
-            .{ .name = bundle_type.displayName(), .metric = "TBD", .ours = 0.0, .baseline = 0.0, .improvement = "-" },
-        },
-    };
-
-    const table = zenodo_templates.ComparisonTable{
-        .caption = "Performance comparison on TinyStories validation set",
-        .rows = rows,
-    };
-
-    const latex = try table.formatAsLaTeX(allocator);
-    defer allocator.free(latex);
-
-    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}LaTeX Table — {s}{s}\n", .{ BOLD, bundle_type.displayName(), RESET });
-    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{latex});
-    print("{s}✓ LaTeX table generated for {s}{s}\n", .{ GREEN, bundle_type.fileName(), RESET });
+    _ = allocator;
+    _ = bundle_id;
+    print("{s}TODO: ComparisonTable structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2165,44 +2072,11 @@ pub const ZenodoValidation = struct {
     }
 
     /// Validate calibration metrics against NeurIPS 2025 standards
-    pub fn validateCalibrationMetrics(self: *const ZenodoValidation, metrics: *const zenodo_templates.CalibrationMetrics) !ValidationResult {
-        var errors = std.ArrayList(ValidationError).init(self.allocator);
-        defer errors.deinit();
-        var warnings = std.ArrayList(ValidationWarning).init(self.allocator);
-        defer warnings.deinit();
-
-        // NeurIPS 2025 threshold: ECE < 0.12
-        if (metrics.expected_calibration_error >= 0.12) {
-            try errors.append(.{
-                .field = "ece",
-                .message = "ECE exceeds NeurIPS 2025 threshold (0.12)",
-            });
-        }
-
-        // Warning for high ECE
-        if (metrics.expected_calibration_error >= 0.08) {
-            try warnings.append(.{
-                .field = "ece",
-                .message = "ECE approaching NeurIPS threshold (0.12)",
-            });
-        }
-
-        // Validate bins
-        if (metrics.n_bins < 10) {
-            try warnings.append(.{
-                .field = "n_bins",
-                .message = "Fewer than 10 bins recommended (standard is 10-15)",
-            });
-        }
-
-        const error_list = try errors.toOwnedSlice(self.allocator);
-        const warning_list = try warnings.toOwnedSlice(self.allocator);
-
-        return ValidationResult{
-            .is_valid = error_list.len == 0,
-            .errors = error_list,
-            .warnings = warning_list,
-        };
+    pub fn validateCalibrationMetrics(self: *const ZenodoValidation, metrics: *const anyopaque) !ValidationResult {
+        _ = self;
+        _ = metrics;
+        print("{s}TODO: CalibrationMetrics structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+        return error.UnsupportedOperation;
     }
 };
 
@@ -2240,32 +2114,16 @@ fn generatePaperMetadata(allocator: std.mem.Allocator, bundle_id: []const u8) !v
 
 /// Process all bundles at once
 fn generateBatchAll(allocator: std.mem.Allocator) !void {
-    const readme = try zenodo_templates.BatchProcessor.generateCombinedReadme(allocator);
-    defer allocator.free(readme);
-
-    print("\n{s}═════════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}Batch Processing — All Bundles{s}\n", .{ BOLD, RESET });
-    print("{s}═════════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{readme});
-    print("{s}✓ Batch processing complete: 7 bundles{s}\n", .{ GREEN, RESET });
+    _ = allocator;
+    print("{s}TODO: BatchProcessor structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 /// Generate calibration metrics template
 fn generateCalibrationTemplate(allocator: std.mem.Allocator) !void {
-    const calib = zenodo_templates.CalibrationMetrics{
-        .expected_calibration_error = 0.083,
-        .brier_score = 0.125,
-        .n_bins = 10,
-    };
-
-    const md = try calib.formatAsMarkdown(allocator);
-    defer allocator.free(md);
-
-    print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
-    print("{s}Calibration Metrics Template{s}\n", .{ BOLD, RESET });
-    print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-    print("{s}\n", .{md});
-    print("{s}✓ Calibration metrics template generated{s}\n", .{ GREEN, RESET });
+    _ = allocator;
+    print("{s}TODO: CalibrationMetrics structure not yet implemented in zenodo_templates.zig{s}\n", .{ YELLOW, RESET });
+    return error.UnsupportedOperation;
 }
 
 /// Generate cross-bundle calibration report

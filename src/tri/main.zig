@@ -887,7 +887,10 @@ pub fn main() !void {
         .fpga_demo => commands.runFpgaDemoCommand(allocator, cmd_args),
         .fpga => try tri_register.runFpgaCommand(allocator, cmd_args),
         .train => try tri_train.runTrainCommand(allocator, cmd_args),
-        .zenodo => try tri_zenodo.runZenodoCommand(allocator, cmd_args),
+        .zenodo => {
+            std.debug.print("⚠️ zenodo command is under construction - templates API compatibility pending\n", .{});
+            return;
+        },
         .cloud => try tri_cloud.runCloudCommand(allocator, cmd_args),
         .farm => try tri_farm.runFarmCommand(allocator, cmd_args),
         .loop => try tri_loop.runLoopCommand(allocator, cmd_args),
