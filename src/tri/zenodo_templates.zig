@@ -5597,7 +5597,7 @@ pub const MetadataValidator = struct {
         defer missing.deinit(allocator);
 
         var warnings = std.ArrayList([]const u8).initCapacity(allocator, 5) catch @panic("OOM");
-        defer warnings.deinit(allocator);
+        errdefer warnings.deinit(allocator);
 
         // Check required fields
         if (title == null or title.?.len == 0) {
@@ -5637,7 +5637,7 @@ pub const MetadataValidator = struct {
     /// Generate validation report as markdown
     pub fn generateValidationReport(result: ValidationResult, allocator: std.mem.Allocator) ![]u8 {
         var report = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
-        defer report.deinit(allocator);
+        errdefer report.deinit(allocator);
 
         if (result.is_valid) {
             try report.appendSlice(allocator, "✅ **Validation Passed**\n\n");
@@ -5722,13 +5722,14 @@ pub const AbstractValidator = struct {
         const word_count = countWords(abstract);
 
         var errors = std.ArrayList([]const u8).initCapacity(allocator, 4) catch @panic("OOM");
-        defer errors.deinit(allocator);
+        errdefer errors.deinit(allocator);
 
         var warnings = std.ArrayList([]const u8).initCapacity(allocator, 2) catch @panic("OOM");
-        defer warnings.deinit(allocator);
+        errdefer warnings.deinit(allocator);
 
         if (word_count == 0) {
-            try errors.append(allocator, "abstract is empty");
+            const msg = try allocator.dupe(u8, "abstract is empty");
+            try errors.append(allocator, msg);
         } else if (word_count < limits.min_words) {
             const msg = try std.fmt.allocPrint(allocator, "abstract too short: {d} words (minimum {d})", .{ word_count, limits.min_words });
             try errors.append(allocator, msg);
@@ -5738,11 +5739,13 @@ pub const AbstractValidator = struct {
         }
 
         if (word_count > 0 and word_count < limits.min_words + 20) {
-            try warnings.append(allocator, "abstract near minimum length - consider expanding");
+            const warn_msg = try allocator.dupe(u8, "abstract near minimum length - consider expanding");
+            try warnings.append(allocator, warn_msg);
         }
 
         if (word_count > 0 and word_count > limits.max_words - 20) {
-            try warnings.append(allocator, "abstract near maximum length - consider condensing");
+            const warn_msg = try allocator.dupe(u8, "abstract near maximum length - consider condensing");
+            try warnings.append(allocator, warn_msg);
         }
 
         const errors_slice = try errors.toOwnedSlice(allocator);
@@ -5761,7 +5764,7 @@ pub const AbstractValidator = struct {
 
     pub fn generateReport(result: AbstractValidationResult, allocator: std.mem.Allocator) ![]u8 {
         var report = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
-        defer report.deinit(allocator);
+        errdefer report.deinit(allocator);
 
         const conf_name = result.conference.toString();
 
@@ -5919,7 +5922,7 @@ test "AbstractValidator - count words" {
 }
 
 test "AbstractValidator - validate NeurIPS abstract" {
-    const valid_abstract = "We present a novel approach to machine learning that leverages ternary computing. Our method achieves state-of-the-art performance on several benchmarks while reducing computational overhead. The results demonstrate significant efficiency gains with minimal accuracy loss.";
+    const valid_abstract = "We present a novel approach to machine learning that leverages ternary computing to achieve state-of-the-art performance with significantly reduced computational overhead. Our method introduces a novel architecture that combines vector symbolic operations with gradient-based optimization, enabling efficient training on standard hardware. Through extensive experiments on multiple benchmarks including image classification, language modeling, and reinforcement learning tasks, we demonstrate that our ternary neural networks achieve competitive accuracy while reducing memory footprint by 20x compared to traditional float32 models. The key innovation lies in our unique attention mechanism that operates directly on ternary values, eliminating the need for expensive floating-point operations while maintaining the representational capacity required for modern deep learning applications. Our implementation achieves 95% of the accuracy of comparable float32 models with 15x faster inference speed and 10x lower energy consumption. We provide comprehensive ablation studies that validate the contribution of each component, including the ternary quantization scheme, the specialized attention mechanism, and the training curriculum designed for stability in ternary parameter spaces. Experimental results on ImageNet, WikiText-103, and DQN benchmarks demonstrate the versatility and effectiveness of our approach across different domains and tasks.";
     const result = try AbstractValidator.validate(valid_abstract, .neurips, std.testing.allocator);
     defer {
         for (result.errors) |err| std.testing.allocator.free(err);
