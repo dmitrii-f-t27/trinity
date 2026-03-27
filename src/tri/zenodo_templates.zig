@@ -1817,7 +1817,387 @@ pub fn createDefaultMetadata(allocator: std.mem.Allocator, bundle: BundleType) !
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TESTS — New Structures (V101)
+// ZENODO V102 — API Integration Structures (Best Practices)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// OAuth 2.0 client for Zenodo API authentication
+/// Based on Zenodo REST API v1.0 documentation
+pub const OAuthClient = struct {
+    /// Client ID from Zenodo OAuth application
+    client_id: []const u8,
+    /// Client secret from Zenodo OAuth application
+    client_secret: []const u8,
+    /// OAuth 2.0 access token (cached)
+    access_token: ?[]const u8 = null,
+    /// Token expiration timestamp (Unix epoch)
+    expires_at: ?u64 = null,
+    /// OAuth scopes requested
+    scopes: OAuthScopes,
+
+    pub const OAuthScopes = packed struct(u8) {
+        deposit_write: bool = false,
+        deposit_actions: bool = false,
+        deposit_read: bool = false,
+        user_read: bool = false,
+        _reserved: u4 = 0,
+
+        pub fn toString(self: OAuthScopes) []const u8 {
+            if (self.deposit_write and self.deposit_actions) return "deposit:write deposit:actions";
+            if (self.deposit_write) return "deposit:write";
+            if (self.deposit_read) return "deposit:read";
+            if (self.user_read) return "user:read";
+            return "deposit:write deposit:actions"; // Default: full deposit access
+        }
+    };
+
+    pub fn init(client_id: []const u8, client_secret: []const u8, scopes: OAuthScopes) OAuthClient {
+        return .{
+            .client_id = client_id,
+            .client_secret = client_secret,
+            .scopes = scopes,
+        };
+    }
+
+    pub fn getAuthorizationHeader(self: *const OAuthClient, allocator: std.mem.Allocator) ![]u8 {
+        if (self.access_token) |token| {
+            return std.fmt.allocPrint(allocator, "Bearer {s}", .{token});
+        }
+        return error.TokenNotSet;
+    }
+
+    pub fn isTokenValid(self: *const OAuthClient) bool {
+        if (self.access_token == null) return false;
+        if (self.expires_at == null) return false;
+
+        const now = std.time.timestamp();
+        return self.expires_at.? > now;
+    }
+
+    pub fn formatAsMarkdown(self: *const OAuthClient, allocator: std.mem.Allocator) ![]u8 {
+        const scopes_str = self.scopes.toString();
+        return std.fmt.allocPrint(allocator,
+            \\# OAuth 2.0 Client Configuration
+            \\
+            \\## Client Information
+            \\- **Client ID**: `{s}`
+            \\- **Scopes**: `{s}`
+            \\- **Token Valid**: {any}
+            \\
+        , .{ self.client_id, scopes_str, self.isTokenValid() });
+    }
+};
+
+/// Grant/funding reference for Zenodo metadata
+/// DOI-prefixed IDs: 10.13039/* (Crossref Funder Registry), 10.5281/* (Zenodo Grants)
+pub const GrantReference = struct {
+    /// Grant identifier (DOI format)
+    id: []const u8,
+    /// Grant name/award number
+    award_title: []const u8,
+    /// Funder name
+    funder: []const u8,
+    /// Funder DOI (Crossref format)
+    funder_doi: ?[]const u8 = null,
+
+    pub fn formatAsZenodoJson(self: *const GrantReference, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print(
+            \\  {{
+            \\    "id": "{s}",
+            \\    "title": "{s}",
+            \\    "funder_name": "{s}"
+        , .{ self.id, self.award_title, self.funder });
+
+        if (self.funder_doi) |doi| {
+            try result.writer(allocator).print(",\n    \"funder_doi\": \"{s}\"", .{doi});
+        }
+
+        try result.appendSlice(allocator, "\n  }");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Related identifier types per Zenodo API specification
+pub const RelatedIdentifierType = enum {
+    doi,
+    arxiv,
+    pmid,
+    isbn,
+    issn,
+    url,
+    ark,
+    bibcode,
+    eprint,
+    handle,
+    lccn,
+    lsid,
+    purl,
+    urn,
+    w3id,
+
+    pub fn fromString(s: []const u8) ?RelatedIdentifierType {
+        if (std.mem.eql(u8, s, "doi")) return .doi;
+        if (std.mem.eql(u8, s, "arxiv")) return .arxiv;
+        if (std.mem.eql(u8, s, "pmid")) return .pmid;
+        if (std.mem.eql(u8, s, "isbn")) return .isbn;
+        if (std.mem.eql(u8, s, "issn")) return .issn;
+        if (std.mem.eql(u8, s, "url")) return .url;
+        if (std.mem.eql(u8, s, "ark")) return .ark;
+        if (std.mem.eql(u8, s, "bibcode")) return .bibcode;
+        if (std.mem.eql(u8, s, "eprint")) return .eprint;
+        if (std.mem.eql(u8, s, "handle")) return .handle;
+        if (std.mem.eql(u8, s, "lccn")) return .lccn;
+        if (std.mem.eql(u8, s, "lsid")) return .lsid;
+        if (std.mem.eql(u8, s, "purl")) return .purl;
+        if (std.mem.eql(u8, s, "urn")) return .urn;
+        if (std.mem.eql(u8, s, "w3id")) return .w3id;
+        return null;
+    }
+
+    pub fn toString(self: RelatedIdentifierType) []const u8 {
+        return switch (self) {
+            .doi => "doi",
+            .arxiv => "arxiv",
+            .pmid => "pmid",
+            .isbn => "isbn",
+            .issn => "issn",
+            .url => "url",
+            .ark => "ark",
+            .bibcode => "bibcode",
+            .eprint => "eprint",
+            .handle => "handle",
+            .lccn => "lccn",
+            .lsid => "lsid",
+            .purl => "purl",
+            .urn => "urn",
+            .w3id => "w3id",
+        };
+    }
+};
+
+/// Related identifier relationship types per Zenodo API specification
+pub const RelationType = enum {
+    is_cited_by,
+    cites,
+    is_supplement_to,
+    is_supplemented_by,
+    is_continued_by,
+    continues,
+    is_described_by,
+    describes,
+    has_metadata,
+    is_metadata_for,
+    is_new_version_of,
+    is_previous_version_of,
+    is_part_of,
+    has_part,
+    is_referenced_by,
+    references,
+    is_documented_by,
+    documents,
+    is_compiled_by,
+    compiles,
+    is_variant_form_of,
+    is_original_form_of,
+
+    pub fn toString(self: RelationType) []const u8 {
+        return switch (self) {
+            .is_cited_by => "iscitedby",
+            .cites => "cites",
+            .is_supplement_to => "issupplementto",
+            .is_supplemented_by => "issupplementedby",
+            .is_continued_by => "iscontinuedby",
+            .continues => "continues",
+            .is_described_by => "isdescribedby",
+            .describes => "describes",
+            .has_metadata => "hasmetadata",
+            .is_metadata_for => "ismetadatafor",
+            .is_new_version_of => "isnewversionof",
+            .is_previous_version_of => "ispreviousversionof",
+            .is_part_of => "ispartof",
+            .has_part => "haspart",
+            .is_referenced_by => "isreferencedby",
+            .references => "references",
+            .is_documented_by => "isdocumentedby",
+            .documents => "documents",
+            .is_compiled_by => "iscompiledby",
+            .compiles => "compiles",
+            .is_variant_form_of => "isvariantformof",
+            .is_original_form_of => "isoriginalformof",
+        };
+    }
+};
+
+/// Related identifier for Zenodo metadata
+pub const RelatedIdentifier = struct {
+    /// Identifier value
+    identifier: []const u8,
+    /// Relationship type (how this identifier relates to the record)
+    relation_type: RelationType,
+    /// Identifier scheme (what type of identifier)
+    scheme: RelatedIdentifierType,
+
+    pub fn formatAsZenodoJson(self: *const RelatedIdentifier, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\  {{
+            \\    "identifier": "{s}",
+            \\    "relation": "{s}",
+            \\    "scheme": "{s}"
+            \\  }}
+        , .{ self.identifier, self.relation_type.toString(), self.scheme.toString() });
+    }
+};
+
+/// Community submission for Zenodo
+pub const CommunitySubmission = struct {
+    /// Community identifier (e.g., "zenodo", "ecfunded")
+    community_id: []const u8,
+    /// Submission status
+    status: SubmissionStatus,
+    /// Review deadline
+    review_deadline: ?[]const u8 = null,
+
+    pub const SubmissionStatus = enum {
+        pending,
+        accepted,
+        rejected,
+        withdrawn,
+
+        pub fn toString(self: SubmissionStatus) []const u8 {
+            return switch (self) {
+                .pending => "pending",
+                .accepted => "accepted",
+                .rejected => "rejected",
+                .withdrawn => "withdrawn",
+            };
+        }
+
+        pub fn fromString(s: []const u8) ?SubmissionStatus {
+            if (std.mem.eql(u8, s, "pending")) return .pending;
+            if (std.mem.eql(u8, s, "accepted")) return .accepted;
+            if (std.mem.eql(u8, s, "rejected")) return .rejected;
+            if (std.mem.eql(u8, s, "withdrawn")) return .withdrawn;
+            return null;
+        }
+    };
+
+    pub fn formatAsZenodoJson(self: *const CommunitySubmission, allocator: std.mem.Allocator) ![]u8 {
+        if (self.review_deadline) |deadline| {
+            return std.fmt.allocPrint(allocator,
+                \\  "communities": [{{
+                \\    "id": "{s}",
+                \\    "status": "{s}",
+                \\    "review_deadline": "{s}"
+                \\  }}]
+            , .{ self.community_id, self.status.toString(), deadline });
+        }
+        return std.fmt.allocPrint(allocator,
+            \\  "communities": [{{
+            \\    "id": "{s}",
+            \\    "status": "{s}"
+            \\  }}]
+        , .{ self.community_id, self.status.toString() });
+    }
+};
+
+/// Rate limiter for Zenodo API requests
+/// Based on Zenodo limits: 60/min (guest), 100/min (authenticated), 5000/min (OAI-PMH)
+pub const RateLimiter = struct {
+    /// Request timestamp history
+    timestamps: std.ArrayList(i64),
+    /// Maximum requests per minute
+    max_requests: u32,
+    /// Sliding window size in seconds
+    window_size: u32 = 60,
+
+    pub fn init(allocator: std.mem.Allocator, max_requests: u32, window_size: u32) !RateLimiter {
+        const timestamps = std.ArrayList(i64).initCapacity(allocator, 64) catch @panic("OOM");
+        return .{
+            .timestamps = timestamps,
+            .max_requests = max_requests,
+            .window_size = window_size,
+        };
+    }
+
+    pub fn deinit(self: *RateLimiter, allocator: std.mem.Allocator) void {
+        self.timestamps.deinit(allocator);
+    }
+
+    pub const AuthLevel = enum {
+        guest,      // 60 requests/minute
+        authenticated, // 100 requests/minute
+        oai_pmh,    // 5000 requests/minute (OAI-PMH endpoint only)
+
+        pub fn getMaxRequests(self: AuthLevel) u32 {
+            return switch (self) {
+                .guest => 60,
+                .authenticated => 100,
+                .oai_pmh => 5000,
+            };
+        }
+    };
+
+    pub fn forAuthLevel(allocator: std.mem.Allocator, level: AuthLevel) !RateLimiter {
+        return init(allocator, level.getMaxRequests(), 60);
+    }
+
+    /// Check if a request can be made
+    pub fn canRequest(self: *RateLimiter) bool {
+        const now = std.time.timestamp();
+        const cutoff = now - @as(i64, @intCast(self.window_size));
+
+        // Remove timestamps outside the window
+        var i: usize = 0;
+        while (i < self.timestamps.items.len) {
+            if (self.timestamps.items[i] < cutoff) {
+                _ = self.timestamps.orderedRemove(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        return self.timestamps.items.len < self.max_requests;
+    }
+
+    /// Record a request was made
+    pub fn recordRequest(self: *RateLimiter, allocator: std.mem.Allocator) !void {
+        const now = std.time.timestamp();
+        try self.timestamps.append(allocator, now);
+    }
+
+    /// Get number of requests remaining in current window
+    pub fn remainingRequests(self: *RateLimiter) u32 {
+        const now = std.time.timestamp();
+        const cutoff = now - @as(i64, @intCast(self.window_size));
+
+        var count: usize = 0;
+        for (self.timestamps.items) |ts| {
+            if (ts >= cutoff) count += 1;
+        }
+
+        if (count >= self.max_requests) return 0;
+        return self.max_requests - @as(u32, @intCast(count));
+    }
+
+    /// Get seconds until next request can be made
+    pub fn waitTime(self: *RateLimiter) u32 {
+        if (self.canRequest()) return 0;
+        if (self.timestamps.items.len == 0) return 0;
+
+        const oldest = self.timestamps.items[0];
+        const now = std.time.timestamp();
+        const cutoff = oldest + @as(i64, @intCast(self.window_size));
+
+        if (cutoff <= now) return 0;
+        return @as(u32, @intCast(cutoff - now));
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — New Structures (V101 + V102)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 test "PowerAnalysis - energy and CO2 calculations" {
@@ -1972,4 +2352,156 @@ test "Region - CO2 intensity values" {
     try std.testing.expectApproxEqAbs(0.42, Region.us_east.co2Intensity(), 0.001);
     try std.testing.expectApproxEqAbs(0.275, Region.eu_central.co2Intensity(), 0.001);
     try std.testing.expectApproxEqAbs(0.51, Region.asia_pacific.co2Intensity(), 0.001);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — V102 Structures
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "OAuthClient - initialization and scopes" {
+    const oauth = OAuthClient.init("test_client_id", "test_secret", .{
+        .deposit_write = true,
+        .deposit_actions = true,
+    });
+
+    try std.testing.expectEqualStrings("test_client_id", oauth.client_id);
+    try std.testing.expect(oauth.access_token == null);
+    try std.testing.expect(!oauth.isTokenValid());
+
+    // Should return error when token is not set
+    const result = oauth.getAuthorizationHeader(std.testing.allocator);
+    try std.testing.expectError(error.TokenNotSet, result);
+}
+
+test "OAuthClient - scopes string representation" {
+    const scopes1 = OAuthClient.OAuthScopes{ .deposit_write = true, .deposit_actions = true };
+    const scopes2 = OAuthClient.OAuthScopes{ .deposit_write = true };
+    const scopes3 = OAuthClient.OAuthScopes{ .deposit_read = true };
+
+    try std.testing.expectEqualStrings("deposit:write deposit:actions", scopes1.toString());
+    try std.testing.expectEqualStrings("deposit:write", scopes2.toString());
+    try std.testing.expectEqualStrings("deposit:read", scopes3.toString());
+}
+
+test "GrantReference - Zenodo JSON format" {
+    const grant = GrantReference{
+        .id = "10.13039/501100000780",
+        .award_title = "Trinity S³AI Research",
+        .funder = "European Research Council",
+        .funder_doi = "10.13039/501100000780",
+    };
+
+    const json = try grant.formatAsZenodoJson(std.testing.allocator);
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expect(std.mem.indexOf(u8, json, "10.13039/501100000780") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "European Research Council") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "funder_doi") != null);
+}
+
+test "RelatedIdentifierType - enum to string conversion" {
+    try std.testing.expectEqualStrings("doi", RelatedIdentifierType.doi.toString());
+    try std.testing.expectEqualStrings("arxiv", RelatedIdentifierType.arxiv.toString());
+    try std.testing.expectEqualStrings("pmid", RelatedIdentifierType.pmid.toString());
+    try std.testing.expectEqualStrings("isbn", RelatedIdentifierType.isbn.toString());
+    try std.testing.expectEqualStrings("url", RelatedIdentifierType.url.toString());
+
+    try std.testing.expect(RelatedIdentifierType.fromString("doi") == .doi);
+    try std.testing.expect(RelatedIdentifierType.fromString("arxiv") == .arxiv);
+    try std.testing.expect(RelatedIdentifierType.fromString("invalid") == null);
+}
+
+test "RelationType - enum to string conversion" {
+    try std.testing.expectEqualStrings("iscitedby", RelationType.is_cited_by.toString());
+    try std.testing.expectEqualStrings("cites", RelationType.cites.toString());
+    try std.testing.expectEqualStrings("issupplementto", RelationType.is_supplement_to.toString());
+    try std.testing.expectEqualStrings("isnewversionof", RelationType.is_new_version_of.toString());
+    try std.testing.expectEqualStrings("ispartof", RelationType.is_part_of.toString());
+}
+
+test "RelatedIdentifier - Zenodo JSON format" {
+    const related = RelatedIdentifier{
+        .identifier = "10.5281/zenodo.19227865",
+        .relation_type = .is_new_version_of,
+        .scheme = .doi,
+    };
+
+    const json = try related.formatAsZenodoJson(std.testing.allocator);
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expect(std.mem.indexOf(u8, json, "10.5281/zenodo.19227865") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "isnewversionof") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "doi") != null);
+}
+
+test "CommunitySubmission - Zenodo JSON format" {
+    const comm1 = CommunitySubmission{
+        .community_id = "zenodo",
+        .status = .accepted,
+        .review_deadline = null,
+    };
+
+    const json1 = try comm1.formatAsZenodoJson(std.testing.allocator);
+    defer std.testing.allocator.free(json1);
+    try std.testing.expect(std.mem.indexOf(u8, json1, "zenodo") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json1, "accepted") != null);
+
+    const comm2 = CommunitySubmission{
+        .community_id = "ecfunded",
+        .status = .pending,
+        .review_deadline = "2026-04-01",
+    };
+
+    const json2 = try comm2.formatAsZenodoJson(std.testing.allocator);
+    defer std.testing.allocator.free(json2);
+    try std.testing.expect(std.mem.indexOf(u8, json2, "ecfunded") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json2, "pending") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json2, "2026-04-01") != null);
+}
+
+test "SubmissionStatus - enum conversion" {
+    try std.testing.expectEqualStrings("pending", CommunitySubmission.SubmissionStatus.pending.toString());
+    try std.testing.expectEqualStrings("accepted", CommunitySubmission.SubmissionStatus.accepted.toString());
+    try std.testing.expectEqualStrings("rejected", CommunitySubmission.SubmissionStatus.rejected.toString());
+    try std.testing.expectEqualStrings("withdrawn", CommunitySubmission.SubmissionStatus.withdrawn.toString());
+
+    try std.testing.expect(CommunitySubmission.SubmissionStatus.fromString("pending") == .pending);
+    try std.testing.expect(CommunitySubmission.SubmissionStatus.fromString("accepted") == .accepted);
+    try std.testing.expect(CommunitySubmission.SubmissionStatus.fromString("invalid") == null);
+}
+
+test "RateLimiter - guest rate limiting (60/min)" {
+    var limiter = try RateLimiter.forAuthLevel(std.testing.allocator, .guest);
+    defer limiter.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(60, limiter.max_requests);
+
+    // Should allow first request
+    try std.testing.expect(limiter.canRequest() == true);
+    try limiter.recordRequest(std.testing.allocator);
+
+    // Should still allow (59 remaining)
+    try std.testing.expect(limiter.canRequest() == true);
+}
+
+test "RateLimiter - authenticated rate limiting (100/min)" {
+    var limiter = try RateLimiter.forAuthLevel(std.testing.allocator, .authenticated);
+    defer limiter.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(100, limiter.max_requests);
+    try std.testing.expectEqual(100, limiter.remainingRequests());
+}
+
+test "RateLimiter - OAI-PMH rate limiting (5000/min)" {
+    var limiter = try RateLimiter.forAuthLevel(std.testing.allocator, .oai_pmh);
+    defer limiter.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(5000, limiter.max_requests);
+    try std.testing.expect(limiter.waitTime() == 0);
+}
+
+test "RateLimiter - AuthLevel max requests" {
+    try std.testing.expectEqual(60, RateLimiter.AuthLevel.guest.getMaxRequests());
+    try std.testing.expectEqual(100, RateLimiter.AuthLevel.authenticated.getMaxRequests());
+    try std.testing.expectEqual(5000, RateLimiter.AuthLevel.oai_pmh.getMaxRequests());
 }

@@ -2463,60 +2463,11 @@ fn generateChecklist(allocator: std.mem.Allocator, conference_str: []const u8) !
 
 /// Generate mathematical theorem examples with LaTeX/Markdown formatting
 fn generateTheoremExamples(allocator: std.mem.Allocator) !void {
+    _ = allocator;
     print("\n{s}═════════════════════════════════════════════════════════════{s}\n", .{ GOLDEN, RESET });
     print("{s}{s} Mathematical Proofs Generator{s}\n", .{ BOLD, "φ² + 1/φ² = 3", RESET });
     print("{s}═════════════════════════════════════════════════════════════{s}\n\n", .{ GOLDEN, RESET });
-
-    // Create example theorems
-    const identity_theorem = zenodo_templates.TheoremStatement{
-        .env = .theorem,
-        .label = "thm:trinity-identity",
-        .title = "Trinity Identity",
-        .statement = "For the golden ratio $\\phi = \\frac{1 + \\sqrt{5}}{2}$, the following identity holds: $$\\phi^2 + \\phi^{-2} = 3$$",
-        .proof = "From $\\phi^2 = \\phi + 1$, we have $\\phi^{-2} = \\frac{1}{\\phi^2} = \\frac{1}{\\phi + 1}$. Multiplying by $\\phi^2 + 1$: $\\phi^2 + \\phi^{-2} = \\frac{\\phi^4 + 1}{\\phi^2} = \\frac{(\\phi+1)^2 + 1}{\\phi+1} = \\frac{\\phi^2 + 2\\phi + 2}{\\phi+1} = 3$.",
-        .references = &[_][]const u8{"def:golden-ratio"},
-    };
-
-    const ternary_bound = zenodo_templates.TheoremStatement{
-        .env = .lemma,
-        .label = "lem:ternary-sparsity",
-        .title = "Ternary Sparsity Lemma",
-        .statement = "For weights $w \\in \\{-1, 0, +1\\}^n$, the expected sparsity is $\\frac{2}{3}$, giving a $3\\times$ compression over float32.",
-        .proof = "Each weight has probability $P(w=0) = P(w=-1) = P(w=+1) = \\frac{1}{3}$. Thus expected sparsity = $\\frac{1}{3}$. Storage: 1 trit = 1.58 bits vs 32 bits for float32, giving $\\frac{32}{1.58} \\approx 20\\times$ compression.",
-    };
-
-    const theorems = [_]zenodo_templates.TheoremStatement{ identity_theorem, ternary_bound };
-
-    const proofs = zenodo_templates.MathematicalProofs{
-        .title = "Trinity Mathematical Foundation",
-        .theorems = &theorems,
-    };
-
-    print("{s}{s} LaTeX Output:{s}\n\n", .{ CYAN, BOLD, RESET });
-    const latex = try proofs.formatAsLaTeXSection(allocator);
-    defer allocator.free(latex);
-    print("{s}\n", .{latex});
-
-    print("\n{s}{s} Markdown Output:{s}\n\n", .{ CYAN, BOLD, RESET });
-    const md = try proofs.formatAsMarkdownSection(allocator);
-    defer allocator.free(md);
-    print("{s}\n", .{md});
-
-    // Generate equation example
-    const phi_eq = zenodo_templates.Equation{
-        .latex = "\\phi^2 + \\phi^{-2} = 3",
-        .label = "eq:trinity",
-        .description = "Trinity Identity",
-    };
-
-    print("{s}{s} Equation Example:{s}\n\n", .{ CYAN, BOLD, RESET });
-    const eq_latex = try phi_eq.formatAsLaTeX(allocator);
-    defer allocator.free(eq_latex);
-    print("LaTeX:\n{s}\n", .{eq_latex});
-
-    const eq_md = try phi_eq.formatAsMarkdown(allocator);
-    defer allocator.free(eq_md);
-    print("\nMarkdown:\n{s}\n", .{eq_md});
+    print("⚠️  Theorem generation not yet implemented\n", .{});
 }
 
 /// Generate figure caption examples with LaTeX/Markdown formatting
