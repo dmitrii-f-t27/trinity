@@ -3521,7 +3521,7 @@ pub const ChecklistItem = struct {
         try result.writer(allocator).print("{s} {s}", .{ self.status.toSymbol(), self.description });
 
         if (self.notes) |n| {
-            try result.writer(allocator).print (" — {s}", .{n});
+            try result.writer(allocator).print(" — {s}", .{n});
         }
 
         return result.toOwnedSlice(allocator);
@@ -3553,12 +3553,7 @@ pub const SubmissionChecklist = struct {
             .{ .description = "Limitations section included", .status = .pending },
         };
 
-        const item_ptrs = try allocator.alloc(*const ChecklistItem, items.len);
-        defer allocator.free(item_ptrs);
-        for (items, 0..) |*item, i| {
-            item_ptrs[i] = item;
-        }
-
+        _ = allocator;
         return SubmissionChecklist{
             .conference = .neurips,
             .items = items,
@@ -3568,7 +3563,8 @@ pub const SubmissionChecklist = struct {
     }
 
     /// Generate ICLR-specific checklist
-    pub fn forICLR(_allocator: std.mem.Allocator) !SubmissionChecklist {
+    pub fn forICLR(allocator: std.mem.Allocator) !SubmissionChecklist {
+        _ = allocator;
         const items = [_]ChecklistItem{
             .{ .description = "Abstract within 250 words", .status = .pending },
             .{ .description = "Main text within 8 pages (excluding references and appendices)", .status = .pending },
@@ -3609,15 +3605,15 @@ pub const SubmissionChecklist = struct {
         var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
         defer result.deinit(allocator);
 
-        try result.writer(allocator).print ("# {s} Submission Checklist\n\n", .{self.conference.toString()});
-        try result.writer(allocator).print ("Completion: {d:.1}%\n\n", .{self.completionRate()});
+        try result.writer(allocator).print("# {s} Submission Checklist\n\n", .{self.conference.toString()});
+        try result.writer(allocator).print("Completion: {d:.1}%\n\n", .{self.completionRate()});
 
         if (self.submission_deadline) |deadline| {
-            try result.writer(allocator).print ("**Submission Deadline:** {s}\n\n", .{deadline});
+            try result.writer(allocator).print("**Submission Deadline:** {s}\n\n", .{deadline});
         }
 
         if (self.review_deadline) |deadline| {
-            try result.writer(allocator).print ("**Review Deadline:** {s}\n\n", .{deadline});
+            try result.writer(allocator).print("**Review Deadline:** {s}\n\n", .{deadline});
         }
 
         try result.appendSlice(allocator, "## Checklist\n\n");
@@ -3653,7 +3649,7 @@ pub const AvailabilityStatement = struct {
         try result.appendSlice(allocator, "====================\n\n");
 
         if (self.code_url) |url| {
-            try result.writer(allocator).print ("**Code:** The source code is available at {s} under the {s} license.\n", .{ url, self.license });
+            try result.writer(allocator).print("**Code:** The source code is available at {s} under the {s} license.\n", .{ url, self.license });
         } else {
             try result.appendSlice(allocator, "**Code:** The source code will be released upon acceptance.\n");
         }
@@ -3661,7 +3657,7 @@ pub const AvailabilityStatement = struct {
         try result.append(allocator, '\n');
 
         if (self.data_url) |url| {
-            try result.writer(allocator).print ("**Data:** The datasets used in this work are available at {s}.\n", .{url});
+            try result.writer(allocator).print("**Data:** The datasets used in this work are available at {s}.\n", .{url});
         } else {
             try result.appendSlice(allocator, "**Data:** The datasets used in this work are publicly available from cited sources.\n");
         }
@@ -3669,7 +3665,7 @@ pub const AvailabilityStatement = struct {
         try result.append(allocator, '\n');
 
         if (self.notes) |n| {
-            try result.writer(allocator).print ("**Notes:** {s}\n", .{n});
+            try result.writer(allocator).print("**Notes:** {s}\n", .{n});
         }
 
         try result.appendSlice(allocator, "\nAll materials follow FAIR principles (Findable, Accessible, Interoperable, Reusable).\n");
@@ -3685,19 +3681,19 @@ pub const AvailabilityStatement = struct {
         try result.appendSlice(allocator, "\\section*{Availability of Materials}\n\n");
 
         if (self.code_url) |url| {
-            try result.writer(allocator).print ("\\textbf{{Code:}} The source code is available at \\url{{{s}}} under the {s} license.\n\n", .{ url, self.license });
+            try result.writer(allocator).print("\\textbf{{Code:}} The source code is available at \\url{{{s}}} under the {s} license.\n\n", .{ url, self.license });
         } else {
             try result.appendSlice(allocator, "\\textbf{Code:} The source code will be released upon acceptance.\n\n");
         }
 
         if (self.data_url) |url| {
-            try result.writer(allocator).print ("\\textbf{{Data:}} The datasets used in this work are available at \\url{{{s}}}.\n\n", .{url});
+            try result.writer(allocator).print("\\textbf{{Data:}} The datasets used in this work are available at \\url{{{s}}}.\n\n", .{url});
         } else {
             try result.appendSlice(allocator, "\\textbf{Data:} The datasets used in this work are publicly available from cited sources.\n\n");
         }
 
         if (self.notes) |n| {
-            try result.writer(allocator).print ("\\textbf{{Notes:}} {s}\n\n", .{n});
+            try result.writer(allocator).print("\\textbf{{Notes:}} {s}\n\n", .{n});
         }
 
         try result.appendSlice(allocator, "All materials follow FAIR principles (Findable, Accessible, Interoperable, Reusable).\n");
