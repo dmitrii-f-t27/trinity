@@ -2127,9 +2127,9 @@ pub const RateLimiter = struct {
     }
 
     pub const AuthLevel = enum {
-        guest,      // 60 requests/minute
+        guest, // 60 requests/minute
         authenticated, // 100 requests/minute
-        oai_pmh,    // 5000 requests/minute (OAI-PMH endpoint only)
+        oai_pmh, // 5000 requests/minute (OAI-PMH endpoint only)
 
         pub fn getMaxRequests(self: AuthLevel) u32 {
             return switch (self) {
@@ -2196,8 +2196,327 @@ pub const RateLimiter = struct {
     }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// ZENODO V103 — Scientific Publication Helpers
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+/// Paper abstract generator from experimental results
+/// Follows NeurIPS/ICLR/MLSys abstract format (5-7 sentences, 250 words max)
+pub const AbstractGenerator = struct {
+    /// Problem context (1-2 sentences)
+    context: []const u8,
+    /// Method description (2-3 sentences)
+    method: []const u8,
+    /// Key results (1-2 sentences with metrics)
+    results: []const u8,
+    /// Impact statement (1 sentence)
+    impact: []const u8,
+
+    pub fn generate(self: *const AbstractGenerator, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print(
+            \\We address the challenge of {s}. Our approach leverages {s} to achieve significant improvements. Experimental results show {s}, demonstrating {s}. This work advances the state of the art by combining efficient architectures with rigorous analysis.
+        , .{ self.context, self.method, self.results, self.impact });
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    pub fn generateStructured(self: *const AbstractGenerator, allocator: std.mem.Allocator) !struct {
+        background: []const u8,
+        gap: []const u8,
+        method: []const u8,
+        results: []const u8,
+        conclusion: []const u8,
+    } {
+        return .{
+            .background = try std.fmt.allocPrint(allocator, "Problem: {s}", .{self.context}),
+            .gap = try std.fmt.allocPrint(allocator, "Gap: Existing approaches lack {s}", .{self.context}),
+            .method = try std.fmt.allocPrint(allocator, "Method: {s}", .{self.method}),
+            .results = try std.fmt.allocPrint(allocator, "Results: {s}", .{self.results}),
+            .conclusion = try std.fmt.allocPrint(allocator, "Conclusion: {s}", .{self.impact}),
+        };
+    }
+};
+
+/// Keywords extractor/generator for Zenodo metadata
+/// Generates 5-10 keywords following Zenodo best practices
+pub const KeywordsGenerator = struct {
+    /// Core concepts (3-5 terms)
+    core_concepts: []const []const u8,
+    /// Technical terms (2-5 terms)
+    technical_terms: []const []const u8,
+    /// Domain/field (1-2 terms)
+    domain: []const []const u8,
+
+    pub fn generateKeywords(self: *const KeywordsGenerator, allocator: std.mem.Allocator) ![][]const u8 {
+        const total_count = self.core_concepts.len + self.technical_terms.len + self.domain.len;
+
+        if (total_count < 5 or total_count > 10) {
+            return error.KeywordCountInvalid;
+        }
+
+        var keywords = std.ArrayList([]const u8).initCapacity(allocator, total_count) catch @panic("OOM");
+        defer keywords.deinit(allocator);
+
+        for (self.core_concepts) |kw| try keywords.append(allocator, kw);
+        for (self.technical_terms) |kw| try keywords.append(allocator, kw);
+        for (self.domain) |kw| try keywords.append(allocator, kw);
+
+        return keywords.toOwnedSlice(allocator);
+    }
+
+    pub fn formatAsArray(self: *const KeywordsGenerator, allocator: std.mem.Allocator) ![]u8 {
+        const keywords = try self.generateKeywords(allocator);
+        defer allocator.free(keywords);
+
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "[");
+        for (keywords, 0..) |kw, i| {
+            if (i > 0) try result.appendSlice(allocator, ", ");
+            try result.writer(allocator).print("\"{s}\"", .{kw});
+        }
+        try result.appendSlice(allocator, "]");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Bibliography BibTeX generator from metadata
+/// Follows IEEE/APA style for consistent citations
+pub const BibliographyBibtex = struct {
+    /// Author names (Vasilev, Dmitrii)
+    authors: []const []const u8,
+    /// Title
+    title: []const u8,
+    /// Year of publication
+    year: u32,
+    /// DOI (optional)
+    doi: ?[]const u8 = null,
+    /// Publisher
+    publisher: []const u8,
+    /// URL (optional)
+    url: ?[]const u8 = null,
+    /// Version (optional)
+    version: ?[]const u8 = null,
+
+    pub fn generateSoftwareEntry(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        const entry_key = try self.generateEntryKey(allocator);
+        defer allocator.free(entry_key);
+
+        try result.appendSlice(allocator, "@software{");
+        try result.writer(allocator).print("{s},\n", .{entry_key});
+        try result.writer(allocator).print("  title=\"{{{s}}}\",\n", .{self.title});
+
+        const authors_str = try self.formatAuthors(allocator);
+        defer allocator.free(authors_str);
+        try result.writer(allocator).print("  author=\"{{{s}}}\",\n", .{authors_str});
+
+        try result.writer(allocator).print("  year={d},\n", .{self.year});
+        try result.writer(allocator).print("  publisher=\"{{{s}}}\"", .{self.publisher});
+
+        if (self.version) |ver| {
+            try result.writer(allocator).print(",\n  version=\"{{{s}}}\"", .{ver});
+        }
+
+        if (self.doi) |doi_str| {
+            try result.writer(allocator).print(",\n  doi=\"{{{s}}}\"", .{doi_str});
+        }
+
+        if (self.url) |url_str| {
+            try result.writer(allocator).print(",\n  url=\"{{{s}}}\"", .{url_str});
+        }
+
+        try result.appendSlice(allocator, "\n}\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    fn generateEntryKey(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
+        if (self.authors.len == 0) return error.NoAuthors;
+        const last_name = try self.extractLastName(allocator, self.authors[0]);
+        defer allocator.free(last_name);
+        const first_word = try self.extractFirstWord(allocator, self.title);
+        defer allocator.free(first_word);
+        return std.fmt.allocPrint(allocator, "{s}_{d}_{s}", .{ last_name, self.year, first_word });
+    }
+
+    fn extractLastName(_: *const BibliographyBibtex, allocator: std.mem.Allocator, full_name: []const u8) ![]u8 {
+        if (std.mem.indexOf(u8, full_name, ",") != null) {
+            var parts = std.mem.splitSequence(u8, full_name, ",");
+            const last_name = parts.first();
+            return allocator.dupe(u8, std.mem.trim(u8, last_name, " "));
+        }
+        const space_idx = std.mem.lastIndexOfScalar(u8, full_name, ' ') orelse 0;
+        return allocator.dupe(u8, full_name[space_idx + 1 ..]);
+    }
+
+    fn extractFirstWord(_: *const BibliographyBibtex, allocator: std.mem.Allocator, title: []const u8) ![]u8 {
+        const trimmed = std.mem.trim(u8, title, " ");
+        const end_idx = std.mem.indexOfScalar(u8, trimmed, ' ') orelse trimmed.len;
+        const first_word = trimmed[0..end_idx];
+        var result = std.ArrayList(u8).initCapacity(allocator, first_word.len) catch @panic("OOM");
+        defer result.deinit(allocator);
+        for (first_word) |c| {
+            if (std.ascii.isAlphabetic(c)) {
+                try result.append(allocator, std.ascii.toLower(c));
+            }
+        }
+        return result.toOwnedSlice(allocator);
+    }
+
+    fn formatAuthors(self: *const BibliographyBibtex, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+        for (self.authors, 0..) |author, i| {
+            if (i > 0) try result.appendSlice(allocator, " and ");
+            try result.appendSlice(allocator, author);
+        }
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Supplementary materials structure for Zenodo deposits
+pub const SupplementaryMaterials = struct {
+    code_url: ?[]const u8 = null,
+    dataset_url: ?[]const u8 = null,
+    additional_files: []const []const u8,
+    readme_content: ?[]const u8 = null,
+
+    pub fn generateFileList(self: *const SupplementaryMaterials, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+        try result.appendSlice(allocator, "## Files in this Deposit\n\n");
+        if (self.code_url) |url| {
+            try result.writer(allocator).print("- **Code**: {s}\n", .{url});
+        }
+        if (self.dataset_url) |url| {
+            try result.writer(allocator).print("- **Dataset**: {s}\n", .{url});
+        }
+        for (self.additional_files) |file| {
+            try result.writer(allocator).print("- **Additional**: {s}\n", .{file});
+        }
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Peer review response template
+pub const PeerReviewResponse = struct {
+    comments: []const ReviewComment,
+    paper_title: []const u8,
+
+    pub const ReviewComment = struct {
+        reviewer: ?[]const u8 = null,
+        text: []const u8,
+        number: u32,
+
+        pub fn format(self: *const ReviewComment, allocator: std.mem.Allocator) ![]u8 {
+            if (self.reviewer) |name| {
+                return std.fmt.allocPrint(allocator, "**Comment {d} ({s}):** {s}\n", .{ self.number, name, self.text });
+            }
+            return std.fmt.allocPrint(allocator, "**Comment {d}:** {s}\n", .{ self.number, self.text });
+        }
+    };
+
+    pub fn generateResponse(self: *const PeerReviewResponse, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 2048) catch @panic("OOM");
+        defer result.deinit(allocator);
+        try result.writer(allocator).print(
+            \\# Response to Reviewers - {s}
+            \\Thank you for your thoughtful review. Below are our point-by-point responses.
+            \\
+        , .{self.paper_title});
+        try result.appendSlice(allocator, "\n## Point-by-Point Response\n\n");
+        for (self.comments) |comment| {
+            const formatted = try comment.format(allocator);
+            defer allocator.free(formatted);
+            try result.appendSlice(allocator, "\n### ");
+            try result.appendSlice(allocator, formatted);
+            try result.appendSlice(allocator, "\n\n**Response:**\n\n");
+        }
+        try result.appendSlice(allocator,
+            \\We have incorporated the suggested changes where appropriate.
+            \\Thank you again for your valuable feedback.
+        );
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Presentation slide structure generator (LaTeX Beamer)
+pub const PresentationSlides = struct {
+    title: []const u8,
+    authors: []const []const u8,
+    conference: []const u8,
+    slides: []const Slide,
+
+    pub const Slide = struct {
+        title: []const u8,
+        content: []const u8,
+        has_bullet: bool = false,
+        has_equation: bool = false,
+    };
+
+    pub fn generateBeamer(self: *const PresentationSlides, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer result.deinit(allocator);
+        try result.appendSlice(allocator,
+            \\\\documentclass{beamer}
+            \\\\usetheme{Madrid}
+            \\\\usecolortheme{default}
+            \\\\usepackage{graphicx}
+            \\\\usepackage{amsmath}
+            \\  \\title{{{s}}}
+        );
+        try result.writer(allocator).print("  \\title{{{s}}}\n", .{self.title});
+
+        const authors_str = try self.formatAuthorsInline(allocator);
+        defer allocator.free(authors_str);
+        try result.writer(allocator).print("  \\author{{{s}}}\n", .{authors_str});
+
+        try result.writer(allocator).print("  \\date{{{s}}}\n", .{self.conference});
+        try result.appendSlice(allocator,
+            \\\\begin{document}
+            \\\\begin{frame}
+            \\   \\titlepage
+            \\\\end{frame}
+        );
+        for (self.slides) |slide| {
+            try result.appendSlice(allocator, "\n\\begin{frame}{");
+            try result.writer(allocator).print("{{{s}}}\n", .{slide.title});
+            if (slide.has_equation) {
+                try result.writer(allocator).print("  \\[ {s} \\]\n", .{slide.content});
+            } else if (slide.has_bullet) {
+                try result.appendSlice(allocator, "  \\begin{itemize}\n");
+                try result.writer(allocator).print("    \\item {s}\n", .{slide.content});
+                try result.appendSlice(allocator, "  \\end{itemize}\n");
+            } else {
+                try result.writer(allocator).print("  {s}\n", .{slide.content});
+            }
+            try result.appendSlice(allocator, "\\end{frame}\n");
+        }
+        try result.appendSlice(allocator, "\\end{document}\n");
+        return result.toOwnedSlice(allocator);
+    }
+
+    fn formatAuthorsInline(self: *const PresentationSlides, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+        for (self.authors, 0..) |author, i| {
+            if (i > 0) try result.appendSlice(allocator, " and ");
+            try result.appendSlice(allocator, author);
+        }
+        return result.toOwnedSlice(allocator);
+    }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// TESTS — New Structures (V101 + V102)
+// TESTS — New Structures (V101 + V102 + V103)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 test "PowerAnalysis - energy and CO2 calculations" {
@@ -2504,4 +2823,161 @@ test "RateLimiter - AuthLevel max requests" {
     try std.testing.expectEqual(60, RateLimiter.AuthLevel.guest.getMaxRequests());
     try std.testing.expectEqual(100, RateLimiter.AuthLevel.authenticated.getMaxRequests());
     try std.testing.expectEqual(5000, RateLimiter.AuthLevel.oai_pmh.getMaxRequests());
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TESTS — V103 Structures
+// ═════════════════════════════════════════════════════════════════════════════════
+
+test "AbstractGenerator - generates full abstract" {
+    const abstract_gen = AbstractGenerator{
+        .context = "neural network quantization for edge deployment",
+        .method = "ternary encoding with sacred scaling factors",
+        .results = "94% accuracy with 20× compression",
+        .impact = "enables efficient inference on resource-constrained devices",
+    };
+
+    const abstract = try abstract_gen.generate(std.testing.allocator);
+    defer std.testing.allocator.free(abstract);
+
+    try std.testing.expect(std.mem.indexOf(u8, abstract, "ternary encoding") != null);
+    try std.testing.expect(std.mem.indexOf(u8, abstract, "94% accuracy") != null);
+}
+
+test "AbstractGenerator - generates structured abstract" {
+    const abstract_gen = AbstractGenerator{
+        .context = "neural network quantization",
+        .method = "ternary encoding",
+        .results = "94% accuracy",
+        .impact = "efficient inference",
+    };
+
+    const structured = try abstract_gen.generateStructured(std.testing.allocator);
+    defer std.testing.allocator.free(structured.background);
+    defer std.testing.allocator.free(structured.gap);
+    defer std.testing.allocator.free(structured.method);
+    defer std.testing.allocator.free(structured.results);
+    defer std.testing.allocator.free(structured.conclusion);
+
+    try std.testing.expect(std.mem.indexOf(u8, structured.background, "neural network quantization") != null);
+}
+
+test "KeywordsGenerator - generates valid keywords array" {
+    const core = [_][]const u8{ "ternary neural networks", "quantization", "edge AI" };
+    const tech = [_][]const u8{ "sacred scaling", "FPGA inference" };
+    const dom = [_][]const u8{"machine learning"};
+
+    const gen = KeywordsGenerator{
+        .core_concepts = &core,
+        .technical_terms = &tech,
+        .domain = &dom,
+    };
+
+    const array_str = try gen.formatAsArray(std.testing.allocator);
+    defer std.testing.allocator.free(array_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, array_str, "\"ternary neural networks\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, array_str, "\"FPGA inference\"") != null);
+}
+
+test "BibliographyBibtex - generates software entry" {
+    const authors = [_][]const u8{"Vasilev, Dmitrii"};
+    const bibtex = BibliographyBibtex{
+        .authors = &authors,
+        .title = "Trinity S³AI Framework",
+        .year = 2026,
+        .doi = "10.5281/zenodo.XXXXXX",
+        .publisher = "Zenodo",
+        .url = "https://github.com/gHashTag/trinity",
+        .version = "v2.9",
+    };
+
+    const entry = try bibtex.generateSoftwareEntry(std.testing.allocator);
+    defer std.testing.allocator.free(entry);
+
+    try std.testing.expect(std.mem.indexOf(u8, entry, "@software{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, entry, "Trinity S³AI Framework") != null);
+}
+
+test "BibliographyBibtex - extracts last name" {
+    const authors = [_][]const u8{"Vasilev, Dmitrii"};
+    const bibtex = BibliographyBibtex{
+        .authors = &authors,
+        .title = "Test",
+        .year = 2026,
+        .publisher = "Zenodo",
+    };
+
+    const last_name = try bibtex.extractLastName(std.testing.allocator, "Vasilev, Dmitrii");
+    defer std.testing.allocator.free(last_name);
+
+    try std.testing.expectEqualStrings("Vasilev", last_name);
+}
+
+test "SupplementaryMaterials - generates file list" {
+    const additional = [_][]const u8{ "README.md", "LICENSE" };
+    const sup = SupplementaryMaterials{
+        .code_url = "https://github.com/gHashTag/trinity",
+        .dataset_url = "https://zenodo.org/record/XXXXX",
+        .additional_files = &additional,
+    };
+
+    const file_list = try sup.generateFileList(std.testing.allocator);
+    defer std.testing.allocator.free(file_list);
+
+    try std.testing.expect(std.mem.indexOf(u8, file_list, "**Code**") != null);
+    try std.testing.expect(std.mem.indexOf(u8, file_list, "**Dataset**") != null);
+}
+
+test "PeerReviewResponse - generates response" {
+    const comment1 = PeerReviewResponse.ReviewComment{
+        .reviewer = "Reviewer 1",
+        .text = "Abstract needs more clarity",
+        .number = 1,
+    };
+    const comment2 = PeerReviewResponse.ReviewComment{
+        .reviewer = "Reviewer 2",
+        .text = "Add more experimental results",
+        .number = 2,
+    };
+    const comments = [_]PeerReviewResponse.ReviewComment{ comment1, comment2 };
+
+    const response = PeerReviewResponse{
+        .comments = &comments,
+        .paper_title = "Trinity S³AI Framework",
+    };
+
+    const response_text = try response.generateResponse(std.testing.allocator);
+    defer std.testing.allocator.free(response_text);
+
+    try std.testing.expect(std.mem.indexOf(u8, response_text, "Response to Reviewers") != null);
+    try std.testing.expect(std.mem.indexOf(u8, response_text, "Thank you") != null);
+}
+
+test "PresentationSlides - generates beamer structure" {
+    const slide1 = PresentationSlides.Slide{
+        .title = "Introduction",
+        .content = "Trinity S³AI Framework overview",
+        .has_bullet = true,
+    };
+    const slide2 = PresentationSlides.Slide{
+        .title = "Results",
+        .content = "94% accuracy with 20× compression",
+        .has_equation = true,
+    };
+    const slides = [_]PresentationSlides.Slide{ slide1, slide2 };
+    const authors = [_][]const u8{"Vasilev, Dmitrii"};
+
+    const pres = PresentationSlides{
+        .title = "Trinity S³AI Framework",
+        .authors = &authors,
+        .conference = "NeurIPS 2026",
+        .slides = &slides,
+    };
+
+    const beamer = try pres.generateBeamer(std.testing.allocator);
+    defer std.testing.allocator.free(beamer);
+
+    try std.testing.expect(std.mem.indexOf(u8, beamer, "\\documentclass{beamer}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, beamer, "Trinity S³AI Framework") != null);
 }
