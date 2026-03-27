@@ -115,11 +115,35 @@ def publish_deposition(deposition_id: str, token: str, sandbox: bool = False) ->
     response.raise_for_status()
     return response.json()
 
-def upload_bundle(bundle_id: str, token: str, sandbox: bool = False, publish: bool = False) -> Dict:
+def upload_bundle(bundle_id: str, token: str, sandbox: bool = False, publish: bool = False, dry_run: bool = False) -> Dict:
     """Upload a single bundle to Zenodo"""
     print(f"\n{'='*60}")
-    print(f"Uploading {bundle_id} to Zenodo")
+    if dry_run:
+        print(f"Testing {bundle_id} (DRY-RUN MODE)")
+    else:
+        print(f"Uploading {bundle_id} to Zenodo")
     print(f"{'='*60}\n")
+
+    if dry_run:
+        # Load metadata for validation only
+        try:
+            metadata = load_metadata(bundle_id)
+            description = load_description(bundle_id)
+            desc_file = Path('docs/research') / f'zenodo_{bundle_id}_enhanced_v7.0.md'
+            print(f"  Metadata file: {len(metadata)} keys ✅")
+            print(f"  Description file: {desc_file.stat().st_size} bytes ✅")
+            print(f"  Draft mode: {not publish}")
+            return {
+                'bundle_id': bundle_id,
+                'dry_run': True,
+                'validated': True,
+            }
+        except Exception as e:
+            return {
+                'bundle_id': bundle_id,
+                'dry_run': True,
+                'error': str(e),
+            }
 
     # Load metadata and description
     metadata = load_metadata(bundle_id)
@@ -175,7 +199,7 @@ def upload_bundle(bundle_id: str, token: str, sandbox: bool = False, publish: bo
         'doi': deposition.get('doi', 'pending')
     }
 
-def upload_all_bundles(token: str, sandbox: bool = False, publish: bool = False) -> None:
+def upload_all_bundles(token: str, sandbox: bool = False, publish: bool = False, dry_run: bool = False) -> None:
     """Upload all bundles to Zenodo"""
     bundles = ['B001', 'B002', 'B003', 'B004', 'B005', 'B006', 'B007']
 
@@ -183,7 +207,7 @@ def upload_all_bundles(token: str, sandbox: bool = False, publish: bool = False)
 
     for bundle in bundles:
         try:
-            result = upload_bundle(bundle, token, sandbox, publish)
+            result = upload_bundle(bundle, token, sandbox, publish, dry_run)
             results.append(result)
             time.sleep(2)  # Rate limiting
         except Exception as e:
@@ -214,8 +238,9 @@ def verify_doi(doi: str) -> bool:
         print(f"Warning: Could not verify DOI {doi}: {e}")
         return False
 
-def create_github_release(version: str, doi: str, bundle_id: str) -> Dict:
-    """Create a GitHub release for the published Zenodo bundle"""
+def create_github_release(version: str, doi: str, bundle_id: str, dry_run: bool = False) -> Dict:
+    """Create a GitHub release for the published Zenodo bundle
+    Skips if dry_run mode is enabled"""
     import subprocess
 
     # Get GitHub repo from git remote
@@ -242,6 +267,10 @@ def create_github_release(version: str, doi: str, bundle_id: str) -> Dict:
     except Exception:
         return {'error': 'GitHub CLI (gh) not installed'}
 
+    # Skip release on dry-run
+    if dry_run:
+        return {'success': True, 'dry_run': True, 'notes': 'Skipped GitHub release (dry-run mode)'}
+    
     # Create release
     tag = f"zenodo-v7.0-{bundle_id}"
     title = f"Zenodo v7.0 {bundle_id}"
@@ -319,6 +348,8 @@ def main():
                        help='Publish deposition (default: draft only)')
     parser.add_argument('--token', '-t', type=str,
                        help='Zenodo API token (or set ZENODO_TOKEN env var)')
+    parser.add_argument('--dry-run', action='store_true',
+                       help='Test mode: skip actual upload to Zenodo')
     parser.add_argument('--github-release', action='store_true',
                        help='Create GitHub release after publish')
     parser.add_argument('--verify-doi', action='store_true',
@@ -330,13 +361,15 @@ def main():
 
     args = parser.parse_args()
 
-    # Get token
+    # Get token (not required for dry-run mode)
     token = args.token or os.environ.get('ZENODO_TOKEN')
-    if not token:
+    if not token and not args.dry_run:
         print("Error: ZENODO_TOKEN not set")
         print("Get your token at: https://zenodo.org/account/settings/applications/tokens/new")
         print("Then: export ZENODO_TOKEN=your_token_here")
         sys.exit(1)
+    elif not token:
+        print("Note: Running in dry-run mode - no token required")
 
     # List depositions
     if args.list:
@@ -364,9 +397,9 @@ def main():
 
     # Upload
     if args.all:
-        upload_all_bundles(token, args.sandbox, args.publish)
+        upload_all_bundles(token, args.sandbox, args.publish, args.dry_run)
     elif args.bundle:
-        result = upload_bundle(args.bundle, token, args.sandbox, args.publish)
+        result = upload_bundle(args.bundle, token, args.sandbox, args.publish, args.dry_run)
 
         # Optional: Create GitHub release
         if args.publish and args.github_release:
