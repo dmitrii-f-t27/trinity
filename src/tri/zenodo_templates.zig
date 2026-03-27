@@ -5661,6 +5661,143 @@ pub const MetadataValidator = struct {
     }
 };
 
+// V115: Abstract Validation System
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Abstract word count limits by conference
+pub const AbstractLimits = struct {
+    min_words: u16,
+    max_words: u16,
+
+    pub fn forConference(conf: ConferenceType) AbstractLimits {
+        return switch (conf) {
+            .neurips => .{ .min_words = 150, .max_words = 250 },
+            .iclr => .{ .min_words = 200, .max_words = 300 },
+            .mlsys => .{ .min_words = 200, .max_words = 400 },
+            .icml => .{ .min_words = 200, .max_words = 300 },
+            .cvpr => .{ .min_words = 200, .max_words = 300 },
+            .aaai => .{ .min_words = 150, .max_words = 250 },
+            .ijcai => .{ .min_words = 200, .max_words = 300 },
+            .acl => .{ .min_words = 200, .max_words = 300 },
+        };
+    }
+};
+
+/// Abstract validation result
+pub const AbstractValidationResult = struct {
+    is_valid: bool,
+    word_count: usize,
+    expected_min: u16,
+    expected_max: u16,
+    conference: ConferenceType,
+    errors: []const []const u8,
+    warnings: []const []const u8,
+};
+
+/// Abstract validator with conference-specific rules
+pub const AbstractValidator = struct {
+    pub fn countWords(abstract: []const u8) usize {
+        if (abstract.len == 0) return 0;
+
+        var count: usize = 0;
+        var in_word = false;
+
+        for (abstract) |c| {
+            if (c == ' ' or c == '\t' or c == '\n' or c == '\r') {
+                if (in_word) {
+                    count += 1;
+                    in_word = false;
+                }
+            } else {
+                in_word = true;
+            }
+        }
+
+        if (in_word) count += 1;
+        return count;
+    }
+
+    pub fn validate(abstract: []const u8, conference: ConferenceType, allocator: std.mem.Allocator) !AbstractValidationResult {
+        const limits = AbstractLimits.forConference(conference);
+        const word_count = countWords(abstract);
+
+        var errors = std.ArrayList([]const u8).initCapacity(allocator, 4) catch @panic("OOM");
+        defer errors.deinit(allocator);
+
+        var warnings = std.ArrayList([]const u8).initCapacity(allocator, 2) catch @panic("OOM");
+        defer warnings.deinit(allocator);
+
+        if (word_count == 0) {
+            try errors.append(allocator, "abstract is empty");
+        } else if (word_count < limits.min_words) {
+            const msg = try std.fmt.allocPrint(allocator, "abstract too short: {d} words (minimum {d})", .{ word_count, limits.min_words });
+            try errors.append(allocator, msg);
+        } else if (word_count > limits.max_words) {
+            const msg = try std.fmt.allocPrint(allocator, "abstract too long: {d} words (maximum {d})", .{ word_count, limits.max_words });
+            try errors.append(allocator, msg);
+        }
+
+        if (word_count > 0 and word_count < limits.min_words + 20) {
+            try warnings.append(allocator, "abstract near minimum length - consider expanding");
+        }
+
+        if (word_count > 0 and word_count > limits.max_words - 20) {
+            try warnings.append(allocator, "abstract near maximum length - consider condensing");
+        }
+
+        const errors_slice = try errors.toOwnedSlice(allocator);
+        const warnings_slice = try warnings.toOwnedSlice(allocator);
+
+        return AbstractValidationResult{
+            .is_valid = errors_slice.len == 0,
+            .word_count = word_count,
+            .expected_min = limits.min_words,
+            .expected_max = limits.max_words,
+            .conference = conference,
+            .errors = errors_slice,
+            .warnings = warnings_slice,
+        };
+    }
+
+    pub fn generateReport(result: AbstractValidationResult, allocator: std.mem.Allocator) ![]u8 {
+        var report = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer report.deinit(allocator);
+
+        const conf_name = result.conference.toString();
+
+        try report.writer(allocator).print("**Abstract Validation Report ({s})**\n\n", .{conf_name});
+
+        try report.writer(allocator).print("**Word Count:** {d}/{d}-{d}\n\n", .{
+            result.word_count,
+            result.expected_min,
+            result.expected_max,
+        });
+
+        if (result.is_valid) {
+            try report.appendSlice(allocator, "✅ **Validation Passed**\n\n");
+        } else {
+            try report.appendSlice(allocator, "❌ **Validation Failed**\n\n");
+            try report.appendSlice(allocator, "**Errors:**\n");
+            for (result.errors) |err| {
+                try report.writer(allocator).print("- {s}\n", .{err});
+            }
+            try report.appendSlice(allocator, "\n");
+        }
+
+        if (result.warnings.len > 0) {
+            try report.appendSlice(allocator, "⚠️ **Warnings:**\n");
+            for (result.warnings) |warn| {
+                try report.writer(allocator).print("- {s}\n", .{warn});
+            }
+        }
+
+        return report.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V111 TESTS
+// ═══════════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════════
 // V111 TESTS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5768,4 +5905,92 @@ test "MetadataValidator - generate validation report" {
 
     try std.testing.expect(std.mem.indexOf(u8, report, "Validation Passed") != null);
     try std.testing.expect(std.mem.indexOf(u8, report, "keywords count is low") != null);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V115 TESTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+test "AbstractValidator - count words" {
+    try std.testing.expectEqual(@as(usize, 0), AbstractValidator.countWords(""));
+    try std.testing.expectEqual(@as(usize, 1), AbstractValidator.countWords("test"));
+    try std.testing.expectEqual(@as(usize, 5), AbstractValidator.countWords("This is a test abstract."));
+    try std.testing.expectEqual(@as(usize, 3), AbstractValidator.countWords("Multi\nline\ntext"));
+}
+
+test "AbstractValidator - validate NeurIPS abstract" {
+    const valid_abstract = "We present a novel approach to machine learning that leverages ternary computing. Our method achieves state-of-the-art performance on several benchmarks while reducing computational overhead. The results demonstrate significant efficiency gains with minimal accuracy loss.";
+    const result = try AbstractValidator.validate(valid_abstract, .neurips, std.testing.allocator);
+    defer {
+        for (result.errors) |err| std.testing.allocator.free(err);
+        std.testing.allocator.free(result.errors);
+        for (result.warnings) |warn| std.testing.allocator.free(warn);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    try std.testing.expect(result.is_valid);
+    try std.testing.expectEqual(@as(u16, 150), result.expected_min);
+    try std.testing.expectEqual(@as(u16, 250), result.expected_max);
+}
+
+test "AbstractValidator - reject short abstract" {
+    const short_abstract = "Too short.";
+    const result = try AbstractValidator.validate(short_abstract, .neurips, std.testing.allocator);
+    defer {
+        for (result.errors) |err| std.testing.allocator.free(err);
+        std.testing.allocator.free(result.errors);
+        for (result.warnings) |warn| std.testing.allocator.free(warn);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    try std.testing.expect(!result.is_valid);
+    try std.testing.expect(result.errors.len > 0);
+}
+
+test "AbstractValidator - reject long abstract" {
+    var long_abstract = std.ArrayList(u8).initCapacity(std.testing.allocator, 2000) catch @panic("OOM");
+    defer long_abstract.deinit();
+    var i: usize = 0;
+    while (i < 300) : (i += 1) {
+        try long_abstract.appendSlice("Word ");
+    }
+
+    const result = try AbstractValidator.validate(long_abstract.items, .neurips, std.testing.allocator);
+    defer {
+        for (result.errors) |err| std.testing.allocator.free(err);
+        std.testing.allocator.free(result.errors);
+        for (result.warnings) |warn| std.testing.allocator.free(warn);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    try std.testing.expect(!result.is_valid);
+}
+
+test "AbstractValidator - ICLR limits" {
+    const limits = AbstractLimits.forConference(.iclr);
+    try std.testing.expectEqual(@as(u16, 200), limits.min_words);
+    try std.testing.expectEqual(@as(u16, 300), limits.max_words);
+}
+
+test "AbstractValidator - MLSys limits" {
+    const limits = AbstractLimits.forConference(.mlsys);
+    try std.testing.expectEqual(@as(u16, 200), limits.min_words);
+    try std.testing.expectEqual(@as(u16, 400), limits.max_words);
+}
+
+test "AbstractValidator - generate validation report" {
+    const abstract = "We present a ternary neural network framework. Our approach reduces memory usage by 20x compared to float32. Experimental results show competitive accuracy across multiple benchmarks.";
+    const result = try AbstractValidator.validate(abstract, .neurips, std.testing.allocator);
+    defer {
+        for (result.errors) |err| std.testing.allocator.free(err);
+        std.testing.allocator.free(result.errors);
+        for (result.warnings) |warn| std.testing.allocator.free(warn);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    const report = try AbstractValidator.generateReport(result, std.testing.allocator);
+    defer std.testing.allocator.free(report);
+
+    try std.testing.expect(std.mem.indexOf(u8, report, "NeurIPS") != null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "Word Count:") != null);
 }
