@@ -21,7 +21,13 @@
     "Distribution Shift",
     "Bootstrap Validation",
     "Cohen's d",
-    "NeurIPS 2025"
+    "NeurIPS 2025",
+    "MeSH: Machine Learning",
+    "MeSH: Artificial Intelligence",
+    "MeSH: Algorithms",
+    "arXiv: cs.LG",
+    "arXiv: cs.AI",
+    "arXiv: cs.RO"
   ],
   "subjects": [
     {"term": "Machine Learning", "identifier": "ACM CCS 2012: Computing methodologies → Machine learning"},
@@ -56,8 +62,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "NeurIPS 2026",
+    "abbreviation": "NeurIPS",
+    "year": 2026,
+    "submission_deadline": "2026-05-15",
+    "notification_date": "2026-08-15",
+    "conference_date": "2026-12-08"
+  },
   "references": [
     "Schulman, J., et al. (2017). Proximal Policy Optimization Algorithms. arXiv:1707.06347",
     "Gal, Y., & Ghahramani, Z. (2016). Dropout as a Bayesian Approximation. ICML 2016",

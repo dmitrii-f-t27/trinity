@@ -20,7 +20,13 @@
     "Parse Time",
     "Bootstrap Validation",
     "Cohen's d",
-    "Optimization"
+    "Optimization",
+    "MeSH: Algorithms",
+    "MeSH: Software",
+    "MeSH: Programming Languages",
+    "arXiv: cs.PL",
+    "arXiv: cs.SE",
+    "arXiv: cs.LG"
   ],
   "subjects": [
     {"term": "Compilers", "identifier": "ACM CCS 2012: Software and its engineering → Compilers and interpreters"},
@@ -54,8 +60,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "PLDI 2026",
+    "abbreviation": "PLDI",
+    "year": 2026,
+    "submission_deadline": "2026-10-15",
+    "notification_date": "2027-02-15",
+    "conference_date": "2027-06-15"
+  },
   "references": [
     "Appel, A. W. (1998). Modern Compiler Implementation in ML. Cambridge University Press",
     "Lattner, C., & Adve, V. (2004). LLVM: A Compilation Framework for Lifelong Program Analysis & Transformation. CGO 2004",

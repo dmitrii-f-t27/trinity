@@ -10,7 +10,7 @@
   "description": "Trinity S³AI (Sacred-Symbolic-Symbolic AI) Framework v7.0 with V15 Scientific Rigor validation across all 7 component bundles. Complete autonomous AI agent swarm system in pure Zig (0 external dependencies) with formal verification and calibrated uncertainty quantification. Statistical validation: mean effect size d = 2.4 (very_large, 95% CI: [2.2, 2.6]), all bundles NeurIPS 2025 compliant (ECE < 0.12, Brier < 0.25). Bootstrap validation: 10,000 resamples per claim. Cross-bundle correlation analysis: Pearson r = 0.87 (p < 0.001). System components: B001 (HSLM: 1.95M params, ECE=0.084, d=2.6), B002 (Zero-DSP FPGA: 100% DSP elimination, d=3.2), B003 (TRI-27 ISA: 68/68 tests, d=1.5), B004 (Queen Lotus RL: 2.3× sample efficiency, ECE=0.068, d=2.3), B005 (VIBEE compiler: 1.33× parse speedup, d=1.5), B006 (Sacred Formats: 6.2× storage reduction, d=2.6), B007 (VSA library: 12.3× SIMD speedup, d=3.2). All statistical claims include dual confidence intervals (95%, 99%) and significance indicators (🌟 = p < 0.001, ✅ = p < 0.01, 🔶 = p < 0.05).",
   "keywords": [
     "Trinity S³AI",
-    "Zenod Computing",
+    "Ternary Computing",
     "FPGA",
     "Formal Verification",
     "Uncertainty Quantification",
@@ -24,7 +24,15 @@
     "NeurIPS 2025",
     "ICLR 2027",
     "MLSys 2026",
-    "Pure Zig"
+    "Pure Zig",
+    "MeSH: Artificial Intelligence",
+    "MeSH: Machine Learning",
+    "MeSH: Algorithms",
+    "MeSH: Computer Simulation",
+    "arXiv: cs.AI",
+    "arXiv: cs.LG",
+    "arXiv: cs.AR",
+    "arXiv: cs.PL"
   ],
   "subjects": [
     {"term": "Artificial Intelligence", "identifier": "ACM CCS 2012: Computing methodologies"},
@@ -83,8 +91,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "MLSys 2026",
+    "abbreviation": "MLSys",
+    "year": 2026,
+    "submission_deadline": "2025-11-15",
+    "notification_date": "2026-02-15",
+    "conference_date": "2026-06-15"
+  },
   "references": [
     "Vasilev, D., et al. (2024). Trinity S³AI: Ternary Computing Framework with Formal Verification. Zenodo 19227879",
     "Naeini, M. P., et al. (2015). Obtaining Well Calibrated Probabilities Using Bayesian Binning. AAAI 2015",

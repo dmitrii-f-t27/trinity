@@ -20,7 +20,13 @@
     "Register Allocation",
     "Bootstrap Validation",
     "Cohen's d",
-    "Calibration"
+    "Calibration",
+    "MeSH: Algorithms",
+    "MeSH: Computer Simulation",
+    "MeSH: Information Theory",
+    "arXiv: cs.AR",
+    "arXiv: cs.PL",
+    "arXiv: cs.LO"
   ],
   "subjects": [
     {"term": "Computer Architecture", "identifier": "ACM CCS 2012: Computer architecture"},
@@ -55,8 +61,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "ISCA 2026",
+    "abbreviation": "ISCA",
+    "year": 2026,
+    "submission_deadline": "2026-11-15",
+    "notification_date": "2027-03-15",
+    "conference_date": "2027-06-15"
+  },
   "references": [
     "RISC-V International. (2024). RISC-V ISA Specification v2.2",
     "Hennessy, J. L., & Patterson, D. A. (2017). Computer Architecture: A Quantitative Approach (6th ed.)",

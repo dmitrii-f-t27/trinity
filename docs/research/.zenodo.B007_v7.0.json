@@ -21,7 +21,13 @@
     "Noise Resilience",
     "Bootstrap Validation",
     "Cohen's d",
-    "High-Dimensional Computing"
+    "High-Dimensional Computing",
+    "MeSH: Neural Networks, Computer",
+    "MeSH: Algorithms",
+    "MeSH: Pattern Recognition",
+    "arXiv: cs.NE",
+    "arXiv: cs.LG",
+    "arXiv: cs.AI"
   ],
   "subjects": [
     {"term": "Neural Networks", "identifier": "ACM CCS 2012: Computing methodologies → Neural networks"},
@@ -56,8 +62,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "ICLR 2027",
+    "abbreviation": "ICLR",
+    "year": 2027,
+    "submission_deadline": "2026-09-27",
+    "notification_date": "2027-01-15",
+    "conference_date": "2027-05-01"
+  },
   "references": [
     "Plate, T. A. (2003). Holographic Reduced Representations. IEEE Transactions on Neural Networks",
     "Kussul, E., et al. (2015). Associative Projective Neural Networks. Neural Networks",

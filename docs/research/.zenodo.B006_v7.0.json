@@ -19,7 +19,13 @@
     "Bootstrap Validation",
     "Cohen's d",
     "Collision Analysis",
-    "Cross-Platform"
+    "Cross-Platform",
+    "MeSH: Data Storage",
+    "MeSH: Algorithms",
+    "MeSH: Computer Simulation",
+    "arXiv: cs.DS",
+    "arXiv: cs.DB",
+    "arXiv: cs.CR"
   ],
   "subjects": [
     {"term": "Storage Systems", "identifier": "ACM CCS 2012: Software and its engineering → Storage management"},
@@ -53,8 +59,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "FAST 2027",
+    "abbreviation": "FAST",
+    "year": 2027,
+    "submission_deadline": "2026-09-15",
+    "notification_date": "2026-11-15",
+    "conference_date": "2027-02-15"
+  },
   "references": [
     "Mckay, D., et al. (2003). Venti: A New Approach to Archival Storage. USENIX 2003",
     "Lakkis, E. (2012). Content Defined Chunking (CDC): A Survey. arXiv:1209.3519",

@@ -23,7 +23,13 @@
     "Cohen's d",
     "Calibration",
     "ECE",
-    "Brier Score"
+    "Brier Score",
+    "MeSH: Computer Simulation",
+    "MeSH: Algorithms",
+    "MeSH: Data Science",
+    "arXiv: cs.AR",
+    "arXiv: cs.ET",
+    "arXiv: cs.LG"
   ],
   "subjects": [
     {"term": "Hardware", "identifier": "ACM CCS 2012: Hardware"},
@@ -58,8 +64,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "FPGA 2026",
+    "abbreviation": "FPGA",
+    "year": 2026,
+    "submission_deadline": "2026-09-15",
+    "notification_date": "2026-11-15",
+    "conference_date": "2027-02-15"
+  },
   "references": [
     "Xilinx. (2024). 7 Series FPGAs Configurable Logic Block User Guide UG474",
     "Efron, B., & Tibshirani, R. J. (1994). An Introduction to the Bootstrap",

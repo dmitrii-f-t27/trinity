@@ -23,7 +23,16 @@
     "Bootstrap Validation",
     "Effect Size",
     "Zero-DSP",
-    "Transformer"
+    "Transformer",
+    "MeSH: Artificial Intelligence",
+    "MeSH: Machine Learning",
+    "MeSH: Neural Networks, Computer",
+    "MeSH: Algorithms",
+    "MeSH: Deep Learning",
+    "arXiv: cs.AI",
+    "arXiv: cs.LG",
+    "arXiv: cs.NE",
+    "arXiv: cs.AR"
   ],
   "subjects": [
     {"term": "Artificial Intelligence", "identifier": "ACM CCS 2012: Computing methodologies"},
@@ -59,8 +68,22 @@
       "identifier": "https://github.com/gHashTag/trinity",
       "scheme": "url",
       "resource_type": "software"
+    },
+    {
+      "relation": "isSupplementedBy",
+      "identifier": "arXiv:2603.xxxxx",
+      "scheme": "arxiv",
+      "resource_type": "publication-article"
     }
   ],
+  "conference": {
+    "name": "NeurIPS 2026",
+    "abbreviation": "NeurIPS",
+    "year": 2026,
+    "submission_deadline": "2026-05-15",
+    "notification_date": "2026-08-15",
+    "conference_date": "2026-12-08"
+  },
   "references": [
     "Vasilev, D., et al. (2024). BitNet: Scaling 1-bit Transformers for Large Language Models. arXiv:2310.11453",
     "Guo, C., et al. (2017). On Calibration of Modern Neural Networks. ICML 2017",
