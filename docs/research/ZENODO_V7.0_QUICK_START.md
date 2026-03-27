@@ -1,7 +1,7 @@
-# Zenodo v7.0 — Quick Start Guide
+# Zenodo v7.1 — Quick Start Guide
 
 **Last Updated:** 2026-03-27
-**Version:** 7.0.0
+**Version:** 7.1.0
 
 ---
 

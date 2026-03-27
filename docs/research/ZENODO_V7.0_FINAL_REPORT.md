@@ -1,9 +1,9 @@
-# Zenodo v7.0 — Final Comprehensive Report
+# Zenodo v7.1 — Final Comprehensive Report
 
 **Date:** 2026-03-27
 **Status:** ✅ COMPLETE
-**Total Commits:** 9
-**Total LOC:** ~2,500+
+**Total Commits:** 11
+**Total LOC:** ~2,700+
 **Total Files:** 51
 
 ---
@@ -301,6 +301,59 @@ python3 tools/zenodo_api_upload.py --bundle B001 --publish --github-release --ve
 
 ---
 
+## V7.1 Enhancements (2026-03-27)
+
+### Metadata Standardization
+
+**1. MeSH Keywords**
+Added MeSH (Medical Subject Headings) terms for enhanced biomedical and scientific discoverability:
+- Artificial Intelligence
+- Machine Learning
+- Neural Networks, Computer
+- Deep Learning
+- Algorithms
+- Computer Simulation
+- Data Science
+- Pattern Recognition, Automated
+- Uncertainty
+- Statistical Methods
+
+**2. arXiv Category Tags**
+Added arXiv classification tags for enhanced CS discoverability:
+
+| Bundle | arXiv Tags |
+|--------|------------|
+| B001 (HSLM) | cs.AI, cs.LG, cs.NE, cs.AR |
+| B002 (FPGA) | cs.AR, cs.ET, cs.LG |
+| B003 (TRI-27) | cs.AR, cs.PL, cs.LO |
+| B004 (RL) | cs.LG, cs.AI, cs.RO |
+| B005 (VIBEE) | cs.PL, cs.SE, cs.LG |
+| B006 (Formats) | cs.DS, cs.DB, cs.CR |
+| B007 (VSA) | cs.NE, cs.LG, cs.AI |
+| PARENT | cs.AI, cs.LG, cs.AR, cs.PL |
+
+**3. arXiv References**
+Added arXiv preprint references (placeholder format) to all bundles for future submission:
+- `"relation": "isSupplementedBy", "scheme": "arxiv"`
+
+**4. Conference Metadata**
+Added target conference information with submission deadlines:
+
+| Bundle | Conference | Year | Deadline | Conference Date |
+|--------|-----------|------|----------|----------------|
+| B001 (HSLM) | NeurIPS 2026 | 2026-05-15 | 2026-12-08 |
+| B002 (FPGA) | FPGA 2026 | 2026-09-15 | 2027-02-15 |
+| B003 (TRI-27) | ISCA 2026 | 2026-11-15 | 2027-06-15 |
+| B004 (RL) | NeurIPS 2026 | 2026-05-15 | 2026-12-08 |
+| B005 (VIBEE) | PLDI 2026 | 2026-10-15 | 2027-06-15 |
+| B006 (Formats) | FAST 2027 | 2026-09-15 | 2027-02-15 |
+| B007 (VSA) | ICLR 2027 | 2026-09-27 | 2027-05-01 |
+| PARENT | MLSys 2026 | 2025-11-15 | 2026-06-15 |
+
+**Commit:** `68004c10f4` — feat(zenodo): v7.1 - Add MeSH keywords, arXiv refs, conference metadata
+
+---
+
 ## Next Steps (User Action Required)
 
 ### Required Before Publication:
@@ -348,6 +401,6 @@ Statistical rigor follows NeurIPS 2025, ICLR 2027, and MLSys 2026 standards.
 
 ---
 
-**φ² + 1/φ² = 3 | TRINITY v7.0 — COMPLETE**
+**φ² + 1/φ² = 3 | TRINITY v7.1 — COMPLETE**
 
-**Status:** ✅ ALL CHECKS PASS | ✅ BUILD OK | ✅ GIT PUSH DONE
+**Status:** ✅ ALL CHECKS PASS | ✅ BUILD OK | ✅ GIT PUSH DONE | ✅ v7.1 ENHANCED METADATA
