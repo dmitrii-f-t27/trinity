@@ -5166,3 +5166,362 @@ test "Publication - format as LaTeX" {
     try std.testing.expect(std.mem.indexOf(u8, latex, "Test Paper") != null);
     try std.testing.expect(std.mem.indexOf(u8, latex, "NeurIPS") != null);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// V111: Utility Functions & Best Practices
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+/// Date validation utilities for Zenodo metadata
+pub const DateUtils = struct {
+    /// Validate YYYY-MM-DD format
+    pub fn validateDateFormat(date: []const u8) bool {
+        if (date.len != 10) return false;
+        if (date[4] != '-') return false;
+        if (date[7] != '-') return false;
+
+        // Parse year
+        const year_str = date[0..4];
+        var year: u32 = 0;
+        for (year_str) |c| {
+            if (c < '0' or c > '9') return false;
+            year = year * 10 + (c - '0');
+        }
+
+        // Parse month
+        const month_str = date[5..7];
+        var month: u32 = 0;
+        for (month_str) |c| {
+            if (c < '0' or c > '9') return false;
+            month = month * 10 + (c - '0');
+        }
+
+        // Parse day
+        const day_str = date[8..10];
+        var day: u32 = 0;
+        for (day_str) |c| {
+            if (c < '0' or c > '9') return false;
+            day = day * 10 + (c - '0');
+        }
+
+        // Validate ranges
+        if (year < 2000 or year > 2100) return false;
+        if (month == 0 or month > 12) return false;
+        if (day == 0 or day > 31) return false;
+
+        // Basic month/day validation
+        if (month == 2 and day > 29) return false;
+        if ((month == 4 or month == 6 or month == 9 or month == 11) and day > 30) return false;
+
+        return true;
+    }
+
+    /// Format current date as YYYY-MM-DD (epoch-based calculation)
+    pub fn todayAsISO8601(allocator: std.mem.Allocator) ![]u8 {
+        // Unix epoch is 1970-01-01
+        const epoch = std.time.timestamp();
+        const days_since_epoch: u32 = @intCast(@divFloor(epoch, 86400));
+
+        // Days per month for non-leap year
+        const month_days = [_]u32{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+        // Calculate year (simplified, valid for 1970-2099)
+        var year: u32 = 1970;
+        var remaining = days_since_epoch;
+
+        // Simplified year calculation - just count years
+        const years = remaining / 365;
+        year += years;
+        remaining -= years * 365;
+
+        // Adjust for leap years (one per 4 years on average)
+        const extra_leap_days = @min(remaining, (years / 4));
+        remaining -= extra_leap_days;
+
+        // Count remaining years
+        while (remaining > 365) : (year += 1) {
+            const days_in_year = if (isLeapYear(year)) @as(u32, 366) else 365;
+            if (remaining >= days_in_year) {
+                remaining -= days_in_year;
+            } else {
+                break;
+            }
+        }
+
+        // Calculate month and day
+        var month: u32 = 1;
+        var day: u32 = remaining + 1;
+
+        for (month_days, 0..) |days_in_month, i| {
+            const feb_days = if (isLeapYear(year) and i == 1) @as(u32, 29) else days_in_month;
+
+            if (day <= feb_days) {
+                month = @intCast(i + 1);
+                break;
+            }
+            day -= feb_days;
+        }
+
+        return std.fmt.allocPrint(allocator, "{d:0>4}-{d:0>2}-{d:0>2}", .{ year, month, day });
+    }
+
+    fn isLeapYear(year: u32) bool {
+        return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0);
+    }
+};
+
+/// DOI validation utilities
+pub const DoiUtils = struct {
+    /// Validate DOI format (10.xxxx/zenodo.xxxxxx)
+    pub fn validateZenodoDOI(doi: []const u8) bool {
+        const prefix = "10.5281/zenodo.";
+        if (doi.len != prefix.len + 8) return false;
+
+        if (!std.mem.startsWith(u8, doi, prefix)) return false;
+
+        // Check suffix is all digits
+        const suffix = doi[prefix.len..];
+        for (suffix) |c| {
+            if (c < '0' or c > '9') return false;
+        }
+
+        return true;
+    }
+
+    /// Extract record ID from DOI
+    pub fn extractRecordId(doi: []const u8) ?[]const u8 {
+        const prefix = "10.5281/zenodo.";
+        if (std.mem.startsWith(u8, doi, prefix)) {
+            return doi[prefix.len..];
+        }
+        return null;
+    }
+
+    /// Generate DOI from record ID
+    pub fn generateFromRecordId(record_id: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator, "10.5281/zenodo.{s}", .{record_id});
+    }
+};
+
+/// Keyword validation utilities
+pub const KeywordUtils = struct {
+    /// Validate keyword length (2-50 characters)
+    pub fn validateLength(keyword: []const u8) bool {
+        return keyword.len >= 2 and keyword.len <= 50;
+    }
+
+    /// Sanitize keyword (remove special characters)
+    pub fn sanitize(keyword: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, keyword.len) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        for (keyword) |c| {
+            // Keep alphanumeric, spaces, hyphens, parentheses
+            const is_valid = std.ascii.isAlphanumeric(c) or c == ' ' or c == '-' or c == '(' or c == ')';
+            if (is_valid) {
+                try result.append(allocator, c);
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Validate keyword array (5-10 keywords recommended)
+    pub fn validateCount(count: usize) bool {
+        return count >= 5 and count <= 10;
+    }
+};
+
+/// Metadata completeness validator
+pub const MetadataValidator = struct {
+    /// Validation result
+    pub const ValidationResult = struct {
+        is_valid: bool,
+        missing_required: []const []const u8,
+        warnings: []const []const u8,
+    };
+
+    /// Required fields according to Zenodo API v1.0
+    pub const REQUIRED_FIELDS = [_][]const u8{
+        "title",
+        "upload_type",
+        "creators",
+    };
+
+    /// Validate metadata completeness
+    pub fn validate(title: ?[]const u8, upload_type: ?[]const u8, creators_len: usize, description: ?[]const u8, keywords_len: usize, allocator: std.mem.Allocator) !ValidationResult {
+        var missing = std.ArrayList([]const u8).initCapacity(allocator, 3) catch @panic("OOM");
+        defer missing.deinit(allocator);
+
+        var warnings = std.ArrayList([]const u8).initCapacity(allocator, 5) catch @panic("OOM");
+        defer warnings.deinit(allocator);
+
+        // Check required fields
+        if (title == null or title.?.len == 0) {
+            try missing.append(allocator, "title");
+        }
+        if (upload_type == null or upload_type.?.len == 0) {
+            try missing.append(allocator, "upload_type");
+        }
+        if (creators_len == 0) {
+            try missing.append(allocator, "creators");
+        }
+
+        // Check recommended fields
+        if (description == null or description.?.len == 0) {
+            try warnings.append(allocator, "description is recommended");
+        }
+        if (keywords_len < 5 or keywords_len > 10) {
+            try warnings.append(allocator, "keywords: 5-10 recommended");
+        }
+        if (description != null and description.?.len < 50) {
+            try warnings.append(allocator, "description too short (<50 chars)");
+        }
+        if (description != null and description.?.len > 5000) {
+            try warnings.append(allocator, "description too long (>5000 chars)");
+        }
+
+        const missing_slice = try missing.toOwnedSlice(allocator);
+        const warnings_slice = try warnings.toOwnedSlice(allocator);
+
+        return ValidationResult{
+            .is_valid = missing_slice.len == 0,
+            .missing_required = missing_slice,
+            .warnings = warnings_slice,
+        };
+    }
+
+    /// Generate validation report as markdown
+    pub fn generateValidationReport(result: ValidationResult, allocator: std.mem.Allocator) ![]u8 {
+        var report = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer report.deinit(allocator);
+
+        if (result.is_valid) {
+            try report.appendSlice(allocator, "✅ **Validation Passed**\n\n");
+        } else {
+            try report.appendSlice(allocator, "❌ **Validation Failed**\n\n");
+            try report.appendSlice(allocator, "**Missing Required Fields:**\n");
+            for (result.missing_required) |field| {
+                try report.writer(allocator).print("- {s}\n", .{field});
+            }
+            try report.appendSlice(allocator, "\n");
+        }
+
+        if (result.warnings.len > 0) {
+            try report.appendSlice(allocator, "⚠️ **Warnings:**\n");
+            for (result.warnings) |warn| {
+                try report.writer(allocator).print("- {s}\n", .{warn});
+            }
+        }
+
+        return report.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V111 TESTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+test "DateUtils - validate YYYY-MM-DD format" {
+    try std.testing.expect(DateUtils.validateDateFormat("2025-03-27"));
+    try std.testing.expect(!DateUtils.validateDateFormat("2025/03/27"));
+    try std.testing.expect(!DateUtils.validateDateFormat("25-03-2025"));
+    try std.testing.expect(!DateUtils.validateDateFormat("2025-13-01")); // Invalid month
+    try std.testing.expect(!DateUtils.validateDateFormat("2025-00-01")); // Invalid day
+}
+
+test "DateUtils - today as ISO 8601" {
+    const date = try DateUtils.todayAsISO8601(std.testing.allocator);
+    defer std.testing.allocator.free(date);
+    try std.testing.expect(date.len == 10);
+    try std.testing.expect(std.mem.startsWith(u8, date, "20")); // Year starts with 20
+}
+
+test "DoiUtils - validate Zenodo DOI" {
+    try std.testing.expect(DoiUtils.validateZenodoDOI("10.5281/zenodo.12345678"));
+    try std.testing.expect(!DoiUtils.validateZenodoDOI("10.1234/zenodo.12345678"));
+    try std.testing.expect(!DoiUtils.validateZenodoDOI("10.5281/zenodo.1234567")); // Too short
+    try std.testing.expect(!DoiUtils.validateZenodoDOI("10.5281/zenodo.1234567a")); // Non-digit suffix
+}
+
+test "DoiUtils - extract record ID from DOI" {
+    const id = DoiUtils.extractRecordId("10.5281/zenodo.12345678");
+    try std.testing.expectEqualStrings("12345678", id.?);
+    try std.testing.expect(DoiUtils.extractRecordId("invalid.doi") == null);
+}
+
+test "DoiUtils - generate DOI from record ID" {
+    const doi = try DoiUtils.generateFromRecordId("12345678", std.testing.allocator);
+    defer std.testing.allocator.free(doi);
+    try std.testing.expect(std.mem.startsWith(u8, doi, "10.5281/zenodo."));
+}
+
+test "KeywordUtils - validate length" {
+    try std.testing.expect(KeywordUtils.validateLength("AI"));
+    try std.testing.expect(!KeywordUtils.validateLength("A")); // Too short
+    try std.testing.expect(!KeywordUtils.validateLength("This is a very long keyword that exceeds the maximum allowed length of 50 characters and should be rejected"));
+}
+
+test "KeywordUtils - validate count" {
+    try std.testing.expect(KeywordUtils.validateCount(5));
+    try std.testing.expect(KeywordUtils.validateCount(10));
+    try std.testing.expect(!KeywordUtils.validateCount(4)); // Too few
+    try std.testing.expect(!KeywordUtils.validateCount(11)); // Too many
+}
+
+test "KeywordUtils - sanitize keyword" {
+    const sanitized = try KeywordUtils.sanitize("AI/Machine-Learning!", std.testing.allocator);
+    defer std.testing.allocator.free(sanitized);
+    try std.testing.expect(std.mem.indexOf(u8, sanitized, "/") == null);
+    try std.testing.expect(std.mem.indexOf(u8, sanitized, "!") == null);
+    try std.testing.expect(std.mem.indexOf(u8, sanitized, "AI") != null);
+}
+
+test "MetadataValidator - validate completeness" {
+    const result = try MetadataValidator.validate(
+        "Test Paper",
+        "software",
+        2,
+        "This is a test abstract.",
+        6,
+        std.testing.allocator,
+    );
+    defer {
+        std.testing.allocator.free(result.missing_required);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    try std.testing.expect(result.is_valid);
+    try std.testing.expectEqual(@as(usize, 0), result.missing_required.len);
+}
+
+test "MetadataValidator - missing required fields" {
+    const result = try MetadataValidator.validate(
+        null,
+        null,
+        0,
+        "Test abstract.",
+        3,
+        std.testing.allocator,
+    );
+    defer {
+        std.testing.allocator.free(result.missing_required);
+        std.testing.allocator.free(result.warnings);
+    }
+
+    try std.testing.expect(!result.is_valid);
+    try std.testing.expect(result.missing_required.len > 0);
+}
+
+test "MetadataValidator - generate validation report" {
+    const result = MetadataValidator.ValidationResult{
+        .is_valid = true,
+        .missing_required = &[_][]const u8{},
+        .warnings = &[_][]const u8{"keywords count is low"},
+    };
+
+    const report = try MetadataValidator.generateValidationReport(result, std.testing.allocator);
+    defer std.testing.allocator.free(report);
+
+    try std.testing.expect(std.mem.indexOf(u8, report, "Validation Passed") != null);
+    try std.testing.expect(std.mem.indexOf(u8, report, "keywords count is low") != null);
+}
