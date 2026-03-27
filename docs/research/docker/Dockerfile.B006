@@ -1,18 +1,38 @@
 # Trinity B006: Sacred Formats Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# Storage reduction=6.2x, dedup=84%, d=2.6
-FROM ziglang/zig:0.15.0-alpine AS build
+# ========================================
+# Zenodo Bundle: B006 - Sacred Format Storage
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - GF16/TF3 format testing
+# - Phi-optimized encoding benchmarks
+# - Round-trip precision validation
+#
+# Usage:
+#   docker build -t trinity-b006:v7.3 -f Dockerfile.B006 ../../..
+#   docker run trinity-b006:v7.3 --benchmark
+
+FROM ziglang/zig:0.15.2-alpine AS builder
 
 WORKDIR /src
+
 COPY . .
 
-# Build sacred format tools
-RUN zig build sacred-tools
+RUN zig build sacred
 
-# Runtime stage
 FROM alpine:3.19
-COPY --from=build /src/zig-out/bin/sacred-* /usr/local/bin/
 
-WORKDIR /data
-ENTRYPOINT ["sacred-convert"]
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /src
+
+COPY --from=builder /src/zig-out/bin/sacred /usr/local/bin/
+
+ENTRYPOINT ["sacred"]
 CMD ["--help"]
+
+LABEL org.trinity.bundle="B006" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="Sacred Format Storage" \
+      org.trinity.doi="10.5281/zenodo.19227875"

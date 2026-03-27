@@ -1,20 +1,53 @@
 # Trinity B002: FPGA Synthesis Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# Zero-DSP: LUT=12433, Power=1.2W, d=3.2
-FROM ziglang/zig:0.15.0-alpine AS build
+# =========================================
+# Zenodo Bundle: B002 - Zero-DSP FPGA Accelerator
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - FPGA synthesis using nextpnr-xilinx
+# - Verilog code generation from VIBEE
+# - FPGA resource analysis and reporting
+#
+# Usage:
+#   docker build -t trinity-b002:v7.3 -f Dockerfile.B002 ../../..
+#   docker run trinity-b002:v7.3 --help
+
+FROM alpine:3.19
+
+# Install build tools
+RUN apk add --no-cache \
+    make \
+    git \
+    python3 \
+    py3-pip
+
+# Install nextpnr-xilinx via pip
+RUN pip3 install nextpnr-xilinx
+
+# Install YosysHQ for Verilog synthesis
+RUN wget -O /tmp/yosyshq.tar.gz \
+    https://github.com/YosysHQ/yosys/archive/refs/tags/yosys-0.35.1.tar.gz && \
+    tar xzf /tmp/yosyshq.tar.gz -C /tmp && \
+    mv /tmp/yosysHQ-0.35.1 /usr/local/yosys && \
+    rm -rf /tmp/yosyshq*
 
 WORKDIR /src
+
+# Copy Trinity source
 COPY . .
 
-# Build FPGA synthesis tools
-RUN zig build fpga-synth
+# Set environment
+ENV PATH="/usr/local/yosys:${PATH}"
 
-# Runtime stage
-FROM alpine:3.19
-RUN apk add --no-cache yosys nextpnr-ice40
-COPY --from=build /src/zig-out/bin/fpga-synth /usr/local/bin/
-COPY --from=build /src/fpga /usr/local/share/trinity/fpga
-
-WORKDIR /workspace
-ENTRYPOINT ["fpga-synth"]
+# Default: Show help
+ENTRYPOINT ["nextpnr-xilinx"]
 CMD ["--help"]
+
+# Metadata
+LABEL org.trinity.bundle="B002" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="Zero-DSP FPGA Accelerator" \
+      org.trinity.doi="10.5281/zenodo.19227867" \
+      version="7.3.0" \
+      description="Trinity FPGA synthesis environment"

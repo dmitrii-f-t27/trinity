@@ -1,18 +1,43 @@
-# Trinity B003: TRI-27 Emulator Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# 27 registers (3 banks), code density=1.71x, d=1.5
-FROM ziglang/zig:0.15.0-alpine AS build
+# Trinity B003: TRI-27 ISA Development Container
+# ===============================================
+# Zenodo Bundle: B003 - TRI-27 Ternary Instruction Set
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - TRI-27 assembly and disassembly
+# - Ternary VM execution
+# - Register bank testing (Alpha/Iota/Sigma)
+#
+# Usage:
+#   docker build -t trinity-b003:v7.3 -f Dockerfile.B003 ../../..
+#   docker run trinity-b003:v7.3 --assemble program.t27
+
+FROM ziglang/zig:0.15.2-alpine AS builder
 
 WORKDIR /src
+
 COPY . .
 
-# Build TRI-27 emulator and assembler
-RUN zig build tri27-emu tri27-asm
+# Build TRI-27 toolchain
+RUN zig build tri27-cli
 
-# Runtime stage
+# Final runtime stage
 FROM alpine:3.19
-COPY --from=build /src/zig-out/bin/tri27-* /usr/local/bin/
 
-WORKDIR /workspace
-ENTRYPOINT ["tri27-emu"]
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /src
+
+COPY --from=builder /src/zig-out/bin/tri27 /usr/local/bin/
+
+# Copy examples
+COPY specs/tri/examples/ /src/examples/
+
+ENTRYPOINT ["tri27"]
 CMD ["--help"]
+
+LABEL org.trinity.bundle="B003" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="TRI-27 Ternary Instruction Set" \
+      org.trinity.doi="10.5281/zenodo.19227869"

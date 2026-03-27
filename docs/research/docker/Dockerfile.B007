@@ -1,18 +1,38 @@
-# Trinity B007: VSA Operations Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# SIMD speedup=12.3x, noise resilience=94.8%, d=3.2
-FROM ziglang/zig:0.15.0-alpine AS build
+# Trinity B007: VSA Library Container
+# ======================================
+# Zenodo Bundle: B007 - Vector Symbolic Architecture
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - VSA operation benchmarks (bind, bundle, cosine)
+# - SIMD performance testing
+# - Noise resilience validation
+#
+# Usage:
+#   docker build -t trinity-b007:v7.3 -f Dockerfile.B007 ../../..
+#   docker run trinity-b007:v7.3 --benchmark
+
+FROM ziglang/zig:0.15.2-alpine AS builder
 
 WORKDIR /src
+
 COPY . .
 
-# Build VSA library and benchmarks
 RUN zig build vsa-bench
 
-# Runtime stage
 FROM alpine:3.19
-COPY --from=build /src/zig-out/bin/vsa-bench /usr/local/bin/
 
-WORKDIR /data
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /src
+
+COPY --from=builder /src/zig-out/bin/vsa-bench /usr/local/bin/
+
 ENTRYPOINT ["vsa-bench"]
 CMD ["--help"]
+
+LABEL org.trinity.bundle="B007" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="VSA SIMD Library" \
+      org.trinity.doi="10.5281/zenodo.19227877"

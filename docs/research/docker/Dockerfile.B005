@@ -1,18 +1,38 @@
 # Trinity B005: VIBEE Compiler Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# Parse speedup=1.33x, code size -55%, d=1.5
-FROM ziglang/zig:0.15.0-alpine AS build
+# =======================================
+# Zenodo Bundle: B005 - Ternary Compiler
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - VIBEE compilation (.tri → Zig/Verilog)
+# - Ternary optimization passes
+# - Code generation for multiple targets
+#
+# Usage:
+#   docker build -t trinity-b005:v7.3 -f Dockerfile.B005 ../../..
+#   docker run -v $(pwd)/specs:/src/specs trinity-b005:v7.3 compile spec.tri
+
+FROM ziglang/zig:0.15.2-alpine AS builder
 
 WORKDIR /src
+
 COPY . .
 
-# Build VIBEE compiler
 RUN zig build vibee
 
-# Runtime stage
 FROM alpine:3.19
-COPY --from=build /src/zig-out/bin/vibee /usr/local/bin/
 
-WORKDIR /workspace
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /src
+
+COPY --from=builder /src/zig-out/bin/vibee /usr/local/bin/
+
 ENTRYPOINT ["vibee"]
 CMD ["--help"]
+
+LABEL org.trinity.bundle="B005" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="VIBEE Ternary Compiler" \
+      org.trinity.doi="10.5281/zenodo.19227873"

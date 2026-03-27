@@ -1,23 +1,70 @@
 # Trinity B001: HSLM Training Container
-# Zenodo Bundle v7.0 - V15 Scientific Rigor
-# ECE=0.084, Brier=0.234, Model Size=385KB, d=2.6
-FROM ziglang/zig:0.15.0-alpine AS build
+# ========================================
+# Zenodo Bundle: B001 - HSLM-1.95M Ternary Neural Networks
+# Version: 7.3.0
+# Date: 2026-03-27
+#
+# This container provides a reproducible environment for:
+# - Training HSLM-1.95M on TinyStories
+# - Evaluating ternary neural network performance
+# - Exporting model weights (safetensors format)
+#
+# Usage:
+#   docker build -t trinity-b001:v7.3 -f Dockerfile.B001 ../../..
+#   docker run -v $(pwd)/data:/src/data trinity-b001:v7.3 --train
+#   docker run trinity-b001:v7.3 --help
+
+FROM ziglang/zig:0.15.2-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
+    cmake \
+    musl-dev
 
 WORKDIR /src
+
+# Copy Trinity source
 COPY . .
 
 # Build HSLM training binary
-RUN zig build hslm-train
+RUN zig build -Dtarget=aarch64-linux-gnu hslm-train
+RUN zig build -Dtarget=x86_64-linux-gnu hslm-train
 
-# Runtime stage (minimal)
+# Final runtime stage
 FROM alpine:3.19
-COPY --from=build /src/zig-out/bin/hslm-train /usr/local/bin/
-COPY --from=build /src/zig-out/lib /usr/local/lib/trinity
 
-WORKDIR /data
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    wget \
+    xz
+
+# Create non-root user
+RUN addgroup -g 1000 trinity && \
+    adduser -D -u 1000 -G trinity trinity
+
+WORKDIR /src
+
+# Copy binaries from builder
+COPY --from=builder /src/zig-out/bin/hslm-train* /usr/local/bin/
+
+# Copy model weights (if pre-trained)
+COPY src/hslm/ /src/hslm/
+
+# Set permissions
+RUN chown -R trinity:trinity /src
+
+USER trinity
+
+# Default: Show help
 ENTRYPOINT ["hslm-train"]
 CMD ["--help"]
 
-# Example usage:
-# docker run -v $(pwd)/data:/data trinity-b001 \
-#   hslm-train --dataset tinystories --steps 30000
+# Metadata
+LABEL org.trinity.bundle="B001" \
+      org.trinity.version="7.3.0" \
+      org.trinity.description="HSLM-1.95M Ternary Neural Networks" \
+      org.trinity.doi="10.5281/zenodo.19227865" \
+      version="7.3.0" \
+      description="Trinity HSLM training environment"
