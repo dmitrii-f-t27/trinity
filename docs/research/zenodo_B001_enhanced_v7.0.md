@@ -163,7 +163,65 @@ lr(step) = lr_max × 0.5 × (1 + cos(π × step / total_steps))
 - **Assumptions:** Normal distribution, equal variance
 - **Thresholds:** very_strict (p<0.001), strict (p<0.01), moderate (p<0.05), lenient (p<0.10)
 
-### 2.4 FPGA Implementation
+### 2.5 FPGA Implementation
+
+### 2.4 Algorithm: Ternary Transformer Forward Pass
+
+**Algorithm 1:** HSLM Forward Pass with Sacred Attention Scaling
+
+```
+Require: Input tokens X = [x₁, ..., xₙ] (n tokens)
+Require: Weight matrices W_q, W_k, W_v ∈ {-1, 0, +1}^{d×d}
+Require: Layer norm parameters γ, β
+Require: Cache threshold τ = φ⁻¹ ≈ 0.618
+
+1:  // Token embedding
+2:  E ← TernaryEmbedding(X)  // E ∈ {-1, 0, +1}^{n×d_model}
+3:  
+4:  // For each transformer block ℓ = 1 to L (L=9)
+5:  for ℓ = 1 to L do
+6:      // Layer normalization (φ-scaled)
+7:      γ_φ ← φ^(ℓ/10)  // Progressive scaling
+8:      X_norm ← LayerNorm(E, γ·γ_φ, β)
+9:      
+10:     // Sacred attention with cache
+11:     Q ← X_norm · W_q  // Queries: [n × d_k]
+12:     K ← X_norm · W_k  // Keys:   [n × d_k]
+13:     V ← X_norm · W_v  // Values:  [n × d_k]
+14:     
+15:     // Attention scaling with φ
+16:     S ← Q · Kᵀ / √(d_k)^(φ^(-3))  // Scaled scores
+17:     
+18:     // Sparse attention via cache threshold
+19:     M ← (S > τ)  // Mask: keep only top correlations
+20:     A ← Softmax(M ⊙ S)  // ⊙ = element-wise multiply
+21:     
+22:     // Context aggregation
+23:     C ← A · V  // [n × d_k]
+24:     
+25:     // Feed-forward network
+26:     F ← ReLU(C · W₁ + b₁) · W₂ + b₂
+27:     
+28:     // Residual connection + layer norm
+29:     E ← E + LayerNorm(C + F, γ, β)
+30: end for
+31:
+32: // Output projection
+33: logits ← E · W_out  // [n × vocab_size]
+34: return logits
+```
+
+**Complexity Analysis:**
+- Time: O(n²·d_model·L) for attention (standard transformer)
+- Space: O(n·d_model·L) for activations
+- Ternary multiplication: O(1) per operation (LUT-based)
+
+**Key Innovations:**
+1. **φ-based layer norm scaling** (line 7): γ_φ = φ^(ℓ/10) for deep network stability
+2. **Sparse attention via cache threshold** (line 19): τ = φ⁻¹ ≈ 0.618
+3. **Ternary arithmetic**: All multiplications use {-1, 0, +1} encoding
+
+### 2.6 FPGA Implementation
 
 **Target:** QMTech XC7A100T (Artix-7 100T)
 
@@ -180,7 +238,7 @@ lr(step) = lr_max × 0.5 × (1 + cos(π × step / total_steps))
 
 ## 3. Theoretical Foundations
 
-### 3.1 Trit Entropy Theorem
+### 3.2 Trit Entropy Theorem
 
 **Theorem 1 (Information Maximality):** Balanced ternary encoding {-1, 0, +1} maximizes per-symbol entropy for n-ary codes with n ≤ 4.
 
