@@ -1367,9 +1367,609 @@ pub const StatisticalResults = struct {
     std_error: f64,
     ci95_lower: f64,
     ci95_upper: f64,
+    n: u32,
+
+    pub fn formatAsLaTeX(self: *const StatisticalResults, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\{s} & {d:.3} $\\pm$ {d:.3} & [{d:.3}, {d:.3}] & {d}
+        , .{ self.metric, self.mean, self.std_error, self.ci95_lower, self.ci95_upper, self.n });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POWER ANALYSIS — Energy Consumption and CO2 Calculations
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Operation type for power analysis
+pub const OperationType = enum {
+    training,
+    inference,
+    idle,
+
+    pub fn toString(self: OperationType) []const u8 {
+        return switch (self) {
+            .training => "Training",
+            .inference => "Inference",
+            .idle => "Idle",
+        };
+    }
+};
+
+/// Power consumption analysis with CO2 calculations
+pub const PowerAnalysis = struct {
+    /// Power consumption in watts
+    power_watts: f64,
+    /// Duration in hours
+    duration_hours: f64,
+    /// Hardware description
+    hardware: []const u8,
+    /// Operation type
+    operation: OperationType,
+
+    /// Calculate energy consumed in kWh
+    pub fn energyKWh(self: *const PowerAnalysis) f64 {
+        return (self.power_watts * self.duration_hours) / 1000.0;
+    }
+
+    /// Calculate CO2 emissions in kg (EU average: 0.275 kg/kWh)
+    pub fn co2Kg(self: *const PowerAnalysis) f64 {
+        return self.energyKWh() * 0.275;
+    }
+
+    /// Comparison with baseline
+    pub const PowerSavings = struct {
+        power_reduction_percent: f64,
+        annual_co2_savings_kg: f64,
+    };
+
+    pub fn compareSavings(self: *const PowerAnalysis, baseline_watts: f64) PowerSavings {
+        const reduction = ((baseline_watts - self.power_watts) / baseline_watts) * 100.0;
+        const annual_hours = 24.0 * 365.0;
+        const annual_savings = ((baseline_watts - self.power_watts) * annual_hours / 1000.0) * 0.275;
+        return .{
+            .power_reduction_percent = reduction,
+            .annual_co2_savings_kg = annual_savings,
+        };
+    }
+
+    pub fn formatAsMarkdown(self: *const PowerAnalysis, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\## Power Analysis
+            \\
+            \\| Metric | Value |
+            \\|--------|-------|
+            \\| Hardware | {s} |
+            \\| Operation | {s} |
+            \\| Power | {d:.1} W |
+            \\| Duration | {d:.2} hours |
+            \\| Energy | {d:.4} kWh |
+            \\| CO₂ Emissions | {d:.3} kg |
+        , .{ self.hardware, self.operation.toString(), self.power_watts, self.duration_hours, self.energyKWh(), self.co2Kg() });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENVIRONMENTAL IMPACT — Carbon Footprint Analysis
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Geographic region for CO2 intensity
+pub const Region = enum {
+    us_east, // 0.42 kg/kWh
+    us_west, // 0.23 kg/kWh
+    eu_central, // 0.275 kg/kWh
+    eu_west, // 0.19 kg/kWh
+    asia_pacific, // 0.51 kg/kWh
+
+    pub fn co2Intensity(self: Region) f64 {
+        return switch (self) {
+            .us_east => 0.42,
+            .us_west => 0.23,
+            .eu_central => 0.275,
+            .eu_west => 0.19,
+            .asia_pacific => 0.51,
+        };
+    }
+
+    pub fn toString(self: Region) []const u8 {
+        return switch (self) {
+            .us_east => "US East",
+            .us_west => "US West",
+            .eu_central => "EU Central",
+            .eu_west => "EU West",
+            .asia_pacific => "Asia Pacific",
+        };
+    }
+};
+
+/// Environmental impact assessment
+pub const EnvironmentalImpact = struct {
+    /// Training power analysis
+    training: PowerAnalysis,
+    /// Inference per 1000 requests
+    inference_per_1k: PowerAnalysis,
+    /// Total number of inferences
+    total_inferences: u64,
+    /// Geographic region
+    region: Region,
+
+    pub fn totalTrainingCO2(self: *const EnvironmentalImpact) f64 {
+        return self.training.energyKWh() * self.region.co2Intensity();
+    }
+
+    pub fn totalInferenceCO2(self: *const EnvironmentalImpact) f64 {
+        const inference_sets = @as(f64, @floatFromInt(self.total_inferences)) / 1000.0;
+        return self.inference_per_1k.energyKWh() * inference_sets * self.region.co2Intensity();
+    }
+
+    pub fn totalCO2(self: *const EnvironmentalImpact) f64 {
+        return self.totalTrainingCO2() + self.totalInferenceCO2();
+    }
+
+    pub fn formatAsMarkdown(self: *const EnvironmentalImpact, allocator: std.mem.Allocator) ![]u8 {
+        const training_md = try self.training.formatAsMarkdown(allocator);
+        defer allocator.free(training_md);
+
+        return std.fmt.allocPrint(allocator,
+            \\{s}
+            \\
+            \\## Environmental Impact Summary
+            \\
+            \\| Category | CO₂ (kg) |
+            \\|----------|----------|
+            \\| Training | {d:.3} |
+            \\| Inference ({d} requests) | {d:.3} |
+            \\| **Total** | **{d:.3}** |
+            \\
+            \\*Region: {s} ({d:.3} kg CO₂/kWh)*
+        , .{ training_md, self.totalTrainingCO2(), self.total_inferences, self.totalInferenceCO2(), self.totalCO2(), self.region.toString(), self.region.co2Intensity() });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SAMPLE SIZE CALCULATOR — Statistical Power Analysis
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Statistical test type
+pub const TestType = enum {
+    one_sample_t,
+    two_sample_t,
+    paired_t,
+    anova,
+    chi_square,
+
+    pub fn toString(self: TestType) []const u8 {
+        return switch (self) {
+            .one_sample_t => "One-sample t-test",
+            .two_sample_t => "Two-sample t-test",
+            .paired_t => "Paired t-test",
+            .anova => "ANOVA",
+            .chi_square => "Chi-square test",
+        };
+    }
+};
+
+/// Sample size calculator for statistical power
+pub const SampleSizeCalculator = struct {
+    /// Effect size (Cohen's d)
+    effect_size: f64,
+    /// Statistical power (1 - beta)
+    power: f64,
+    /// Significance level (alpha)
+    alpha: f64,
+    /// Test type
+    test_type: TestType,
+
+    pub fn requiredSampleSize(self: *const SampleSizeCalculator) !u32 {
+        // Simplified calculation for two-sample t-test
+        // n = 2 * (z_alpha + z_beta)^2 / d^2
+        if (self.test_type != .two_sample_t) {
+            return error.UnsupportedTestType;
+        }
+
+        const z_alpha = 1.96; // For alpha = 0.05
+        const z_beta = 0.84; // For power = 0.80
+
+        const n = (2 * std.math.pow(f64, z_alpha + z_beta, 2)) / std.math.pow(f64, self.effect_size, 2);
+        return @intFromFloat(@ceil(n));
+    }
+
+    pub fn formatAsMarkdown(self: *const SampleSizeCalculator, allocator: std.mem.Allocator) ![]u8 {
+        const n = try self.requiredSampleSize();
+        return std.fmt.allocPrint(allocator,
+            \\## Sample Size Analysis
+            \\
+            \\| Parameter | Value |
+            \\|-----------|-------|
+            \\| Test Type | {s} |
+            \\| Effect Size (Cohen's d) | {d:.2} |
+            \\| Power (1-β) | {d:.2} |
+            \\| Significance (α) | {d:.3} |
+            \\| **Required Sample Size** | **n = {d} per group** |
+            \\
+            \\*Note: Sample size calculated using two-sample t-test approximation.*
+        , .{ self.test_type.toString(), self.effect_size, self.power, self.alpha, n });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROC CURVE — Binary Classification Metrics
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ROC/AUC analysis for binary classification
+pub const ROCCurve = struct {
+    /// True Positive Rate values
+    tpr: []const f64,
+    /// False Positive Rate values
+    fpr: []const f64,
+    /// Area Under Curve
+    auc: f64,
+    /// Number of positive samples
+    n_pos: u32,
+    /// Number of negative samples
+    n_neg: u32,
+
+    pub fn accuracyAtThreshold(self: *const ROCCurve, threshold: usize) f64 {
+        if (threshold >= self.tpr.len) return 0.0;
+        const tp = self.tpr[threshold] * @as(f64, @floatFromInt(self.n_pos));
+        const fp = self.fpr[threshold] * @as(f64, @floatFromInt(self.n_neg));
+        const tn = @as(f64, @floatFromInt(self.n_neg)) - fp;
+        return (tp + tn) / @as(f64, @floatFromInt(self.n_pos + self.n_neg));
+    }
+
+    pub fn formatAsMarkdown(self: *const ROCCurve, allocator: std.mem.Allocator) ![]u8 {
+        const accuracy = self.accuracyAtThreshold(@min(self.tpr.len - 1, 2));
+        return std.fmt.allocPrint(allocator,
+            \\## ROC/AUC Analysis
+            \\
+            \\| Metric | Value |
+            \\|--------|-------|
+            \\| AUC | {d:.3} |
+            \\| Positive Samples | {d} |
+            \\| Negative Samples | {d} |
+            \\| Accuracy (optimal threshold) | {d:.3} |
+            \\
+            \\### ROC Curve Points
+            \\
+            \\| FPR | TPR |
+            \\|-----|-----|
+            \\| {d:.2} | {d:.2} |
+            \\| {d:.2} | {d:.2} |
+            \\| {d:.2} | {d:.2} |
+            \\| {d:.2} | {d:.2} |
+            \\| {d:.2} | {d:.2} |
+        , .{
+            self.auc,    self.n_pos,  self.n_neg,  accuracy,
+            self.fpr[0], self.tpr[0], self.fpr[1], self.tpr[1],
+            self.fpr[2], self.tpr[2], self.fpr[3], self.tpr[3],
+            self.fpr[4], self.tpr[4],
+        });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALGORITHM BOX — Pseudocode Format for Papers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Algorithm box with mathematical notation
+pub const AlgorithmBox = struct {
+    /// Algorithm name
+    name: []const u8,
+    /// Algorithm description
+    description: []const u8,
+    /// Input parameters
+    inputs: []const []const u8,
+    /// Output values
+    outputs: []const []const u8,
+    /// Algorithm steps
+    steps: []const []const u8,
+
+    pub fn formatAsLaTeX(self: *const AlgorithmBox, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "\\begin{algorithm}[H]\n");
+        try result.appendSlice(allocator, "\\caption{");
+        try result.writer(allocator).print("{s}", .{self.name});
+        try result.appendSlice(allocator, "}\n");
+        try result.appendSlice(allocator, "\\label{alg:");
+        try result.writer(allocator).print("{s}", .{self.name});
+        try result.appendSlice(allocator, "}\n");
+        try result.appendSlice(allocator, "\\begin{algorithmic}[1]\n");
+        try result.appendSlice(allocator, "\\REQUIRE ");
+        for (self.inputs, 0..) |input, i| {
+            if (i > 0) try result.appendSlice(allocator, ", ");
+            try result.writer(allocator).print("{s}", .{input});
+        }
+        try result.appendSlice(allocator, "\n");
+        try result.appendSlice(allocator, "\\ENSURE ");
+        for (self.outputs, 0..) |output, i| {
+            if (i > 0) try result.appendSlice(allocator, ", ");
+            try result.writer(allocator).print("{s}", .{output});
+        }
+        try result.appendSlice(allocator, "\n");
+        try result.appendSlice(allocator, "\\STATE ");
+        try result.writer(allocator).print("{s}", .{self.description});
+        try result.appendSlice(allocator, "\n");
+
+        for (self.steps) |step| {
+            try result.appendSlice(allocator, "\\STATE ");
+            try result.writer(allocator).print("{s}", .{step});
+            try result.appendSlice(allocator, "\n");
+        }
+
+        try result.appendSlice(allocator, "\\end{algorithmic}\n");
+        try result.appendSlice(allocator, "\\end{algorithm}\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPARISON TABLE — Baseline Comparison for Papers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Comparison table entry
+pub const ComparisonEntry = struct {
+    /// Method name
+    method: []const u8,
+    /// Metric value
+    value: f64,
+    /// Standard error (optional)
+    std_err: ?f64 = null,
+    /// Is this the proposed method
+    proposed: bool = false,
+
+    pub fn formatAsLaTeX(self: *const ComparisonEntry, allocator: std.mem.Allocator) ![]u8 {
+        if (self.std_err) |se| {
+            if (self.proposed) {
+                return std.fmt.allocPrint(allocator, "\\textbf{{{s}}} & \\textbf{{{d:.3} $\\pm$ {d:.3}}}", .{ self.method, self.value, se });
+            } else {
+                return std.fmt.allocPrint(allocator, "{s} & {d:.3} $\\pm$ {d:.3}", .{ self.method, self.value, se });
+            }
+        } else {
+            if (self.proposed) {
+                return std.fmt.allocPrint(allocator, "\\textbf{{{s}}} & \\textbf{{{d:.3}}}", .{ self.method, self.value });
+            } else {
+                return std.fmt.allocPrint(allocator, "{s} & {d:.3}", .{ self.method, self.value });
+            }
+        }
+    }
+};
+
+/// Comparison table for baseline methods
+pub const ComparisonTable = struct {
+    /// Table caption
+    caption: []const u8,
+    /// Metric name
+    metric: []const u8,
+    /// Comparison entries
+    entries: []const ComparisonEntry,
+
+    pub fn formatAsLaTeX(self: *const ComparisonTable, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "\\begin{table}[H]\n");
+        try result.appendSlice(allocator, "\\centering\n");
+        try result.appendSlice(allocator, "\\caption{");
+        try result.writer(allocator).print("{s}", .{self.caption});
+        try result.appendSlice(allocator, "}\n");
+        try result.appendSlice(allocator, "\\begin{tabular}{lc}\n");
+        try result.appendSlice(allocator, "\\toprule\n");
+        try result.writer(allocator).print("Method & {s} \\\\\n", .{self.metric});
+        try result.appendSlice(allocator, "\\midrule\n");
+
+        for (self.entries) |entry| {
+            const formatted = try entry.formatAsLaTeX(allocator);
+            defer allocator.free(formatted);
+            try result.writer(allocator).print("{s} \\\\\n", .{formatted});
+        }
+
+        try result.appendSlice(allocator, "\\bottomrule\n");
+        try result.appendSlice(allocator, "\\end{tabular}\n");
+        try result.appendSlice(allocator, "\\end{table}\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH PROCESSOR — Combined README Generation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Batch processor for generating all Zenodo artifacts
+pub const BatchProcessor = struct {
+    allocator: std.mem.Allocator,
+    metadata: PaperMetadata,
+
+    pub fn init(allocator: std.mem.Allocator, metadata: PaperMetadata) BatchProcessor {
+        return .{
+            .allocator = allocator,
+            .metadata = metadata,
+        };
+    }
+
+    pub fn generateAll(self: *const BatchProcessor) !struct {
+        json: []u8,
+        readme: []u8,
+        citation: []u8,
+    } {
+        const json = try self.metadata.toZenodoJson(self.allocator);
+        errdefer self.allocator.free(json);
+
+        const readme = try self.metadata.toZenodoReadme(self.allocator);
+        errdefer self.allocator.free(readme);
+
+        const citation = try self.metadata.toCitationCFF(self.allocator);
+        errdefer self.allocator.free(citation);
+
+        return .{
+            .json = json,
+            .readme = readme,
+            .citation = citation,
+        };
+    }
 };
 
 /// Create default PaperMetadata for a bundle type (CLI compatibility helper)
 pub fn createDefaultMetadata(allocator: std.mem.Allocator, bundle: BundleType) !PaperMetadata {
     return ZenodoGenerator.init(allocator, bundle, "v7.0").generateMetadata();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TESTS — New Structures (V101)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "PowerAnalysis - energy and CO2 calculations" {
+    const power = PowerAnalysis{
+        .power_watts = 1.2,
+        .duration_hours = 4.0,
+        .hardware = "QMTech XC7A100T",
+        .operation = .inference,
+    };
+
+    const energy = power.energyKWh();
+    const co2 = power.co2Kg();
+
+    try std.testing.expectApproxEqAbs(0.0048, energy, 0.0001);
+    try std.testing.expectApproxEqAbs(0.00132, co2, 0.00001);
+
+    const savings = power.compareSavings(25.0);
+    try std.testing.expectApproxEqAbs(95.2, savings.power_reduction_percent, 0.1);
+}
+
+test "EnvironmentalImpact - total CO2 calculation" {
+    const training = PowerAnalysis{
+        .power_watts = 15.0,
+        .duration_hours = 4.0,
+        .hardware = "Apple M1 Pro",
+        .operation = .training,
+    };
+
+    const inference_per_1k = PowerAnalysis{
+        .power_watts = 1.2,
+        .duration_hours = 0.277,
+        .hardware = "QMTech XC7A100T",
+        .operation = .inference,
+    };
+
+    const impact = EnvironmentalImpact{
+        .training = training,
+        .inference_per_1k = inference_per_1k,
+        .total_inferences = 100000,
+        .region = .eu_central,
+    };
+
+    const total = impact.totalCO2();
+    try std.testing.expect(total > 0.0);
+
+    const md = try impact.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Environmental Impact") != null);
+}
+
+test "SampleSizeCalculator - Cohen's d calculation" {
+    const calc = SampleSizeCalculator{
+        .effect_size = 1.8,
+        .power = 0.8,
+        .alpha = 0.05,
+        .test_type = .two_sample_t,
+    };
+
+    const n = try calc.requiredSampleSize();
+    try std.testing.expect(n < 10);
+
+    const md = try calc.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Required Sample Size") != null);
+}
+
+test "ROCCurve - AUC and accuracy" {
+    const tpr = [_]f64{ 0.0, 0.65, 0.85, 0.95, 1.0 };
+    const fpr = [_]f64{ 0.0, 0.15, 0.35, 0.60, 1.0 };
+
+    const roc = ROCCurve{
+        .tpr = &tpr,
+        .fpr = &fpr,
+        .auc = 0.82,
+        .n_pos = 500,
+        .n_neg = 500,
+    };
+
+    const accuracy = roc.accuracyAtThreshold(2);
+    try std.testing.expect(accuracy > 0.5);
+    try std.testing.expect(accuracy < 1.0);
+
+    const md = try roc.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+    try std.testing.expect(std.mem.indexOf(u8, md, "ROC/AUC") != null);
+}
+
+test "StatisticalResults - LaTeX format with CI" {
+    const stats = StatisticalResults{
+        .metric = "Accuracy",
+        .mean = 0.85,
+        .std_dev = 0.03,
+        .std_error = 0.004,
+        .ci95_lower = 0.842,
+        .ci95_upper = 0.858,
+        .n = 1000,
+    };
+
+    const latex = try stats.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Accuracy") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "0.85") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "0.842") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "0.858") != null);
+}
+
+test "AlgorithmBox - LaTeX algorithm environment" {
+    const inputs = [_][]const u8{ "X", "Y" };
+    const outputs = [_][]const u8{"Z"};
+    const steps = [_][]const u8{"Z := X + Y"};
+
+    const box = AlgorithmBox{
+        .name = "TestAlgorithm",
+        .description = "Simple addition algorithm",
+        .inputs = &inputs,
+        .outputs = &outputs,
+        .steps = &steps,
+    };
+
+    const latex = try box.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\begin{algorithm}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "TestAlgorithm") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\REQUIRE") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\ENSURE") != null);
+}
+
+test "ComparisonTable - LaTeX table with proposed method" {
+    const entries = [_]ComparisonEntry{
+        .{ .method = "Baseline 1", .value = 0.75 },
+        .{ .method = "Baseline 2", .value = 0.80, .std_err = 0.01 },
+        .{ .method = "Proposed", .value = 0.85, .std_err = 0.004, .proposed = true },
+    };
+
+    const table = ComparisonTable{
+        .caption = "Method comparison on test set",
+        .metric = "Accuracy",
+        .entries = &entries,
+    };
+
+    const latex = try table.formatAsLaTeX(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\begin{table}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Accuracy") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\textbf{") != null);
+}
+
+test "Region - CO2 intensity values" {
+    try std.testing.expectApproxEqAbs(0.42, Region.us_east.co2Intensity(), 0.001);
+    try std.testing.expectApproxEqAbs(0.275, Region.eu_central.co2Intensity(), 0.001);
+    try std.testing.expectApproxEqAbs(0.51, Region.asia_pacific.co2Intensity(), 0.001);
 }
