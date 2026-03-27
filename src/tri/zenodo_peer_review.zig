@@ -246,27 +246,23 @@ pub const PeerReviewWorkflow = struct {
     pub fn generateResponse(self: *const PeerReviewWorkflow, allocator: std.mem.Allocator) ![]u8 {
         var result = try std.ArrayList(u8).initCapacity(allocator, 1024);
         defer result.deinit(allocator);
+        const writer = result.writer(allocator);
 
         // Header
-        try result.appendSlice(allocator, "# Response to Reviewers\n\n");
-        try result.appendSlice(allocator, "**Paper**: ");
-        try result.appendSlice(allocator, self.paper_title);
-        try result.appendSlice(allocator, "\n");
-        try result.appendSlice(allocator, "**Venue**: ");
-        try result.appendSlice(allocator, self.venue);
-        try result.appendSlice(allocator, "\n\n");
+        try writer.print("# Response to Reviewers\n\n", .{});
+        try writer.print("**Paper**: {s}\n", .{self.paper_title});
+        try writer.print("**Venue**: {s}\n\n", .{self.venue});
 
         // Summary
-        try result.appendSlice(allocator, "## Summary\n\n");
+        try writer.print("## Summary\n\n", .{});
         const major_count = self.countMajor();
         const addressed_count = self.countAddressed();
-        try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "- Total comments: {d}\n", .{self.comments.items.len}));
-        try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "- Major concerns: {d}\n", .{major_count}));
-        try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "- Addressed: {d}\n", .{addressed_count}));
-        try result.appendSlice(allocator, "\n");
+        try writer.print("- Total comments: {d}\n", .{self.comments.items.len});
+        try writer.print("- Major concerns: {d}\n", .{major_count});
+        try writer.print("- Addressed: {d}\n\n", .{addressed_count});
 
         // Comments by action type
-        try result.appendSlice(allocator, "## Detailed Response\n\n");
+        try writer.print("## Detailed Response\n\n", .{});
 
         var action_groups = std.AutoHashMap(ReviewAction, std.ArrayList(u32)).init(allocator);
         defer {
@@ -298,24 +294,23 @@ pub const PeerReviewWorkflow = struct {
             if (action_groups.get(action)) |comment_ids| {
                 if (comment_ids.items.len == 0) continue;
 
-                try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{s} {s}\n\n", .{ action.toEmoji(), action.displayName() }));
+                try writer.print("{s} {s}\n\n", .{ action.toEmoji(), action.displayName() });
 
                 for (comment_ids.items) |cid| {
                     const comment = self.getCommentById(cid) orelse continue;
-                    try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "**Comment {d}**: {s}\n", .{ cid, comment.text }));
-                    try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "{s} **Status**: {s}\n\n", .{
-                        if (comment.addressed) "✅" else "⏳",
-                        if (comment.addressed) "Addressed" else "Pending",
-                    }));
+                    try writer.print("**Comment {d}**: {s}\n", .{ cid, comment.text });
+                    const status_emoji = if (comment.addressed) "✅" else "⏳";
+                    const status_text = if (comment.addressed) "Addressed" else "Pending";
+                    try writer.print("{s} **Status**: {s}\n\n", .{ status_emoji, status_text });
                 }
             }
         }
 
         // Ungrouped comments
-        try result.appendSlice(allocator, "## Other Comments\n\n");
+        try writer.print("## Other Comments\n\n", .{});
         for (self.comments.items) |comment| {
             if (comment.action == null) {
-                try result.appendSlice(allocator, try std.fmt.allocPrint(allocator, "**Comment {d}**: {s}\n\n", .{ comment.id, comment.text }));
+                try writer.print("**Comment {d}**: {s}\n\n", .{ comment.id, comment.text });
             }
         }
 

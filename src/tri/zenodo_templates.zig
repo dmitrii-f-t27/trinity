@@ -5949,10 +5949,10 @@ test "AbstractValidator - reject short abstract" {
 
 test "AbstractValidator - reject long abstract" {
     var long_abstract = std.ArrayList(u8).initCapacity(std.testing.allocator, 2000) catch @panic("OOM");
-    defer long_abstract.deinit();
+    defer long_abstract.deinit(std.testing.allocator);
     var i: usize = 0;
     while (i < 300) : (i += 1) {
-        try long_abstract.appendSlice("Word ");
+        try long_abstract.appendSlice(std.testing.allocator, "Word ");
     }
 
     const result = try AbstractValidator.validate(long_abstract.items, .neurips, std.testing.allocator);
