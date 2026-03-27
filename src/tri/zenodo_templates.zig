@@ -4313,3 +4313,511 @@ test "RebuttalLetter - generate markdown" {
     try std.testing.expect(std.mem.indexOf(u8, md, "Section 5 with new experiments") != null);
     try std.testing.expect(std.mem.indexOf(u8, md, "Best regards") != null);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V107: COLLABORATION METADATA & IDENTIFIERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// License type for software and data
+pub const LicenseType = enum {
+    /// MIT License
+    mit,
+    /// Apache License 2.0
+    apache_2_0,
+    /// GNU General Public License v3
+    gpl_3,
+    /// GNU Lesser General Public License v3
+    lgpl_3,
+    /// BSD 3-Clause License
+    bsd_3,
+    /// Creative Commons BY 4.0
+    cc_by_4,
+    /// Creative Commons BY-SA 4.0
+    cc_by_sa_4,
+    /// Creative Commons BY-NC 4.0
+    cc_by_nc_4,
+    /// Creative Commons Zero (public domain)
+    cc0,
+    /// Other license
+    other,
+
+    pub fn toSpdx(self: LicenseType) []const u8 {
+        return switch (self) {
+            .mit => "MIT",
+            .apache_2_0 => "Apache-2.0",
+            .gpl_3 => "GPL-3.0",
+            .lgpl_3 => "LGPL-3.0",
+            .bsd_3 => "BSD-3-Clause",
+            .cc_by_4 => "CC-BY-4.0",
+            .cc_by_sa_4 => "CC-BY-SA-4.0",
+            .cc_by_nc_4 => "CC-BY-NC-4.0",
+            .cc0 => "CC0-1.0",
+            .other => "OTHER",
+        };
+    }
+
+    pub fn toUrl(self: LicenseType) []const u8 {
+        return switch (self) {
+            .mit => "https://opensource.org/licenses/MIT",
+            .apache_2_0 => "https://opensource.org/licenses/Apache-2.0",
+            .gpl_3 => "https://opensource.org/licenses/GPL-3.0",
+            .lgpl_3 => "https://opensource.org/licenses/LGPL-3.0",
+            .bsd_3 => "https://opensource.org/licenses/BSD-3-Clause",
+            .cc_by_4 => "https://creativecommons.org/licenses/by/4.0/",
+            .cc_by_sa_4 => "https://creativecommons.org/licenses/by-sa/4.0/",
+            .cc_by_nc_4 => "https://creativecommons.org/licenses/by-nc/4.0/",
+            .cc0 => "https://creativecommons.org/publicdomain/zero/1.0/",
+            .other => "",
+        };
+    }
+
+    pub fn isOpenSource(self: LicenseType) bool {
+        return switch (self) {
+            .mit, .apache_2_0, .gpl_3, .lgpl_3, .bsd_3 => true,
+            .cc_by_4, .cc_by_sa_4, .cc0 => true,
+            .cc_by_nc_4 => false, // Non-commercial restriction
+            .other => false,
+        };
+    }
+};
+
+/// Author role in publication
+pub const AuthorRole = enum {
+    /// First author (equal contribution)
+    first,
+    /// Co-first author
+    co_first,
+    /// Middle author
+    middle,
+    /// Senior author (PI)
+    senior,
+    /// Corresponding author
+    corresponding,
+    /// Supervising author
+    supervisor,
+
+    pub fn toSymbol(self: AuthorRole) []const u8 {
+        return switch (self) {
+            .first => "†",
+            .co_first => "‡",
+            .middle => "",
+            .senior => "*",
+            .corresponding => "§",
+            .supervisor => "¶",
+        };
+    }
+
+    pub fn toString(self: AuthorRole) []const u8 {
+        return switch (self) {
+            .first => "First Author",
+            .co_first => "Co-First Author",
+            .middle => "Contributing Author",
+            .senior => "Senior Author",
+            .corresponding => "Corresponding Author",
+            .supervisor => "Supervisor",
+        };
+    }
+};
+
+/// Institution/affiliation data
+pub const Institution = struct {
+    /// Institution name
+    name: []const u8,
+    /// Department (optional)
+    department: ?[]const u8 = null,
+    /// City
+    city: []const u8,
+    /// Country code (ISO 3166-1 alpha-2)
+    country_code: []const u8,
+    /// ROR identifier (Research Organization Registry)
+    ror_id: ?[]const u8 = null,
+
+    pub fn formatAsLocation(self: *const Institution, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 128) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, self.name);
+
+        if (self.department) |dept| {
+            try result.writer(allocator).print(" - {s}", .{dept});
+        }
+
+        try result.writer(allocator).print(", {s}, {s}", .{ self.city, self.country_code });
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    pub fn generateRorUrl(self: *const Institution, allocator: std.mem.Allocator) ![]u8 {
+        if (self.ror_id) |ror| {
+            return std.fmt.allocPrint(allocator, "https://ror.org/{s}", .{ror});
+        }
+        return std.fmt.allocPrint(allocator, "https://ror.org/search?query={s}", .{self.name});
+    }
+};
+
+/// Extended author with full metadata
+pub const Contributor = struct {
+    /// Full name (First Last)
+    name: []const u8,
+    /// ORCID ID (16-digit, without dashes)
+    orcid: ?[]const u8 = null,
+    /// Email (optional)
+    email: ?[]const u8 = null,
+    /// Affiliation
+    affiliation: Institution,
+    /// Role in paper
+    role: AuthorRole = .middle,
+    /// Contribution statement
+    contribution: ?[]const u8 = null,
+
+    /// Format as author citation
+    pub fn formatAsCitation(self: *const Contributor, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 128) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Add role symbol if not middle author
+        const symbol = self.role.toSymbol();
+        if (symbol.len > 0) {
+            try result.appendSlice(allocator, symbol);
+            try result.append(allocator, ' ');
+        }
+
+        // Parse name: "First Last" -> "Last, F."
+        const space_idx = std.mem.indexOf(u8, self.name, " ");
+        if (space_idx) |idx| {
+            const last = self.name[0..idx];
+            const first = self.name[idx + 1 ..];
+            try result.writer(allocator).print("{s}, {s}.", .{ last, first[0..1] });
+        } else {
+            try result.appendSlice(allocator, self.name);
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Generate ORCID URL
+    pub fn orcidUrl(self: *const Contributor, allocator: std.mem.Allocator) ![]u8 {
+        if (self.orcid) |id| {
+            return std.fmt.allocPrint(allocator, "https://orcid.org/{s}", .{id});
+        }
+        return error.NoOrcid;
+    }
+
+    /// Generate CRediT taxonomy statement
+    pub fn generateCreditStatement(self: *const Contributor, allocator: std.mem.Allocator) ![]u8 {
+        if (self.contribution) |contrib| {
+            return std.fmt.allocPrint(allocator, "{s}: {s}", .{ self.name, contrib });
+        }
+        return std.fmt.allocPrint(allocator, "{s}: Author", .{self.name});
+    }
+};
+
+/// DOI (Digital Object Identifier) helper
+pub const DoiHelper = struct {
+    /// DOI prefix (e.g., "10.5281" for Zenodo)
+    prefix: []const u8,
+    /// DOI suffix (unique identifier)
+    suffix: []const u8,
+
+    /// Generate full DOI string
+    pub fn fullDoi(self: *const DoiHelper, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator, "{s}/{s}", .{ self.prefix, self.suffix });
+    }
+
+    /// Generate DOI URL
+    pub fn url(self: *const DoiHelper, allocator: std.mem.Allocator) ![]u8 {
+        const doi = try self.fullDoi(allocator);
+        defer allocator.free(doi);
+        return std.fmt.allocPrint(allocator, "https://doi.org/{s}", .{doi});
+    }
+
+    /// Generate BibTeX citation entry
+    pub fn bibtexEntry(self: *const DoiHelper, allocator: std.mem.Allocator, title: []const u8, author: []const u8, year: u32) ![]u8 {
+        const doi = try self.fullDoi(allocator);
+        defer allocator.free(doi);
+
+        // Extract last name for BibTeX key
+        const space_idx = std.mem.indexOf(u8, author, " ");
+        const last_name = if (space_idx) |idx| author[0..idx] else author;
+
+        return std.fmt.allocPrint(allocator,
+            \\@{{misc{{{s}_{d},
+            \\  title={{{s}}},
+            \\  author={{{s}}},
+            \\  year={{{d}}},
+            \\  doi={{{s}}},
+            \\  url={{https://doi.org/{s}}}
+            \\}}
+        , .{ last_name, year, title, author, year, doi, doi });
+    }
+
+    /// Validate DOI format
+    pub fn validate(doi: []const u8) bool {
+        // DOI format: 10.xxxx/xxxxx
+        if (!std.mem.startsWith(u8, doi, "10.")) return false;
+
+        const slash_idx = std.mem.indexOf(u8, doi, "/") orelse return false;
+        if (slash_idx < 5) return false; // Minimum prefix length
+
+        const suffix = doi[slash_idx + 1 ..];
+        if (suffix.len == 0) return false;
+
+        // Check for valid characters (alphanumeric, ., -, _, (, ), ;)
+        for (suffix) |c| {
+            const valid = std.ascii.isAlphanumeric(c) or c == '.' or c == '-' or c == '_' or c == '(' or c == ')' or c == ';';
+            if (!valid) return false;
+        }
+
+        return true;
+    }
+};
+
+/// arXiv identifier helper
+pub const ArxivHelper = struct {
+    /// arXiv ID (e.g., "2301.12345" or "cs.AI/1234567")
+    id: []const u8,
+
+    /// Generate arXiv URL
+    pub fn url(self: *const ArxivHelper, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator, "https://arxiv.org/abs/{s}", .{self.id});
+    }
+
+    /// Generate PDF URL
+    pub fn pdfUrl(self: *const ArxivHelper, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator, "https://arxiv.org/pdf/{s}.pdf", .{self.id});
+    }
+
+    /// Detect arXiv category from ID
+    pub fn detectCategory(self: *const ArxivHelper) []const u8 {
+        if (std.mem.indexOf(u8, self.id, "cs.") != null) return "Computer Science";
+        if (std.mem.indexOf(u8, self.id, "math.") != null) return "Mathematics";
+        if (std.mem.indexOf(u8, self.id, "stat.") != null) return "Statistics";
+        if (std.mem.indexOf(u8, self.id, "physics.") != null) return "Physics";
+        if (std.mem.indexOf(u8, self.id, "q-bio.") != null) return "Quantitative Biology";
+        if (std.mem.indexOf(u8, self.id, "q-fin.") != null) return "Quantitative Finance";
+        return "Unknown";
+    }
+};
+
+/// Version metadata following semantic versioning
+pub const VersionMetadata = struct {
+    /// Major version
+    major: u8,
+    /// Minor version
+    minor: u8,
+    /// Patch version
+    patch: u8,
+    /// Pre-release tag (alpha, beta, rc)
+    pre_release: ?[]const u8 = null,
+    /// Build metadata
+    build_metadata: ?[]const u8 = null,
+
+    /// Generate semantic version string
+    pub fn toString(self: *const VersionMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 32) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("v{d}.{d}.{d}", .{ self.major, self.minor, self.patch });
+
+        if (self.pre_release) |pr| {
+            try result.writer(allocator).print("-{s}", .{pr});
+        }
+
+        if (self.build_metadata) |bm| {
+            try result.writer(allocator).print("+{s}", .{bm});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Generate Zenodo version identifier
+    pub fn toZenodoVersion(self: *const VersionMetadata, allocator: std.mem.Allocator) ![]u8 {
+        return self.toString(allocator);
+    }
+
+    /// Compare versions (returns >0 if self > other, <0 if self < other, 0 if equal)
+    pub fn compare(self: *const VersionMetadata, other: *const VersionMetadata) i8 {
+        if (self.major != other.major) {
+            return if (self.major > other.major) 1 else -1;
+        }
+        if (self.minor != other.minor) {
+            return if (self.minor > other.minor) 1 else -1;
+        }
+        if (self.patch != other.patch) {
+            return if (self.patch > other.patch) 1 else -1;
+        }
+        return 0;
+    }
+
+    /// Increment patch version
+    pub fn bumpPatch(self: *const VersionMetadata) VersionMetadata {
+        return VersionMetadata{
+            .major = self.major,
+            .minor = self.minor,
+            .patch = self.patch + 1,
+            .pre_release = null,
+            .build_metadata = self.build_metadata,
+        };
+    }
+
+    /// Increment minor version
+    pub fn bumpMinor(self: *const VersionMetadata) VersionMetadata {
+        return VersionMetadata{
+            .major = self.major,
+            .minor = self.minor + 1,
+            .patch = 0,
+            .pre_release = null,
+            .build_metadata = self.build_metadata,
+        };
+    }
+
+    /// Increment major version
+    pub fn bumpMajor(self: *const VersionMetadata) VersionMetadata {
+        return VersionMetadata{
+            .major = self.major + 1,
+            .minor = 0,
+            .patch = 0,
+            .pre_release = null,
+            .build_metadata = self.build_metadata,
+        };
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V107 TESTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "LicenseType - to SPDX" {
+    try std.testing.expectEqualStrings("MIT", LicenseType.mit.toSpdx());
+    try std.testing.expectEqualStrings("Apache-2.0", LicenseType.apache_2_0.toSpdx());
+    try std.testing.expectEqualStrings("CC-BY-4.0", LicenseType.cc_by_4.toSpdx());
+}
+
+test "LicenseType - to URL" {
+    try std.testing.expect(std.mem.indexOf(u8, LicenseType.mit.toUrl(), "opensource.org") != null);
+    try std.testing.expect(std.mem.indexOf(u8, LicenseType.cc_by_4.toUrl(), "creativecommons.org") != null);
+}
+
+test "LicenseType - is open source" {
+    try std.testing.expect(LicenseType.mit.isOpenSource());
+    try std.testing.expect(LicenseType.gpl_3.isOpenSource());
+    try std.testing.expect(!LicenseType.cc_by_nc_4.isOpenSource());
+}
+
+test "AuthorRole - symbols" {
+    try std.testing.expectEqualStrings("†", AuthorRole.first.toSymbol());
+    try std.testing.expectEqualStrings("*", AuthorRole.senior.toSymbol());
+}
+
+test "Institution - format as location" {
+    const inst = Institution{
+        .name = "MIT",
+        .department = "CSAIL",
+        .city = "Cambridge",
+        .country_code = "US",
+    };
+
+    const loc = try inst.formatAsLocation(std.testing.allocator);
+    defer std.testing.allocator.free(loc);
+
+    try std.testing.expect(std.mem.indexOf(u8, loc, "MIT") != null);
+    try std.testing.expect(std.mem.indexOf(u8, loc, "CSAIL") != null);
+    try std.testing.expect(std.mem.indexOf(u8, loc, "Cambridge") != null);
+}
+
+test "Contributor - format as citation" {
+    const inst = Institution{
+        .name = "MIT",
+        .city = "Cambridge",
+        .country_code = "US",
+    };
+
+    const contrib = Contributor{
+        .name = "Smith, Jane",
+        .affiliation = inst,
+        .role = .first,
+    };
+
+    const citation = try contrib.formatAsCitation(std.testing.allocator);
+    defer std.testing.allocator.free(citation);
+
+    try std.testing.expect(std.mem.indexOf(u8, citation, "Smith") != null);
+    try std.testing.expect(std.mem.indexOf(u8, citation, "J.") != null);
+    try std.testing.expect(std.mem.indexOf(u8, citation, "†") != null);
+}
+
+test "DoiHelper - full DOI" {
+    const doi = DoiHelper{
+        .prefix = "10.5281",
+        .suffix = "zenodo.123456",
+    };
+
+    const full = try doi.fullDoi(std.testing.allocator);
+    defer std.testing.allocator.free(full);
+
+    try std.testing.expectEqualStrings("10.5281/zenodo.123456", full);
+}
+
+test "DoiHelper - validate" {
+    try std.testing.expect(DoiHelper.validate("10.5281/zenodo.123456"));
+    try std.testing.expect(DoiHelper.validate("10.1000/182"));
+    try std.testing.expect(!DoiHelper.validate("invalid"));
+    try std.testing.expect(!DoiHelper.validate("10.5281/")); // No suffix
+}
+
+test "ArxivHelper - detect category" {
+    const arxiv_cs = ArxivHelper{ .id = "2301.12345v1" };
+    try std.testing.expectEqualStrings("Unknown", arxiv_cs.detectCategory());
+
+    const arxiv_new = ArxivHelper{ .id = "cs.AI/1234567" };
+    try std.testing.expectEqualStrings("Computer Science", arxiv_new.detectCategory());
+}
+
+test "VersionMetadata - to string" {
+    const version = VersionMetadata{
+        .major = 2,
+        .minor = 9,
+        .patch = 0,
+    };
+
+    const str = try version.toString(std.testing.allocator);
+    defer std.testing.allocator.free(str);
+
+    try std.testing.expectEqualStrings("v2.9.0", str);
+}
+
+test "VersionMetadata - with pre-release" {
+    const version = VersionMetadata{
+        .major = 3,
+        .minor = 0,
+        .patch = 0,
+        .pre_release = "beta.1",
+    };
+
+    const str = try version.toString(std.testing.allocator);
+    defer std.testing.allocator.free(str);
+
+    try std.testing.expect(std.mem.indexOf(u8, str, "beta.1") != null);
+}
+
+test "VersionMetadata - bump patch" {
+    const version = VersionMetadata{
+        .major = 2,
+        .minor = 9,
+        .patch = 0,
+    };
+
+    const bumped = version.bumpPatch();
+    try std.testing.expectEqual(@as(u8, 1), bumped.patch);
+    try std.testing.expectEqual(@as(u8, 9), bumped.minor);
+}
+
+test "VersionMetadata - compare" {
+    const v1 = VersionMetadata{ .major = 2, .minor = 9, .patch = 0 };
+    const v2 = VersionMetadata{ .major = 2, .minor = 10, .patch = 0 };
+    const v3 = VersionMetadata{ .major = 3, .minor = 0, .patch = 0 };
+
+    try std.testing.expect(v2.compare(&v1) > 0); // v2 > v1
+    try std.testing.expect(v3.compare(&v1) > 0); // v3 > v1
+    try std.testing.expect(v1.compare(&v1) == 0); // v1 == v1
+}
