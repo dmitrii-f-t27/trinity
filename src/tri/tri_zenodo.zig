@@ -2048,23 +2048,23 @@ pub const ValidationResult = struct {
         defer md.deinit(allocator);
 
         if (self.is_valid) {
-            try md.writer(allocator).print("## ✅ Validation Passed\n\n", .{});
+            try md.writer(self.allocator).print("## ✅ Validation Passed\n\n", .{});
         } else {
-            try md.writer(allocator).print("## ❌ Validation Failed\n\n", .{});
+            try md.writer(self.allocator).print("## ❌ Validation Failed\n\n", .{});
         }
 
         if (self.errors.len > 0) {
-            try md.writer(allocator).print("### Errors ({d})\n\n", .{self.errors.len});
+            try md.writer(self.allocator).print("### Errors ({d})\n\n", .{self.errors.len});
             for (self.errors) |err| {
-                try md.writer(allocator).print("- **{s}**: {s}\n", .{ err.field, err.message });
+                try md.writer(self.allocator).print("- **{s}**: {s}\n", .{ err.field, err.message });
             }
-            try md.writer(allocator).print("\n", .{});
+            try md.writer(self.allocator).print("\n", .{});
         }
 
         if (self.warnings.len > 0) {
-            try md.writer(allocator).print("### Warnings ({d})\n\n", .{self.warnings.len});
+            try md.writer(self.allocator).print("### Warnings ({d})\n\n", .{self.warnings.len});
             for (self.warnings) |warn| {
-                try md.writer(allocator).print("- **{s}**: {s}\n", .{ warn.field, warn.message });
+                try md.writer(self.allocator).print("- **{s}**: {s}\n", .{ warn.field, warn.message });
             }
         }
 
