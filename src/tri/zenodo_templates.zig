@@ -86,11 +86,14 @@ pub const Author = struct {
         var creator = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
         defer creator.deinit(allocator);
 
-        try creator.writer(allocator).print("{{\"name\": \"{s}\", \"affiliation\": \"{s}\"", .{ self.name, self.affiliation });
+        try creator.appendSlice(allocator, "{\"name\": \"");
+        try creator.writer(allocator).print("{s}", .{self.name});
+        try creator.appendSlice(allocator, "\", \"affiliation\": \"");
+        try creator.writer(allocator).print("{s}\"", .{self.affiliation});
         if (self.orcid) |orcid| {
             try creator.writer(allocator).print(", \"orcid\": \"{s}\"", .{orcid});
         }
-        try creator.writer(allocator).print("}}", .{});
+        try creator.appendSlice(allocator, "}");
 
         return creator.toOwnedSlice(allocator);
     }
@@ -236,8 +239,11 @@ pub const DataCite = struct {
         defer result.deinit(allocator);
 
         try result.writer(allocator).print("{s}{{{s},\n", .{ entry_type, doi_suffix });
-        try result.writer(allocator).print("  doi = {{\"{s}\"}},\n", .{self.doi});
-        try result.writer(allocator).print("  note = {{\"{s} {s}\"}}\n}}\n", .{ rel_str, self.citation_text });
+        try result.appendSlice(allocator, "  doi = {\"");
+        try result.writer(allocator).print("{s}\"}},\n", .{self.doi});
+        try result.appendSlice(allocator, "  note = {\"");
+        try result.writer(allocator).print("{s} {s}", .{ rel_str, self.citation_text });
+        try result.appendSlice(allocator, "\"}}\n}\n");
 
         return result.toOwnedSlice(allocator);
     }
@@ -635,21 +641,24 @@ pub const PaperMetadata = struct {
         var json = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
         defer json.deinit(allocator);
 
-        try json.writer(allocator).print("{{\n", .{});
+        try json.appendSlice(allocator, "{\n");
         try json.writer(allocator).print("  \"title\": \"{s}\",\n", .{self.title});
-        try json.writer(allocator).print("  \"creators\": [\n", .{});
+        try json.appendSlice(allocator, "  \"creators\": [\n");
         for (self.authors, 0..) |author, i| {
-            try json.writer(allocator).print("    {{\"name\": \"{s}\", \"affiliation\": \"{s}\"", .{ author.name, author.affiliation });
+            try json.appendSlice(allocator, "    {\"name\": \"");
+            try json.writer(allocator).print("{s}", .{author.name});
+            try json.appendSlice(allocator, "\", \"affiliation\": \"");
+            try json.writer(allocator).print("{s}\"", .{author.affiliation});
             if (author.orcid) |orcid| {
                 try json.writer(allocator).print(", \"orcid\": \"{s}\"", .{orcid});
             }
             if (author.corresponding) {
-                try json.writer(allocator).print(", \"corresponding\": true", .{});
+                try json.appendSlice(allocator, ", \"corresponding\": true");
             }
             if (i < self.authors.len - 1) {
-                try json.writer(allocator).print("  }},\n", .{});
+                try json.appendSlice(allocator, "  },\n");
             } else {
-                try json.writer(allocator).print("    }}\n", .{});
+                try json.appendSlice(allocator, "    }\n");
             }
         }
         try json.writer(allocator).print("  ],\n", .{});
@@ -677,13 +686,17 @@ pub const PaperMetadata = struct {
         }
 
         if (self.license) |lic| {
-            try json.writer(allocator).print("  \"license\": {{\"id\": \"{s}\"}}\n", .{lic});
+            try json.appendSlice(allocator, "  \"license\": {\"id\": \"");
+            try json.writer(allocator).print("{s}\"", .{lic});
+            try json.appendSlice(allocator, "}\n");
         }
 
         if (self.communities) |comms| {
             try json.writer(allocator).print("  \"communities\": [\n", .{});
             for (comms, 0..) |c, i| {
-                try json.writer(allocator).print("    {{\"id\": \"{s}\"}}", .{c});
+                try json.appendSlice(allocator, "    {\"id\": \"");
+                try json.writer(allocator).print("{s}", .{c});
+                try json.appendSlice(allocator, "\"}");
                 if (i < comms.len - 1) {
                     try json.writer(allocator).print(",\n", .{});
                 } else {
@@ -694,19 +707,29 @@ pub const PaperMetadata = struct {
         }
 
         if (self.bundle) |b| {
-            try json.writer(allocator).print("  \"bundle_type\": \"{s}\"\n", .{b.fileName()});
-            try json.writer(allocator).print("  \"bundle_display\": \"{s}\"\n", .{b.displayName()});
+            try json.appendSlice(allocator, "  \"bundle_type\": \"");
+            try json.writer(allocator).print("{s}", .{b.fileName()});
+            try json.appendSlice(allocator, "\",\n");
+            try json.appendSlice(allocator, "  \"bundle_display\": \"");
+            try json.writer(allocator).print("{s}", .{b.displayName()});
+            try json.appendSlice(allocator, "\",\n");
         }
 
         if (self.calibration_metrics) |cm| {
             try json.writer(allocator).print("  \"calibration_metrics\": {\n", .{});
-            try json.writer(allocator).print("    \"ece\": {{\"value\": {d:.3}, \"ci_95\": [{d:.3}, {d:.3}], \"n_bins\": {d}, \"n_samples\": {d}}},\n", .{ cm.ece, cm.ci_lower, cm.ci_upper, cm.n_bins, cm.n_samples });
-            try json.writer(allocator).print("    \"brier_score\": {{\"value\": {d:.3}, \"ci_95\": [{d:.3}, {d:.3}]}},\n", .{ cm.brier_score, cm.brier_score - 0.01, cm.brier_score + 0.01 });
+            try json.appendSlice(allocator, "    \"ece\": {\"value\": ");
+            try json.writer(allocator).print("{d:.3}", .{cm.ece});
+            try json.writer(allocator).print(", \"ci_95\": [{d:.3}, {d:.3}], \"n_bins\": {d}, \"n_samples\": {d}", .{ cm.ci_lower, cm.ci_upper, cm.n_bins, cm.n_samples });
+            try json.appendSlice(allocator, "}},\n");
+            try json.appendSlice(allocator, "    \"brier_score\": {\"value\": ");
+            try json.writer(allocator).print("{d:.3}", .{cm.brier_score});
+            try json.writer(allocator).print(", \"ci_95\": [{d:.3}, {d:.3}]", .{ cm.brier_score - 0.01, cm.brier_score + 0.01 });
+            try json.appendSlice(allocator, "}}\n");
             try json.writer(allocator).print("    \"neurips_2025_compliant\": {s}\n", .{ if (cm.neurips_compliant) "true" else "false" });
-            try json.writer(allocator).print("  }}\n", .{});
+            try json.writer(allocator).print("  }\n", .{});
         }
 
-        try json.writer(allocator).print("}}\n", .{});
+        try json.appendSlice(allocator, "}\n");
 
         return json.toOwnedSlice(allocator);
     }
@@ -1071,4 +1094,48 @@ test "DataCite.formatAsBibTeX" {
     defer allocator.free(bibtex);
 
     try testing.expect(std.mem.indexOf(u8, bibtex, "10.5281/zenodo.123456") != null);
+}
+
+test "PaperMetadata.toZenodoJson - basic JSON generation" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const author = Author{
+        .name = "Jane Doe",
+        .affiliation = "Trinity Research Institute",
+        .orcid = null,
+        .corresponding = true,
+    };
+
+    const metadata = PaperMetadata{
+        .title = "Test Paper for Zenodo",
+        .authors = &.{author},
+        .abstract = "This is a test abstract for Zenodo metadata generation.",
+        .keywords = &.{ "ternary", "neural", "networks", "zenodo" },
+        .year = 2026,
+        .doi = null,
+        .code_url = null,
+        .upload_type = .publication,
+        .access_right = .open,
+        .license = "CC-BY-4.0",
+        .version = null,
+        .communities = null,
+        .bundle = .ternary_nn,
+        .conference = null,
+        .broader_impact = null,
+        .ethical_considerations = null,
+        .reproducibility = null,
+        .calibration_metrics = null,
+    };
+
+    const json = try metadata.toZenodoJson(allocator);
+    defer allocator.free(json);
+
+    // Verify JSON contains key fields
+    try testing.expect(std.mem.indexOf(u8, json, "Test Paper for Zenodo") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "Jane Doe") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "Trinity Research Institute") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "ternary") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "2026-03-27") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "bundle_type") != null);
 }
