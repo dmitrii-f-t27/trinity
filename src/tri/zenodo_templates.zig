@@ -2981,3 +2981,446 @@ test "PresentationSlides - generates beamer structure" {
     try std.testing.expect(std.mem.indexOf(u8, beamer, "\\documentclass{beamer}") != null);
     try std.testing.expect(std.mem.indexOf(u8, beamer, "Trinity S³AI Framework") != null);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V104: PUBLICATION-READY STRUCTURES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Citation style enumeration for academic formatting
+pub const CitationStyle = enum {
+    /// APA 7th edition
+    apa,
+    /// IEEE style
+    ieee,
+    /// MLA 9th edition
+    mla,
+    /// Chicago author-date
+    chicago,
+    /// Harvard style
+    harvard,
+    /// Vancouver (numbered)
+    vancouver,
+
+    pub fn toString(self: CitationStyle) []const u8 {
+        return switch (self) {
+            .apa => "APA",
+            .ieee => "IEEE",
+            .mla => "MLA",
+            .chicago => "Chicago",
+            .harvard => "Harvard",
+            .vancouver => "Vancouver",
+        };
+    }
+
+    pub fn formatLabel(self: CitationStyle) []const u8 {
+        return switch (self) {
+            .apa => "APA 7th Edition",
+            .ieee => "IEEE Style",
+            .mla => "MLA 9th Edition",
+            .chicago => "Chicago Author-Date",
+            .harvard => "Harvard Referencing",
+            .vancouver => "Vancouver (Numbered)",
+        };
+    }
+};
+
+/// Simple citation generator for standard academic formats
+pub const SimpleCitation = struct {
+    /// Primary author(s) - format: "Last, First" or "Last1, First1; Last2, First2"
+    author: []const u8,
+    /// Publication title
+    title: []const u8,
+    /// Publication year
+    year: u32,
+    /// Publisher or venue
+    publisher: []const u8,
+    /// Optional volume/issue
+    volume: ?[]const u8 = null,
+    /// Optional pages
+    pages: ?[]const u8 = null,
+    /// Optional DOI
+    doi: ?[]const u8 = null,
+    /// Optional URL
+    url: ?[]const u8 = null,
+
+    /// Format citation in APA 7th edition style
+    /// Format: Author. (Year). Title. Publisher. DOI/URL
+    pub fn formatAPA(self: *const SimpleCitation, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Author
+        try result.appendSlice(allocator, self.author);
+        try result.append(allocator, '.');
+
+        // Year in parentheses
+        try result.writer(allocator).print (" ({d}). ", .{self.year});
+
+        // Title in italics (markdown for display)
+        try result.appendSlice(allocator, "*");
+        try result.appendSlice(allocator, self.title);
+        try result.appendSlice(allocator, "*.");
+
+        // Publisher
+        try result.appendSlice(allocator, " ");
+        try result.appendSlice(allocator, self.publisher);
+        try result.append(allocator, '.');
+
+        // DOI if available
+        if (self.doi) |d| {
+            try result.writer(allocator).print (" https://doi.org/{s}", .{d});
+        }
+
+        // URL if no DOI
+        if (self.url != null and self.doi == null) {
+            try result.writer(allocator).print (" {s}", .{self.url.?});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Format citation in IEEE style
+    /// Format: Author, "Title," Publisher, Year, vol. X, pp. Y-Z, DOI.
+    pub fn formatIEEE(self: *const SimpleCitation, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Author
+        try result.appendSlice(allocator, self.author);
+
+        // Title in quotes
+        try result.writer(allocator).print (", \"{s},\" ", .{self.title});
+
+        // Publisher
+        try result.appendSlice(allocator, self.publisher);
+
+        // Year
+        try result.writer(allocator).print (", {d}", .{self.year});
+
+        // Volume if available
+        if (self.volume) |vol| {
+            try result.writer(allocator).print (", vol. {s}", .{vol});
+        }
+
+        // Pages if available
+        if (self.pages) |pg| {
+            try result.writer(allocator).print (", pp. {s}", .{pg});
+        }
+
+        // DOI if available
+        if (self.doi) |d| {
+            try result.writer(allocator).print (", doi: {s}", .{d});
+        }
+
+        try result.append(allocator, '.');
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Format citation in MLA 9th edition style
+    /// Format: Author. *Title*. Publisher, Year.
+    pub fn formatMLA(self: *const SimpleCitation, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Author
+        try result.appendSlice(allocator, self.author);
+        try result.appendSlice(allocator, ". ");
+
+        // Title in italics
+        try result.appendSlice(allocator, "*");
+        try result.appendSlice(allocator, self.title);
+        try result.appendSlice(allocator, "*.");
+
+        // Publisher
+        try result.appendSlice(allocator, " ");
+        try result.appendSlice(allocator, self.publisher);
+
+        // Year
+        try result.writer(allocator).print (", {d}.", .{self.year});
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Simple figure caption generator for papers
+pub const SimpleFigureCaption = struct {
+    /// Figure number
+    number: u32,
+    /// Figure title
+    title: []const u8,
+    /// Detailed description
+    description: []const u8,
+    /// Optional note
+    note: ?[]const u8 = null,
+
+    /// Generate formatted caption
+    pub fn generate(self: *const SimpleFigureCaption, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print ("Figure {d}: ", .{self.number});
+        try result.appendSlice(allocator, self.title);
+        try result.appendSlice(allocator, ". ");
+        try result.appendSlice(allocator, self.description);
+
+        if (self.note) |n| {
+            try result.writer(allocator).print (" ({s})", .{n});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Generate LaTeX caption
+    pub fn generateLatex(self: *const SimpleFigureCaption, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print ("\\caption{{Figure {d}: ", .{self.number});
+        try result.appendSlice(allocator, self.title);
+        try result.appendSlice(allocator, ". ");
+        try result.appendSlice(allocator, self.description);
+
+        if (self.note) |n| {
+            try result.writer(allocator).print (" ({s})", .{n});
+        }
+
+        try result.appendSlice(allocator, "}");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Simple table generator for papers
+pub const SimpleTable = struct {
+    /// Table caption
+    caption: []const u8,
+    /// Column headers
+    columns: []const []const u8,
+    /// Row data (each row is array of cell values)
+    rows: []const []const []const u8,
+
+    /// Generate markdown table
+    pub fn generateMarkdown(self: *const SimpleTable, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Caption
+        try result.writer(allocator).print ("**Table:** {s}\n\n", .{self.caption});
+
+        // Header row
+        for (self.columns, 0..) |col, i| {
+            if (i > 0) try result.append(allocator, '|');
+            try result.append(allocator, ' ');
+            try result.appendSlice(allocator, col);
+            try result.append(allocator, ' ');
+        }
+        try result.appendSlice(allocator, "|\n");
+
+        // Separator row
+        for (self.columns, 0..) |_, i| {
+            if (i > 0) try result.append(allocator, '|');
+            try result.appendSlice(allocator, "---");
+        }
+        try result.appendSlice(allocator, "|\n");
+
+        // Data rows
+        for (self.rows) |row| {
+            for (row, 0..) |cell, i| {
+                if (i > 0) try result.append(allocator, '|');
+                try result.append(allocator, ' ');
+                try result.appendSlice(allocator, cell);
+                try result.append(allocator, ' ');
+            }
+            try result.appendSlice(allocator, "|\n");
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Generate LaTeX table
+    pub fn generateLatex(self: *const SimpleTable, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Calculate column spec
+        try result.appendSlice(allocator, "\\begin{table}[htbp]\\centering\\caption{");
+        try result.appendSlice(allocator, self.caption);
+        try result.writer(allocator).print ("}}\\begin{{tabular}}{{{{", .{});
+
+        // Column alignment (left-aligned for all)
+        for (self.columns, 0..) |_, i| {
+            if (i > 0) try result.append(allocator, ' ');
+            try result.append(allocator, 'l');
+        }
+
+        try result.appendSlice(allocator, "}}\n\\hline\n");
+
+        // Header row
+        for (self.columns, 0..) |col, i| {
+            if (i > 0) try result.appendSlice(allocator, " & ");
+            try result.appendSlice(allocator, col);
+        }
+        try result.appendSlice(allocator, " \\\\\n\\hline\n");
+
+        // Data rows
+        for (self.rows) |row| {
+            for (row, 0..) |cell, i| {
+                if (i > 0) try result.appendSlice(allocator, " & ");
+                try result.appendSlice(allocator, cell);
+            }
+            try result.appendSlice(allocator, " \\\\\n");
+        }
+
+        try result.appendSlice(allocator, "\\hline\n\\end{tabular}\\end{table}");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V104 TESTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "CitationStyle - enum to string" {
+    try std.testing.expectEqualStrings("APA", CitationStyle.apa.toString());
+    try std.testing.expectEqualStrings("IEEE", CitationStyle.ieee.toString());
+    try std.testing.expectEqualStrings("MLA", CitationStyle.mla.toString());
+    try std.testing.expectEqualStrings("Chicago", CitationStyle.chicago.toString());
+    try std.testing.expectEqualStrings("Harvard", CitationStyle.harvard.toString());
+    try std.testing.expectEqualStrings("Vancouver", CitationStyle.vancouver.toString());
+}
+
+test "CitationStyle - format label" {
+    try std.testing.expectEqualStrings("APA 7th Edition", CitationStyle.apa.formatLabel());
+    try std.testing.expectEqualStrings("IEEE Style", CitationStyle.ieee.formatLabel());
+    try std.testing.expectEqualStrings("Vancouver (Numbered)", CitationStyle.vancouver.formatLabel());
+}
+
+test "SimpleCitation - APA format" {
+    const citation = SimpleCitation{
+        .author = "Vasilev, D.",
+        .title = "Trinity S³AI Framework",
+        .year = 2026,
+        .publisher = "Zenodo",
+        .doi = "10.5281/zenodo.XXXXXX",
+    };
+
+    const apa = try citation.formatAPA(std.testing.allocator);
+    defer std.testing.allocator.free(apa);
+
+    try std.testing.expect(std.mem.indexOf(u8, apa, "Vasilev, D.") != null);
+    try std.testing.expect(std.mem.indexOf(u8, apa, "(2026)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, apa, "Trinity S³AI Framework") != null);
+    try std.testing.expect(std.mem.indexOf(u8, apa, "https://doi.org/") != null);
+}
+
+test "SimpleCitation - IEEE format" {
+    const citation = SimpleCitation{
+        .author = "Vasilev, D.",
+        .title = "Trinity S³AI Framework",
+        .year = 2026,
+        .publisher = "Zenodo",
+        .volume = "1",
+        .pages = "1-10",
+        .doi = "10.5281/zenodo.XXXXXX",
+    };
+
+    const ieee = try citation.formatIEEE(std.testing.allocator);
+    defer std.testing.allocator.free(ieee);
+
+    try std.testing.expect(std.mem.indexOf(u8, ieee, "Vasilev, D.") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ieee, "Framework,\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ieee, "2026") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ieee, "vol. 1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ieee, "pp. 1-10") != null);
+}
+
+test "SimpleCitation - MLA format" {
+    const citation = SimpleCitation{
+        .author = "Vasilev, Dmitrii",
+        .title = "Trinity S³AI Framework",
+        .year = 2026,
+        .publisher = "Zenodo",
+    };
+
+    const mla = try citation.formatMLA(std.testing.allocator);
+    defer std.testing.allocator.free(mla);
+
+    try std.testing.expect(std.mem.indexOf(u8, mla, "Vasilev, Dmitrii") != null);
+    try std.testing.expect(std.mem.indexOf(u8, mla, "Trinity S³AI Framework") != null);
+    try std.testing.expect(std.mem.indexOf(u8, mla, "2026") != null);
+}
+
+test "SimpleFigureCaption - generates caption" {
+    const caption = SimpleFigureCaption{
+        .number = 1,
+        .title = "Ternary Quantization Results",
+        .description = "Accuracy vs compression ratio for sacred scaling factors",
+        .note = "Error bars show 95% confidence interval",
+    };
+
+    const text = try caption.generate(std.testing.allocator);
+    defer std.testing.allocator.free(text);
+
+    try std.testing.expect(std.mem.indexOf(u8, text, "Figure 1:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "Ternary Quantization Results") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "sacred scaling") != null);
+}
+
+test "SimpleFigureCaption - generates LaTeX caption" {
+    const caption = SimpleFigureCaption{
+        .number = 1,
+        .title = "Architecture Overview",
+        .description = "Tri-layer ternary neural network",
+    };
+
+    const latex = try caption.generateLatex(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\caption{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Figure 1:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Architecture Overview") != null);
+}
+
+test "SimpleTable - generates markdown table" {
+    const columns = [_][]const u8{ "Model", "Accuracy", "Compression" };
+    const row1 = [_][]const u8{ "HSLM-T3", "94.2%", "20×" };
+    const row2 = [_][]const u8{ "HSLM-T2", "92.8%", "15×" };
+    const rows = [_][]const []const u8{ &row1, &row2 };
+
+    const table = SimpleTable{
+        .caption = "Ternary quantization comparison",
+        .columns = &columns,
+        .rows = &rows,
+    };
+
+    const markdown = try table.generateMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(markdown);
+
+    try std.testing.expect(std.mem.indexOf(u8, markdown, "**Table:**") != null);
+    try std.testing.expect(std.mem.indexOf(u8, markdown, "Model |") != null);
+    try std.testing.expect(std.mem.indexOf(u8, markdown, "---|") != null);
+    try std.testing.expect(std.mem.indexOf(u8, markdown, "HSLM-T3") != null);
+    try std.testing.expect(std.mem.indexOf(u8, markdown, "94.2%") != null);
+}
+
+test "SimpleTable - generates LaTeX table" {
+    const columns = [_][]const u8{ "Method", "PPL", "Speed" };
+    const row1 = [_][]const u8{ "Sacred", "12.4", "1.2k" };
+    const rows = [_][]const []const u8{ &row1 };
+
+    const table = SimpleTable{
+        .caption = "Benchmark results",
+        .columns = &columns,
+        .rows = &rows,
+    };
+
+    const latex = try table.generateLatex(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\begin{table}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\begin{tabular}") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Benchmark results") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "\\hline") != null);
+}
