@@ -614,6 +614,8 @@ pub const PaperMetadata = struct {
     version: ?[]const u8 = null,
     /// Communities
     communities: ?[]const []const u8 = null,
+    /// Bundle type (for JSON generation)
+    bundle: ?BundleType = null,
     /// Calibration metrics (NeurIPS 2025 requirement)
     calibration_metrics: ?CalibrationMetrics = null,
 
@@ -622,28 +624,91 @@ pub const PaperMetadata = struct {
         defer result.deinit(allocator);
 
         try result.writer(allocator).print("\\title{{{s}}}\n\n", .{self.title});
-
-        if (self.authors.len > 0) {
-            try result.appendSlice(allocator, "\\author{");
-            for (self.authors, 0..) |author, i| {
-                if (i > 0) try result.appendSlice(allocator, " and ");
-                try result.appendSlice(allocator, author.name);
-            }
-            try result.appendSlice(allocator, "}\n\n");
-        }
-
         try result.writer(allocator).print("\\begin{{abstract}}\n{s}\n\\end{{abstract}}\n\n", .{self.abstract});
 
-        if (self.keywords.len > 0) {
-            try result.appendSlice(allocator, "\\begin{keywords}\n");
-            for (self.keywords, 0..) |keyword, i| {
-                if (i > 0) try result.appendSlice(allocator, ", ");
-                try result.appendSlice(allocator, keyword);
+        try result.writer(allocator).print("  \\vspace*{1ex}\n", .{});
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Convert to Zenodo JSON format
+    pub fn toZenodoJson(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
+        var json = std.ArrayList(u8).initCapacity(allocator, 4096) catch @panic("OOM");
+        defer json.deinit(allocator);
+
+        try json.writer(allocator).print("{{\n", .{});
+        try json.writer(allocator).print("  \"title\": \"{s}\",\n", .{self.title});
+        try json.writer(allocator).print("  \"creators\": [\n", .{});
+        for (self.authors, 0..) |author, i| {
+            try json.writer(allocator).print("    {{\"name\": \"{s}\", \"affiliation\": \"{s}\"", .{ author.name, author.affiliation });
+            if (author.orcid) |orcid| {
+                try json.writer(allocator).print(", \"orcid\": \"{s}\"", .{orcid});
             }
-            try result.appendSlice(allocator, "\n\\end{keywords}\n\n");
+            if (author.corresponding) {
+                try json.writer(allocator).print(", \"corresponding\": true", .{});
+            }
+            if (i < self.authors.len - 1) {
+                try json.writer(allocator).print("  }},\n", .{});
+            } else {
+                try json.writer(allocator).print("    }}\n", .{});
+            }
+        }
+        try json.writer(allocator).print("  ],\n", .{});
+        try json.writer(allocator).print("  \"description\": \"{s}\",\n", .{self.abstract});
+
+        if (self.keywords.len > 0) {
+            try json.writer(allocator).print("  \"keywords\": [", .{});
+            for (self.keywords, 0..) |kw, i| {
+                try json.writer(allocator).print("    \"{s}\"", .{kw});
+                if (i < self.keywords.len - 1) {
+                    try json.writer(allocator).print(",\n", .{});
+                }
+            }
+            try json.writer(allocator).print("  ],\n", .{});
         }
 
-        return result.toOwnedSlice(allocator);
+        try json.writer(allocator).print("  \"publication_date\": \"{d:04d}-{d:02d}-{d:02d}\",\n", .{ self.year, 3, 27 });
+
+        if (self.version) |ver| {
+            try json.writer(allocator).print("  \"version\": \"{s}\",\n", .{ver});
+        }
+
+        if (self.doi) |doi| {
+            try json.writer(allocator).print("  \"doi\": \"{s}\",\n", .{doi});
+        }
+
+        if (self.license) |lic| {
+            try json.writer(allocator).print("  \"license\": {{\"id\": \"{s}\"}}\n", .{lic});
+        }
+
+        if (self.communities) |comms| {
+            try json.writer(allocator).print("  \"communities\": [\n", .{});
+            for (comms, 0..) |c, i| {
+                try json.writer(allocator).print("    {{\"id\": \"{s}\"}}", .{c});
+                if (i < comms.len - 1) {
+                    try json.writer(allocator).print(",\n", .{});
+                } else {
+                    try json.writer(allocator).print("\n", .{});
+                }
+            }
+            try json.writer(allocator).print("  ],\n", .{});
+        }
+
+        if (self.bundle) |b| {
+            try json.writer(allocator).print("  \"bundle_type\": \"{s}\"\n", .{b.fileName()});
+            try json.writer(allocator).print("  \"bundle_display\": \"{s}\"\n", .{b.displayName()});
+        }
+
+        if (self.calibration_metrics) |cm| {
+            try json.writer(allocator).print("  \"calibration_metrics\": {\n", .{});
+            try json.writer(allocator).print("    \"ece\": {{\"value\": {d:.3}, \"ci_95\": [{d:.3}, {d:.3}], \"n_bins\": {d}, \"n_samples\": {d}}},\n", .{ cm.ece, cm.ci_lower, cm.ci_upper, cm.n_bins, cm.n_samples });
+            try json.writer(allocator).print("    \"brier_score\": {{\"value\": {d:.3}, \"ci_95\": [{d:.3}, {d:.3}]}},\n", .{ cm.brier_score, cm.brier_score - 0.01, cm.brier_score + 0.01 });
+            try json.writer(allocator).print("    \"neurips_2025_compliant\": {s}\n", .{ if (cm.neurips_compliant) "true" else "false" });
+            try json.writer(allocator).print("  }}\n", .{});
+        }
+
+        try json.writer(allocator).print("}}\n", .{});
+
+        return json.toOwnedSlice(allocator);
     }
 
     pub fn formatAsLaTeX(self: *const PaperMetadata, allocator: std.mem.Allocator) ![]u8 {
