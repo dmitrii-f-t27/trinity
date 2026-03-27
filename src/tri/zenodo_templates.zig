@@ -3054,7 +3054,7 @@ pub const SimpleCitation = struct {
         try result.append(allocator, '.');
 
         // Year in parentheses
-        try result.writer(allocator).print (" ({d}). ", .{self.year});
+        try result.writer(allocator).print(" ({d}). ", .{self.year});
 
         // Title in italics (markdown for display)
         try result.appendSlice(allocator, "*");
@@ -3068,12 +3068,12 @@ pub const SimpleCitation = struct {
 
         // DOI if available
         if (self.doi) |d| {
-            try result.writer(allocator).print (" https://doi.org/{s}", .{d});
+            try result.writer(allocator).print(" https://doi.org/{s}", .{d});
         }
 
         // URL if no DOI
         if (self.url != null and self.doi == null) {
-            try result.writer(allocator).print (" {s}", .{self.url.?});
+            try result.writer(allocator).print(" {s}", .{self.url.?});
         }
 
         return result.toOwnedSlice(allocator);
@@ -3089,27 +3089,27 @@ pub const SimpleCitation = struct {
         try result.appendSlice(allocator, self.author);
 
         // Title in quotes
-        try result.writer(allocator).print (", \"{s},\" ", .{self.title});
+        try result.writer(allocator).print(", \"{s},\" ", .{self.title});
 
         // Publisher
         try result.appendSlice(allocator, self.publisher);
 
         // Year
-        try result.writer(allocator).print (", {d}", .{self.year});
+        try result.writer(allocator).print(", {d}", .{self.year});
 
         // Volume if available
         if (self.volume) |vol| {
-            try result.writer(allocator).print (", vol. {s}", .{vol});
+            try result.writer(allocator).print(", vol. {s}", .{vol});
         }
 
         // Pages if available
         if (self.pages) |pg| {
-            try result.writer(allocator).print (", pp. {s}", .{pg});
+            try result.writer(allocator).print(", pp. {s}", .{pg});
         }
 
         // DOI if available
         if (self.doi) |d| {
-            try result.writer(allocator).print (", doi: {s}", .{d});
+            try result.writer(allocator).print(", doi: {s}", .{d});
         }
 
         try result.append(allocator, '.');
@@ -3137,7 +3137,7 @@ pub const SimpleCitation = struct {
         try result.appendSlice(allocator, self.publisher);
 
         // Year
-        try result.writer(allocator).print (", {d}.", .{self.year});
+        try result.writer(allocator).print(", {d}.", .{self.year});
 
         return result.toOwnedSlice(allocator);
     }
@@ -3159,13 +3159,13 @@ pub const SimpleFigureCaption = struct {
         var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
         defer result.deinit(allocator);
 
-        try result.writer(allocator).print ("Figure {d}: ", .{self.number});
+        try result.writer(allocator).print("Figure {d}: ", .{self.number});
         try result.appendSlice(allocator, self.title);
         try result.appendSlice(allocator, ". ");
         try result.appendSlice(allocator, self.description);
 
         if (self.note) |n| {
-            try result.writer(allocator).print (" ({s})", .{n});
+            try result.writer(allocator).print(" ({s})", .{n});
         }
 
         return result.toOwnedSlice(allocator);
@@ -3176,13 +3176,13 @@ pub const SimpleFigureCaption = struct {
         var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
         defer result.deinit(allocator);
 
-        try result.writer(allocator).print ("\\caption{{Figure {d}: ", .{self.number});
+        try result.writer(allocator).print("\\caption{{Figure {d}: ", .{self.number});
         try result.appendSlice(allocator, self.title);
         try result.appendSlice(allocator, ". ");
         try result.appendSlice(allocator, self.description);
 
         if (self.note) |n| {
-            try result.writer(allocator).print (" ({s})", .{n});
+            try result.writer(allocator).print(" ({s})", .{n});
         }
 
         try result.appendSlice(allocator, "}");
@@ -3206,7 +3206,7 @@ pub const SimpleTable = struct {
         defer result.deinit(allocator);
 
         // Caption
-        try result.writer(allocator).print ("**Table:** {s}\n\n", .{self.caption});
+        try result.writer(allocator).print("**Table:** {s}\n\n", .{self.caption});
 
         // Header row
         for (self.columns, 0..) |col, i| {
@@ -3246,7 +3246,7 @@ pub const SimpleTable = struct {
         // Calculate column spec
         try result.appendSlice(allocator, "\\begin{table}[htbp]\\centering\\caption{");
         try result.appendSlice(allocator, self.caption);
-        try result.writer(allocator).print ("}}\\begin{{tabular}}{{{{", .{});
+        try result.writer(allocator).print("}}\\begin{{tabular}}{{{{", .{});
 
         // Column alignment (left-aligned for all)
         for (self.columns, 0..) |_, i| {
@@ -3408,7 +3408,7 @@ test "SimpleTable - generates markdown table" {
 test "SimpleTable - generates LaTeX table" {
     const columns = [_][]const u8{ "Method", "PPL", "Speed" };
     const row1 = [_][]const u8{ "Sacred", "12.4", "1.2k" };
-    const rows = [_][]const []const u8{ &row1 };
+    const rows = [_][]const []const u8{&row1};
 
     const table = SimpleTable{
         .caption = "Benchmark results",
