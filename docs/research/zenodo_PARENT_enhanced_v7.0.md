@@ -1,4 +1,4 @@
-# PARENT: Trinity S³AI — Complete Scientific Framework v7.0
+# PARENT: Trinity S³AI — Complete Scientific Framework v7.3
 
 **Authors:** Dmitrii Vasilev (https://orcid.org/0000-0000-0000-0000)
 **Affiliation:** Trinity Research Collective
