@@ -2408,15 +2408,15 @@ pub const SupplementaryMaterials = struct {
 
 /// Peer review response template
 pub const PeerReviewResponse = struct {
-    comments: []const ReviewComment,
+    comments: []const PeerReviewComment,
     paper_title: []const u8,
 
-    pub const ReviewComment = struct {
+    pub const PeerReviewComment = struct {
         reviewer: ?[]const u8 = null,
         text: []const u8,
         number: u32,
 
-        pub fn format(self: *const ReviewComment, allocator: std.mem.Allocator) ![]u8 {
+        pub fn format(self: *const PeerReviewComment, allocator: std.mem.Allocator) ![]u8 {
             if (self.reviewer) |name| {
                 return std.fmt.allocPrint(allocator, "**Comment {d} ({s}):** {s}\n", .{ self.number, name, self.text });
             }
@@ -2930,17 +2930,17 @@ test "SupplementaryMaterials - generates file list" {
 }
 
 test "PeerReviewResponse - generates response" {
-    const comment1 = PeerReviewResponse.ReviewComment{
+    const comment1 = PeerReviewResponse.PeerReviewComment{
         .reviewer = "Reviewer 1",
         .text = "Abstract needs more clarity",
         .number = 1,
     };
-    const comment2 = PeerReviewResponse.ReviewComment{
+    const comment2 = PeerReviewResponse.PeerReviewComment{
         .reviewer = "Reviewer 2",
         .text = "Add more experimental results",
         .number = 2,
     };
-    const comments = [_]PeerReviewResponse.ReviewComment{ comment1, comment2 };
+    const comments = [_]PeerReviewResponse.PeerReviewComment{ comment1, comment2 };
 
     const response = PeerReviewResponse{
         .comments = &comments,
@@ -3822,4 +3822,494 @@ test "AvailabilityStatement - pending release" {
     defer std.testing.allocator.free(text);
 
     try std.testing.expect(std.mem.indexOf(u8, text, "will be released upon acceptance") != null);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// V106: PAPER WORKFLOW HELPERS
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Paper section enumeration
+pub const PaperSection = enum {
+    /// Title page
+    title,
+    /// Abstract
+    abstract,
+    /// Introduction
+    introduction,
+    /// Background/Related Work
+    background,
+    /// Method
+    method,
+    /// Experiments/Results
+    results,
+    /// Discussion
+    discussion,
+    /// Conclusion
+    conclusion,
+    /// References
+    references,
+    /// Appendices
+    appendices,
+
+    pub fn toString(self: PaperSection) []const u8 {
+        return switch (self) {
+            .title => "Title",
+            .abstract => "Abstract",
+            .introduction => "Introduction",
+            .background => "Background",
+            .method => "Method",
+            .results => "Results",
+            .discussion => "Discussion",
+            .conclusion => "Conclusion",
+            .references => "References",
+            .appendices => "Appendices",
+        };
+    }
+
+    pub fn toLatex(self: PaperSection) []const u8 {
+        return switch (self) {
+            .title => "title",
+            .abstract => "abstract",
+            .introduction => "section{Introduction}",
+            .background => "section{Background}",
+            .method => "section{Method}",
+            .results => "section{Results}",
+            .discussion => "section{Discussion}",
+            .conclusion => "section{Conclusion}",
+            .references => "section{References}",
+            .appendices => "appendix",
+        };
+    }
+};
+
+/// Paper outline section
+pub const OutlineSection = struct {
+    /// Section type
+    section: PaperSection,
+    /// Section title or heading
+    heading: []const u8,
+    /// Brief description of content
+    description: []const u8,
+    /// Estimated word count
+    word_count: ?u32 = null,
+    /// Key points or bullets
+    bullet_points: []const []const u8,
+
+    pub fn formatAsMarkdown(self: *const OutlineSection, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 512) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("## {s}\n\n", .{self.heading});
+        try result.appendSlice(allocator, self.description);
+        try result.append(allocator, '\n');
+
+        if (self.bullet_points.len > 0) {
+            for (self.bullet_points) |point| {
+                try result.writer(allocator).print("- {s}\n", .{point});
+            }
+        }
+
+        if (self.word_count) |wc| {
+            try result.writer(allocator).print("\n*Estimated: {d} words*\n\n", .{wc});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Complete paper outline
+pub const PaperOutline = struct {
+    /// Paper title
+    title: []const u8,
+    /// Target conference
+    conference: ConferenceType,
+    /// Outline sections
+    sections: []const OutlineSection,
+    /// Target word count
+    target_word_count: u32 = 5000,
+    /// Current word count
+    current_word_count: ?u32 = null,
+
+    /// Calculate total estimated words
+    pub fn estimatedWordCount(self: *const PaperOutline) u32 {
+        var total: u32 = 0;
+        for (self.sections) |section| {
+            if (section.word_count) |wc| {
+                total += wc;
+            }
+        }
+        return total;
+    }
+
+    /// Calculate completion percentage
+    pub fn wordCountProgress(self: *const PaperOutline) ?f32 {
+        if (self.current_word_count) |current| {
+            return @as(f32, @floatFromInt(current)) / @as(f32, @floatFromInt(self.target_word_count)) * 100.0;
+        }
+        return null;
+    }
+
+    /// Generate formatted outline as markdown
+    pub fn generateMarkdown(self: *const PaperOutline, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("# {s}\n\n", .{self.title});
+        try result.writer(allocator).print("**Target Conference:** {s}\n", .{self.conference.toString()});
+        try result.writer(allocator).print("**Target Word Count:** {d}\n", .{self.target_word_count});
+
+        if (self.wordCountProgress()) |progress| {
+            try result.writer(allocator).print("**Progress:** {d:.1}%\n", .{progress});
+        }
+
+        try result.appendSlice(allocator, "\n---\n\n");
+
+        for (self.sections) |section| {
+            const section_md = try section.formatAsMarkdown(allocator);
+            defer allocator.free(section_md);
+            try result.appendSlice(allocator, section_md);
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Review rating for peer reviews
+pub const ReviewRating = enum {
+    /// Accept with minor revisions
+    accept_minor,
+    /// Accept with major revisions
+    accept_major,
+    /// Reject
+    reject,
+    /// Weak reject (borderline)
+    weak_reject,
+    /// Needs more work
+    needs_work,
+
+    pub fn toSymbol(self: ReviewRating) []const u8 {
+        return switch (self) {
+            .accept_minor => "✓ Accept (minor)",
+            .accept_major => "⚠ Accept (major)",
+            .reject => "✗ Reject",
+            .weak_reject => "~ Weak Reject",
+            .needs_work => "⏳ Needs Work",
+        };
+    }
+
+    pub fn toColor(self: ReviewRating) []const u8 {
+        return switch (self) {
+            .accept_minor => "green",
+            .accept_major => "orange",
+            .reject => "red",
+            .weak_reject => "yellow",
+            .needs_work => "gray",
+        };
+    }
+};
+
+/// Individual review comment
+pub const PaperReviewComment = struct {
+    /// Comment number
+    number: u32,
+    /// Comment text
+    text: []const u8,
+    /// Severity (optional)
+    severity: ?ReviewRating = null,
+    /// Response status
+    responded: bool = false,
+    /// Response text (optional)
+    response: ?[]const u8 = null,
+
+    pub fn isResolved(self: *const PaperReviewComment) bool {
+        return self.responded;
+    }
+};
+
+/// Paper review template
+pub const PaperReview = struct {
+    /// Reviewer name/ID
+    reviewer: ?[]const u8 = null,
+    /// Overall rating
+    rating: ReviewRating,
+    /// Review comments
+    comments: []const PaperReviewComment,
+    /// Review date
+    date: ?[]const u8 = null,
+    /// Overall summary
+    summary: []const u8,
+
+    /// Count unresolved comments
+    pub fn unresolvedCount(self: *const PaperReview) usize {
+        var count: usize = 0;
+        for (self.comments) |comment| {
+            if (!comment.isResolved()) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    /// Count resolved comments
+    pub fn resolvedCount(self: *const PaperReview) usize {
+        var count: usize = 0;
+        for (self.comments) |comment| {
+            if (comment.isResolved()) {
+                count += 1;
+            }
+        }
+        return count;
+    }
+
+    /// Calculate completion percentage
+    pub fn responseProgress(self: *const PaperReview) f32 {
+        if (self.comments.len == 0) return 100.0;
+        return @as(f32, @floatFromInt(self.resolvedCount())) / @as(f32, @floatFromInt(self.comments.len)) * 100.0;
+    }
+
+    /// Generate formatted review as markdown
+    pub fn generateMarkdown(self: *const PaperReview, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "# Paper Review\n\n");
+
+        if (self.reviewer) |rev| {
+            try result.writer(allocator).print("**Reviewer:** {s}\n\n", .{rev});
+        }
+
+        try result.writer(allocator).print("**Rating:** {s}\n\n", .{self.rating.toSymbol()});
+        try result.writer(allocator).print("**Progress:** {d:.1}% resolved ({d}/{d})\n\n", .{
+            self.responseProgress(),
+            self.resolvedCount(),
+            self.comments.len,
+        });
+
+        try result.appendSlice(allocator, "## Summary\n\n");
+        try result.appendSlice(allocator, self.summary);
+        try result.appendSlice(allocator, "\n\n");
+
+        try result.appendSlice(allocator, "## Comments\n\n");
+
+        for (self.comments) |comment| {
+            try result.writer(allocator).print("### {d}. {s}\n\n", .{ comment.number, comment.text });
+
+            if (comment.severity) |sev| {
+                try result.writer(allocator).print("**Severity:** {s}\n", .{sev.toColor()});
+            }
+
+            if (comment.responded) {
+                try result.appendSlice(allocator, "**Status:** ✓ Resolved\n\n");
+                if (comment.response) |resp| {
+                    try result.writer(allocator).print("**Response:** {s}\n\n", .{resp});
+                }
+            } else {
+                try result.appendSlice(allocator, "**Status:** ⏳ Pending\n\n");
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Rebuttal letter template
+pub const RebuttalLetter = struct {
+    /// Paper title
+    paper_title: []const u8,
+    /// Review being addressed
+    review: PaperReview,
+    /// Dear reviewer message
+    salutation: []const u8 = "Dear Reviewer,",
+    /// Opening paragraph
+    opening: []const u8,
+    /// Thank you message
+    closing: []const u8 = "Thank you for your constructive feedback.",
+
+    /// Generate formatted rebuttal as markdown
+    pub fn generateMarkdown(self: *const RebuttalLetter, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 1024) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("# Rebuttal: {s}\n\n", .{self.paper_title});
+        try result.appendSlice(allocator, self.salutation);
+        try result.appendSlice(allocator, "\n\n");
+
+        try result.appendSlice(allocator, self.opening);
+        try result.appendSlice(allocator, "\n\n");
+
+        try result.appendSlice(allocator, "We appreciate the time and effort you have dedicated to reviewing our work. Below, we address each comment in detail:\n\n");
+
+        var unresolved_count: usize = 0;
+        for (self.review.comments) |comment| {
+            if (comment.response) |resp| {
+                try result.writer(allocator).print("### {d}. {s}\n\n", .{ comment.number, comment.text });
+                try result.writer(allocator).print("**Response:** {s}\n\n", .{resp});
+            } else {
+                unresolved_count += 1;
+            }
+        }
+
+        if (unresolved_count == 0) {
+            try result.appendSlice(allocator, "All reviewer comments have been addressed.\n\n");
+        }
+
+        try result.appendSlice(allocator, self.closing);
+        try result.appendSlice(allocator, "\n\n");
+
+        try result.appendSlice(allocator, "Best regards,\n");
+        try result.appendSlice(allocator, "The Authors\n");
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// V106 TESTS
+// ═════════════════════════════════════════════════════════════════════════
+
+test "PaperSection - enum to string" {
+    try std.testing.expectEqualStrings("Introduction", PaperSection.introduction.toString());
+    try std.testing.expectEqualStrings("Results", PaperSection.results.toString());
+    try std.testing.expectEqualStrings("Conclusion", PaperSection.conclusion.toString());
+}
+
+test "PaperSection - to LaTeX" {
+    try std.testing.expectEqualStrings("section{Introduction}", PaperSection.introduction.toLatex());
+    try std.testing.expectEqualStrings("section{Method}", PaperSection.method.toLatex());
+}
+
+test "OutlineSection - format as markdown" {
+    const bullets = [_][]const u8{ "Point 1", "Point 2", "Point 3" };
+    const section = OutlineSection{
+        .section = .method,
+        .heading = "Proposed Method",
+        .description = "We propose a novel approach...",
+        .word_count = 500,
+        .bullet_points = &bullets,
+    };
+
+    const md = try section.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "## Proposed Method") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "500 words") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "- Point 1") != null);
+}
+
+test "PaperOutline - estimated word count" {
+    const sections = [_]OutlineSection{
+        .{ .section = .abstract, .heading = "Abstract", .description = "Summary of paper", .word_count = 200, .bullet_points = &[_][]const u8{} },
+        .{ .section = .introduction, .heading = "Introduction", .description = "Background and motivation", .word_count = 800, .bullet_points = &[_][]const u8{} },
+        .{ .section = .method, .heading = "Method", .description = "Our approach", .word_count = 1500, .bullet_points = &[_][]const u8{} },
+        .{ .section = .results, .heading = "Results", .description = "Experimental findings", .word_count = 1500, .bullet_points = &[_][]const u8{} },
+        .{ .section = .conclusion, .heading = "Conclusion", .description = "Summary and future work", .word_count = 500, .bullet_points = &[_][]const u8{} },
+    };
+
+    const outline = PaperOutline{
+        .title = "Ternary Neural Networks",
+        .conference = .neurips,
+        .sections = &sections,
+        .target_word_count = 5000,
+    };
+
+    const estimated = outline.estimatedWordCount();
+    try std.testing.expectEqual(@as(u32, 4500), estimated);
+}
+
+test "PaperOutline - word count progress" {
+    const outline = PaperOutline{
+        .title = "Test Paper",
+        .conference = .iclr,
+        .sections = &[_]OutlineSection{},
+        .target_word_count = 5000,
+        .current_word_count = 2500,
+    };
+
+    const progress = outline.wordCountProgress();
+    try std.testing.expect(progress != null);
+    try std.testing.expect(progress.? > 49.9 and progress.? < 50.1);
+}
+
+test "ReviewRating - symbols and colors" {
+    try std.testing.expectEqualStrings("✓ Accept (minor)", ReviewRating.accept_minor.toSymbol());
+    try std.testing.expectEqualStrings("~ Weak Reject", ReviewRating.weak_reject.toSymbol());
+    try std.testing.expectEqualStrings("green", ReviewRating.accept_minor.toColor());
+    try std.testing.expectEqualStrings("red", ReviewRating.reject.toColor());
+}
+
+test "ReviewComment - is resolved" {
+    const comment1 = PaperReviewComment{
+        .number = 1,
+        .text = "Add more details",
+        .response = "We added Section 4 with details",
+        .responded = true,
+    };
+
+    try std.testing.expectEqual(true, comment1.isResolved());
+
+    const comment2 = PaperReviewComment{
+        .number = 2,
+        .text = "Clarify notation",
+    };
+
+    try std.testing.expectEqual(false, comment2.isResolved());
+}
+
+test "PaperReview - unresolved count" {
+    const comments = [_]PaperReviewComment{
+        .{ .number = 1, .text = "Fix notation", .response = "Fixed in revised version", .responded = true },
+        .{ .number = 2, .text = "Add experiments" },
+        .{ .number = 3, .text = "Clarify method", .response = "Added Section 3.1", .responded = true },
+    };
+
+    const review = PaperReview{
+        .rating = .accept_minor,
+        .comments = &comments,
+        .summary = "Paper shows promise but needs minor revisions",
+    };
+
+    try std.testing.expectEqual(@as(usize, 1), review.unresolvedCount());
+}
+
+test "PaperReview - response progress" {
+    const comments = [_]PaperReviewComment{
+        .{ .number = 1, .text = "Fix notation", .response = "Fixed", .responded = true },
+        .{ .number = 2, .text = "Add experiments", .response = "Added", .responded = true },
+        .{ .number = 3, .text = "Clarify method", .response = "Done", .responded = true },
+    };
+
+    const review = PaperReview{
+        .rating = .accept_minor,
+        .comments = &comments,
+        .summary = "Good paper",
+    };
+
+    const progress = review.responseProgress();
+    try std.testing.expect(progress > 99.9);
+}
+
+test "RebuttalLetter - generate markdown" {
+    const comments = [_]PaperReviewComment{
+        .{ .number = 1, .text = "Add more experiments", .response = "We added Section 5 with new experiments", .responded = true },
+        .{ .number = 2, .text = "Clarify method" },
+    };
+
+    const review = PaperReview{
+        .rating = .accept_minor,
+        .comments = &comments,
+        .summary = "Minor revisions requested",
+    };
+
+    const rebuttal = RebuttalLetter{
+        .paper_title = "Test Paper",
+        .review = review,
+        .opening = "We have carefully reviewed your comments and made the following changes.",
+    };
+
+    const md = try rebuttal.generateMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "Rebuttal: Test Paper") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Section 5 with new experiments") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Best regards") != null);
 }
