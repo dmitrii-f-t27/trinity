@@ -661,7 +661,7 @@ pub const PaperMetadata = struct {
                 try json.appendSlice(allocator, "    }\n");
             }
         }
-        try json.writer(allocator).print("  ],\n", .{});
+        try json.appendSlice(allocator, "  ],\n");
         try json.writer(allocator).print("  \"description\": \"{s}\",\n", .{self.abstract});
 
         if (self.keywords.len > 0) {
@@ -669,41 +669,51 @@ pub const PaperMetadata = struct {
             for (self.keywords, 0..) |kw, i| {
                 try json.writer(allocator).print("    \"{s}\"", .{kw});
                 if (i < self.keywords.len - 1) {
-                    try json.writer(allocator).print(",\n", .{});
+                    try json.appendSlice(allocator, ",\n");
                 }
             }
-            try json.writer(allocator).print("  ],\n", .{});
+            try json.appendSlice(allocator, "  ],\n");
         }
 
-        try json.writer(allocator).print("  \"publication_date\": \"{d:04d}-{d:02d}-{d:02d}\",\n", .{ self.year, 3, 27 });
+        try json.appendSlice(allocator, "  \"publication_date\": \"");
+        try json.writer(allocator).print("{d:0>4}", .{self.year});
+        try json.appendSlice(allocator, "-");
+        try json.writer(allocator).print("{d:0>2}", .{3});
+        try json.appendSlice(allocator, "-");
+        try json.writer(allocator).print("{d:0>2}", .{27});
+        try json.appendSlice(allocator, "\",\n");
 
         if (self.version) |ver| {
-            try json.writer(allocator).print("  \"version\": \"{s}\",\n", .{ver});
+            try json.appendSlice(allocator, "  \"version\": \"");
+            try json.writer(allocator).print("{s}", .{ver});
+            try json.appendSlice(allocator, "\",\n");
         }
 
         if (self.doi) |doi| {
-            try json.writer(allocator).print("  \"doi\": \"{s}\",\n", .{doi});
+            try json.appendSlice(allocator, "  \"doi\": \"");
+            try json.writer(allocator).print("{s}", .{doi});
+            try json.appendSlice(allocator, "\",\n");
         }
 
         if (self.license) |lic| {
             try json.appendSlice(allocator, "  \"license\": {\"id\": \"");
-            try json.writer(allocator).print("{s}\"", .{lic});
-            try json.appendSlice(allocator, "}\n");
+            try json.writer(allocator).print("{s}", .{lic});
+            try json.appendSlice(allocator, "\"}\n");
         }
 
         if (self.communities) |comms| {
-            try json.writer(allocator).print("  \"communities\": [\n", .{});
+            try json.appendSlice(allocator, "  \"communities\": [\n");
             for (comms, 0..) |c, i| {
                 try json.appendSlice(allocator, "    {\"id\": \"");
                 try json.writer(allocator).print("{s}", .{c});
                 try json.appendSlice(allocator, "\"}");
                 if (i < comms.len - 1) {
-                    try json.writer(allocator).print(",\n", .{});
+                    try json.appendSlice(allocator, ",\n");
                 } else {
-                    try json.writer(allocator).print("\n", .{});
+                    try json.appendSlice(allocator, "\n");
                 }
             }
-            try json.writer(allocator).print("  ],\n", .{});
+            try json.appendSlice(allocator, "  ],\n");
         }
 
         if (self.bundle) |b| {
@@ -716,17 +726,19 @@ pub const PaperMetadata = struct {
         }
 
         if (self.calibration_metrics) |cm| {
-            try json.writer(allocator).print("  \"calibration_metrics\": {\n", .{});
+            try json.appendSlice(allocator, "  \"calibration_metrics\": {\n");
             try json.appendSlice(allocator, "    \"ece\": {\"value\": ");
             try json.writer(allocator).print("{d:.3}", .{cm.ece});
             try json.writer(allocator).print(", \"ci_95\": [{d:.3}, {d:.3}], \"n_bins\": {d}, \"n_samples\": {d}", .{ cm.ci_lower, cm.ci_upper, cm.n_bins, cm.n_samples });
-            try json.appendSlice(allocator, "}},\n");
+            try json.appendSlice(allocator, "},\n");
             try json.appendSlice(allocator, "    \"brier_score\": {\"value\": ");
             try json.writer(allocator).print("{d:.3}", .{cm.brier_score});
             try json.writer(allocator).print(", \"ci_95\": [{d:.3}, {d:.3}]", .{ cm.brier_score - 0.01, cm.brier_score + 0.01 });
-            try json.appendSlice(allocator, "}}\n");
-            try json.writer(allocator).print("    \"neurips_2025_compliant\": {s}\n", .{ if (cm.neurips_compliant) "true" else "false" });
-            try json.writer(allocator).print("  }\n", .{});
+            try json.appendSlice(allocator, "}\n");
+            try json.appendSlice(allocator, "    \"neurips_2025_compliant\": ");
+            try json.writer(allocator).print("{s}", .{if (cm.neurips_compliant) "true" else "false"});
+            try json.appendSlice(allocator, "\n");
+            try json.appendSlice(allocator, "  }\n");
         }
 
         try json.appendSlice(allocator, "}\n");
