@@ -52,6 +52,8 @@ pub const Command = enum {
     diff,
     status,
     log,
+    // Zenodo DOI Publishing
+    zenodo,
     // Golden Chain Pipeline
     pipeline,
     decompose,

@@ -20,7 +20,7 @@ const tri_job = @import("tri_job.zig");
 const tri_register = @import("tri_register.zig");
 // const sacred_fpga = @import("tri_sacred_fpga.zig");
 const tri_train = @import("metabolism.zig");
-// const tri_zenodo = @import("tri_zenodo.zig"); // TODO: fix zenodo_templates API compatibility
+const tri_zenodo = @import("tri_zenodo.zig");
 const dev_workflow = @import("dev_commands.zig");
 
 // Conditional worker modules (graceful degradation)
@@ -887,7 +887,7 @@ pub fn main() !void {
         .fpga_demo => commands.runFpgaDemoCommand(allocator, cmd_args),
         .fpga => try tri_register.runFpgaCommand(allocator, cmd_args),
         .train => try tri_train.runTrainCommand(allocator, cmd_args),
-        //.zenodo => try tri_zenodo.runZenodoCommand(allocator, cmd_args), // TODO: fix zenodo_templates API compatibility
+        .zenodo => try tri_zenodo.runZenodoCommand(allocator, cmd_args),
         .cloud => try tri_cloud.runCloudCommand(allocator, cmd_args),
         .farm => try tri_farm.runFarmCommand(allocator, cmd_args),
         .loop => try tri_loop.runLoopCommand(allocator, cmd_args),
