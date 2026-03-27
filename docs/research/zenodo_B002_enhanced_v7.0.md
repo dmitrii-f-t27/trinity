@@ -1,7 +1,7 @@
-# Zenodo B002: Zero-DSP FPGA Accelerator (v7.0)
+# Zenodo B002: Zero-DSP FPGA Accelerator (v7.3)
 
 **Bundle ID:** B002
-**Version:** 7.0.0
+**Version:** 7.3.0
 **Date:** 2026-03-27
 **Status:** V15 Scientific Rigor Enhanced
 **DOI:** 10.5281/zenodo.19227867
