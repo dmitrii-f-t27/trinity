@@ -4821,3 +4821,348 @@ test "VersionMetadata - compare" {
     try std.testing.expect(v3.compare(&v1) > 0); // v3 > v1
     try std.testing.expect(v1.compare(&v1) == 0); // v1 == v1
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V108: SCIENTIFIC METRICS & BIBLIOMETRICS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Impact metric types
+pub const ImpactMetric = enum {
+    /// h-index (Hirsch index)
+    h_index,
+    /// i10-index (number of publications with 10+ citations)
+    i10_index,
+    /// Total citations
+    total_citations,
+    /// Citation count per year
+    citations_per_year,
+    /// Field-weighted citation impact
+    fwci,
+    /// SNIP (Source Normalized Impact per Paper)
+    snip,
+    /// SJR (SCImago Journal Rank)
+    sjr,
+
+    pub fn toLabel(self: ImpactMetric) []const u8 {
+        return switch (self) {
+            .h_index => "h-index",
+            .i10_index => "i10-index",
+            .total_citations => "Total Citations",
+            .citations_per_year => "Citations/Year",
+            .fwci => "FWCI",
+            .snip => "SNIP",
+            .sjr => "SJR",
+        };
+    }
+};
+
+/// Single metric value
+pub const MetricValue = struct {
+    /// Metric type
+    metric: ImpactMetric,
+    /// Value
+    value: f32,
+    /// Year (optional)
+    year: ?u32 = null,
+
+    pub fn formatAsMarkdown(self: *const MetricValue, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 64) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("**{s}:** {d:.2}", .{ self.metric.toLabel(), self.value });
+
+        if (self.year) |y| {
+            try result.writer(allocator).print(" ({d})", .{y});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Author bibliometrics
+pub const AuthorMetrics = struct {
+    /// ORCID ID
+    orcid: ?[]const u8 = null,
+    /// h-index
+    h_index: ?u32 = null,
+    /// i10-index
+    i10_index: ?u32 = null,
+    /// Total citations
+    total_citations: ?u32 = null,
+    /// Number of publications
+    publication_count: ?u32 = null,
+    /// Metrics list
+    metrics: []const MetricValue,
+
+    /// Calculate average citation per publication
+    pub fn avgCitationsPerPub(self: *const AuthorMetrics) f32 {
+        if (self.publication_count) |pub_count| {
+            if (pub_count == 0) return 0.0;
+            if (self.total_citations) |total| {
+                return @as(f32, @floatFromInt(total)) / @as(f32, @floatFromInt(pub_count));
+            }
+        }
+        return 0.0;
+    }
+
+    /// Generate metrics table as markdown
+    pub fn generateMarkdownTable(self: *const AuthorMetrics, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.appendSlice(allocator, "| Metric | Value |\n");
+        try result.appendSlice(allocator, "|--------|-------|\n");
+
+        if (self.h_index) |h| {
+            try result.writer(allocator).print("| h-index | {d} |\n", .{h});
+        }
+
+        if (self.i10_index) |i10_val| {
+            try result.writer(allocator).print("| i10-index | {d} |\n", .{i10_val});
+        }
+
+        if (self.total_citations) |tc| {
+            try result.writer(allocator).print("| Total Citations | {d} |\n", .{tc});
+        }
+
+        if (self.publication_count) |pc| {
+            try result.writer(allocator).print("| Publications | {d} |\n", .{pc});
+        }
+
+        const avg = self.avgCitationsPerPub();
+        if (avg > 0) {
+            try result.writer(allocator).print("| Avg Citations/Pub | {d:.2} |\n", .{avg});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Journal information
+pub const JournalInfo = struct {
+    /// Journal name
+    name: []const u8,
+    /// Publisher
+    publisher: []const u8,
+    /// ISSN (print)
+    issn_print: ?[]const u8 = null,
+    /// ISSN (online)
+    issn_online: ?[]const u8 = null,
+    /// Impact factor
+    impact_factor: ?f32 = null,
+    /// SJR rank
+    sjr: ?f32 = null,
+    /// SNIP value
+    snip: ?f32 = null,
+
+    /// Generate journal citation
+    pub fn formatAsCitation(self: *const JournalInfo, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 128) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        try result.writer(allocator).print("*{s}*", .{self.name});
+
+        if (self.impact_factor) |if_| {
+            try result.writer(allocator).print(" (IF: {d:.2})", .{if_});
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+/// Citation context
+pub const CitationContext = struct {
+    /// Citing paper
+    citing_paper: []const u8,
+    /// Cited paper
+    cited_paper: []const u8,
+    /// Citation context (sentence)
+    context: []const u8,
+    /// Citation type (method, background, result, etc.)
+    citation_type: []const u8,
+
+    pub fn formatAsMarkdown(self: *const CitationContext, allocator: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(allocator,
+            \\> {s}
+            \\
+            \\— *{s}* citing *{s}* ({s})
+        , .{ self.context, self.citing_paper, self.cited_paper, self.citation_type });
+    }
+};
+
+/// Publication venue type
+pub const VenueType = enum {
+    /// Conference
+    conference,
+    /// Journal
+    journal,
+    /// Workshop
+    workshop,
+    /// Symposium
+    symposium,
+    /// Preprint server (arXiv, bioRxiv)
+    preprint,
+    /// Book chapter
+    book_chapter,
+    /// Thesis
+    thesis,
+
+    pub fn toString(self: VenueType) []const u8 {
+        return switch (self) {
+            .conference => "Conference",
+            .journal => "Journal",
+            .workshop => "Workshop",
+            .symposium => "Symposium",
+            .preprint => "Preprint",
+            .book_chapter => "Book Chapter",
+            .thesis => "Thesis",
+        };
+    }
+};
+
+/// Publication record
+pub const Publication = struct {
+    /// Title
+    title: []const u8,
+    /// Authors
+    authors: []const []const u8,
+    /// Venue name
+    venue: []const u8,
+    /// Venue type
+    venue_type: VenueType,
+    /// Year
+    year: u32,
+    /// DOI (optional)
+    doi: ?[]const u8 = null,
+    /// arXiv ID (optional)
+    arxiv: ?[]const u8 = null,
+    /// Citation count
+    citations: ?u32 = null,
+
+    /// Generate LaTeX citation
+    pub fn formatAsLatex(self: *const Publication, allocator: std.mem.Allocator) ![]u8 {
+        var result = std.ArrayList(u8).initCapacity(allocator, 256) catch @panic("OOM");
+        defer result.deinit(allocator);
+
+        // Authors
+        for (self.authors, 0..) |author, i| {
+            if (i > 0) try result.appendSlice(allocator, " and ");
+            try result.appendSlice(allocator, author);
+        }
+
+        try result.writer(allocator).print(". ``{s}''. ", .{self.title});
+
+        if (self.venue_type == .journal) {
+            try result.writer(allocator).print("*{s}*, ", .{self.venue});
+        } else {
+            try result.writer(allocator).print("In: *{s}*, ", .{self.venue});
+        }
+
+        try result.writer(allocator).print("{d}.", .{self.year});
+
+        return result.toOwnedSlice(allocator);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V108 TESTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test "ImpactMetric - to label" {
+    try std.testing.expectEqualStrings("h-index", ImpactMetric.h_index.toLabel());
+    try std.testing.expectEqualStrings("FWCI", ImpactMetric.fwci.toLabel());
+}
+
+test "MetricValue - format as markdown" {
+    const metric = MetricValue{
+        .metric = .h_index,
+        .value = 42.0,
+        .year = 2025,
+    };
+
+    const md = try metric.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "h-index") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "42.00") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "2025") != null);
+}
+
+test "AuthorMetrics - avg citations per pub" {
+    const metrics = AuthorMetrics{
+        .total_citations = 500,
+        .publication_count = 50,
+        .metrics = &[_]MetricValue{},
+    };
+
+    const avg = metrics.avgCitationsPerPub();
+    try std.testing.expect(avg > 9.9 and avg < 10.1);
+}
+
+test "AuthorMetrics - generate markdown table" {
+    const metrics = AuthorMetrics{
+        .h_index = 25,
+        .total_citations = 1500,
+        .publication_count = 80,
+        .metrics = &[_]MetricValue{},
+    };
+
+    const md = try metrics.generateMarkdownTable(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "h-index") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "1500") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Avg Citations/Pub") != null);
+}
+
+test "JournalInfo - format as citation" {
+    const journal = JournalInfo{
+        .name = "Nature",
+        .publisher = "Nature Portfolio",
+        .impact_factor = 69.5,
+    };
+
+    const citation = try journal.formatAsCitation(std.testing.allocator);
+    defer std.testing.allocator.free(citation);
+
+    try std.testing.expect(std.mem.indexOf(u8, citation, "Nature") != null);
+    try std.testing.expect(std.mem.indexOf(u8, citation, "IF") != null);
+}
+
+test "CitationContext - format as markdown" {
+    const context = CitationContext{
+        .citing_paper = "Our Paper",
+        .cited_paper = "Previous Work",
+        .context = "This approach builds on prior research.",
+        .citation_type = "Method",
+    };
+
+    const md = try context.formatAsMarkdown(std.testing.allocator);
+    defer std.testing.allocator.free(md);
+
+    try std.testing.expect(std.mem.indexOf(u8, md, "Our Paper") != null);
+    try std.testing.expect(std.mem.indexOf(u8, md, "Previous Work") != null);
+}
+
+test "VenueType - to string" {
+    try std.testing.expectEqualStrings("Conference", VenueType.conference.toString());
+    try std.testing.expectEqualStrings("Journal", VenueType.journal.toString());
+    try std.testing.expectEqualStrings("Preprint", VenueType.preprint.toString());
+}
+
+test "Publication - format as LaTeX" {
+    const authors = [_][]const u8{ "Author, A.", "Author, B." };
+    const pub_record = Publication{
+        .title = "Test Paper",
+        .authors = &authors,
+        .venue = "NeurIPS",
+        .venue_type = .conference,
+        .year = 2025,
+    };
+
+    const latex = try pub_record.formatAsLatex(std.testing.allocator);
+    defer std.testing.allocator.free(latex);
+
+    try std.testing.expect(std.mem.indexOf(u8, latex, "Test Paper") != null);
+    try std.testing.expect(std.mem.indexOf(u8, latex, "NeurIPS") != null);
+}
