@@ -1,9 +1,9 @@
-# Zenodo v7.1 — Final Comprehensive Report
+# Zenodo v7.2 — Final Comprehensive Report
 
 **Date:** 2026-03-27
 **Status:** ✅ COMPLETE
-**Total Commits:** 11
-**Total LOC:** ~2,700+
+**Total Commits:** 13
+**Total LOC:** ~2,900+
 **Total Files:** 51
 
 ---
@@ -351,6 +351,50 @@ Added target conference information with submission deadlines:
 | PARENT | MLSys 2026 | 2025-11-15 | 2026-06-15 |
 
 **Commit:** `68004c10f4` — feat(zenodo): v7.1 - Add MeSH keywords, arXiv refs, conference metadata
+
+---
+
+## V7.2 Enhancements (2026-03-27)
+
+### Code and Data Availability Sections
+
+Added dedicated "Code and Data Availability" sections to all 8 bundles following Zenodo and NeurIPS 2025+ best practices:
+
+**Content per bundle:**
+1. **Source Code** — Repository structure, directory layout, build instructions
+2. **Pre-trained Models/Artifacts** — Model weights, bitstreams, policies
+3. **Datasets** — Data sources, download scripts, expected files
+4. **Supplementary Materials** — CSV files, figures, visualizations
+5. **Docker Images** — Containerized environments for reproducibility
+6. **Reproducibility Checklist** — NeurIPS 2020+ checklist items
+
+**Framework Structure (PARENT):**
+```
+trinity/
+├── src/hslm/      # B001: HSLM language model
+├── src/fpga/      # B002: Zero-DSP FPGA synthesis
+├── src/tri27/     # B003: TRI-27 ISA implementation
+├── src/queen/     # B004: Queen Lotus RL
+├── src/vibee/     # B005: VIBEE ternary compiler
+├── src/sacred/    # B006: Sacred formats storage
+├── src/vsa/       # B007: VSA SIMD library
+├── src/ternary/   # Shared ternary operations
+├── src/temple/    # Sacred math (φ, trits)
+├── specs/tri/     # VIBEE specifications
+├── tools/         # Automation and CLI tools
+└── docs/research/ # This Zenodo publication materials
+```
+
+**Docker Images Available:**
+- `ghcr.io/ghashag/trinity:b001-v7.0` — HSLM training
+- `ghcr.io/ghashag/trinity:b002-v7.0` — FPGA synthesis
+- `ghcr.io/ghashag/trinity:b004-v7.0` — RL environments
+- `ghcr.io/ghashag/trinity:b006-v7.0` — Storage benchmarks
+- `ghcr.io/ghashag/trinity:b007-v7.0` — VSA benchmarks
+
+**Total LOC Added:** 448 LOC across 8 files
+
+**Commit:** `e22116f491` — feat(zenodo): v7.2 - Add Code and Data Availability sections
 
 ---
 
