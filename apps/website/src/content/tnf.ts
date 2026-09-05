@@ -241,8 +241,8 @@ export const frontier = {
     { rank: 1, name: 'GFTernary', kind: { en: 'fixed', ru: 'фикс.' }, lut: 66, fmax: 974.66, ours: true },
     { rank: 2, name: 'int8', kind: { en: 'fixed', ru: 'фикс.' }, lut: 76, fmax: 925.93, ours: false },
     { rank: 3, name: 'binary32', kind: { en: 'fixed', ru: 'фикс.' }, lut: 112, fmax: 886.52, ours: false },
-    { rank: 4, name: 'TNF16', kind: { en: 'fixed', ru: 'фикс.' }, lut: 101, fmax: 407.66, ours: true },
-    { rank: 6, name: 'BNF16', kind: { en: 'fixed', ru: 'фикс.' }, lut: 97, fmax: 388.35, ours: true },
+    { rank: 4, name: 'TNF16', kind: { en: 'fixed', ru: 'фикс.' }, lut: 101, fmax: 407.66, ours: true, flag: '‡' },
+    { rank: 6, name: 'BNF16', kind: { en: 'fixed', ru: 'фикс.' }, lut: 97, fmax: 388.35, ours: true, flag: '†' },
     { rank: 13, name: 'binary16', kind: { en: 'fixed', ru: 'фикс.' }, lut: 164, fmax: 235.18, ours: false },
     { rank: 15, name: 'LNS16', kind: { en: 'log', ru: 'лог.' }, lut: 270, fmax: 93.17, ours: false },
     { rank: 17, name: 'posit16', kind: { en: 'tapered', ru: 'tapered' }, lut: 302, fmax: 62.39, ours: false },
@@ -269,14 +269,24 @@ export const frontier = {
     { name: 'binary16', lut: 522, ours: false },
     { name: 'VAX F', lut: 527, ours: false },
     { name: 'GF10', lut: 533, ours: true },
-    { name: 'TNF16', lut: 565, ours: true },
-    { name: 'TNF32', lut: 569, ours: true },
+    { name: 'TNF16', lut: 565, ours: true, flag: '‡' },
+    { name: 'TNF32', lut: 569, ours: true, flag: '†' },
     { name: 'takum16', lut: 789, ours: false },
     { name: 'posit32', lut: 953, ours: false },
   ],
   neuronNote: {
     en: '8 of the 20 slots are ours (GFTernary, TNF, BNF, GF families). Read this table by area: 463 LUT against 472 for binary32 and 953 for posit32 — LUT count is bit-identical across all five seeds, while up to 37 of the 210 pairwise throughput verdicts change winner from seed to seed. The 9-LUT edge over binary32 is 1.9% and is stated as a tie, not a win. What survives on a buyable FPGA part is the claim about fixed fields: no regime codec, no exponent to compute.',
     ru: '8 из 20 позиций — наши (GFTernary, TNF, BNF, семейства GF). Читайте эту таблицу по площади: 463 LUT против 472 у binary32 и 953 у posit32 — счёт LUT побитово одинаков на всех пяти сидах, тогда как до 37 из 210 попарных вердиктов по пропускной способности меняют победителя от сида к сиду. Перевес в 9 LUT над binary32 — это 1.9%, и мы считаем это ничьёй, а не победой. На покупаемой FPGA-микросхеме выживает заявление про фиксированные поля: нет regime-кодека, нет экспоненты для вычисления.',
+  },
+  // The two tables above price modules; this note says which of those modules
+  // were proved to be the format they are named after, and which were not. It
+  // is a retraction, not a caveat: the TNF16 row measures a narrower module
+  // than the specified format, so its area is a lower bound on TNF16 rather
+  // than a measurement of it. Recorded rather than repaired, because repairing
+  // it means re-synthesising and re-measuring.
+  conformanceNote: {
+    en: '‡ The TNF16 row prices a module that is not the specified format. Swept against its reference, the RTL disagrees on all 65,536 codes: it packs sign+7+8 into sixteen bits where the specified format is sign+7+9 in seventeen. One mantissa bit narrower means its area is a lower bound on the specified format, not a measurement of it. † TNF32 and BNF16 were outside that sweep, which covered 8- and 16-bit formats only, so their conformance is unverified rather than established. GFTernary, GF10, GF14 and binary16 passed with zero mismatches. Two of the competitor decoders did not: posit16 errs on 4 codes of 65,536 and the fp8 pair on 6 and 14 of 256, all in the subnormal range — which makes them smaller than a complete implementation would be, and so flatters them rather than us.',
+    ru: '‡ Строка TNF16 оценивает модуль, который не является заявленным форматом. При сплошной сверке с эталоном RTL расходится на всех 65 536 кодах: он укладывает знак+7+8 в шестнадцать бит там, где заявленный формат — знак+7+9 в семнадцати. На один бит мантиссы уже, поэтому его площадь — нижняя граница для заявленного формата, а не измерение этого формата. † TNF32 и BNF16 в ту сверку не входили — она покрывала только 8- и 16-битные форматы, так что их соответствие не установлено, а не подтверждено. GFTernary, GF10, GF14 и binary16 прошли без единого расхождения. Два чужих декодера — нет: posit16 ошибается на 4 кодах из 65 536, пара fp8 — на 6 и 14 из 256, все в субнормальном диапазоне; это делает их меньше полной реализации, то есть подыгрывает им, а не нам.',
   },
   ops: {
     title: { en: 'What an operation costs', ru: 'Сколько стоит операция' },
