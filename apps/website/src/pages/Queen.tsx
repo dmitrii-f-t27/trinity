@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { Link, useSearchParams } from "react-router-dom";
 import { QueenSpecs } from "../components/QueenSpecs";
 import { QueenAgents } from "../components/QueenAgents";
+import { SELECTION_KEY, isExplorerTab } from "../lib/queenEmbed";
 import { hiveFeedHealth, hiveDisplayRecords, hiveSameRepositorySnapshot, placeHiveDisplays, type HiveDisplay } from "../components/queenHiveDisplay";
 import { QueenComb } from "../components/QueenComb";
 import { QueenCommandPanel } from "../components/QueenCommand";
@@ -72,7 +73,7 @@ const ENGINE_FLAG =
   typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("engine") : null;
 import { useI18n } from "../i18n/context";
 import { QueenTri } from "../components/QueenTri";
-import { tabAddress } from "../lib/triScreens";
+import { hashParamsOf, tabAddress } from "../lib/triScreens";
 import {
   REVIEW_STATES,
   publicIssueTitle,
@@ -331,7 +332,7 @@ const COPY = {
     projectHint: "The project, the rules of the game for its agents, and the system in detail (key p)",
     projectDirective: "THE SYSTEM IS A DOCUMENT",
     projectDirectiveBody:
-      "The system documentation, whole: one declared document, specs/docs/system.t27, names seven chapters and their order; each chapter spec names its sources, its sections and the Markdown body that is its text. The generator renders the body through the compiler, builds every table from the catalogs and draws every figure from data; nothing on the page is typed twice. Chapters: the project and its tagged claims, the constitution and the rules of the game, the five-layer ladder, the 27-letter alphabet, the Queen's cycle, the tools, the witnesses. Opens on the letter p: the digits are spent.",
+      "The system documentation, whole: one declared document, specs/docs/system.t27, names seven chapters and their order; each chapter spec names its sources, its sections and the Markdown body that is its text. The generator renders the body through the compiler, builds every table from the catalogs and draws every figure from data; nothing on the page is typed twice. Chapters: the project and its tagged claims, the constitution and the rules of the game, the six-step ladder, the 27-letter alphabet, the Queen's cycle, the tools, the witnesses. Opens on the letter p: the digits are spent.",
     projectChapters: "chapters",
     projectRu: "with a Russian body",
     projectSources: "sources pinned",
@@ -648,7 +649,7 @@ const COPY = {
     projectHint: "проект, правила игры для агентов и система в деталях (клавиша p)",
     projectDirective: "СИСТЕМА — ЭТО ДОКУМЕНТ",
     projectDirectiveBody:
-      "Документация системы целиком: один объявленный документ, specs/docs/system.t27, называет семь глав и их порядок; спека каждой главы называет её источники, разделы и Markdown-текст, который и есть её содержание. Генератор прогоняет текст через компилятор, строит каждую таблицу из каталогов и рисует каждый рисунок по данным; ничего на странице не набрано дважды. Главы: проект и его помеченные утверждения, конституция и правила игры, пятислойная лестница, алфавит из 27 букв, цикл Королевы, инструменты, свидетели. Открывается буквой p: цифры заняты.",
+      "Документация системы целиком: один объявленный документ, specs/docs/system.t27, называет семь глав и их порядок; спека каждой главы называет её источники, разделы и Markdown-текст, который и есть её содержание. Генератор прогоняет текст через компилятор, строит каждую таблицу из каталогов и рисует каждый рисунок по данным; ничего на странице не набрано дважды. Главы: проект и его помеченные утверждения, конституция и правила игры, лестница из шести ступеней, алфавит из 27 букв, цикл Королевы, инструменты, свидетели. Открывается буквой p: цифры заняты.",
     projectChapters: "глав",
     projectRu: "с русским текстом",
     projectSources: "источников закреплено",
@@ -2008,11 +2009,22 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
   // up history entries. Built from the live hash, not the updater's argument:
   // React Router hands the updater the params of this hook's last render, so
   // with TRI's screen write pending in the same transition one would erase the
-  // other. A tab you leave takes TRI's screen= and path= with it.
+  // other. A tab you leave takes TRI's screen= and path= with it. A tab that
+  // embeds an Explorer also names its card (skill=, spec=, chapter= …,
+  // lib/queenEmbed); the card belongs to its tab, so leaving the tab drops it,
+  // and a card given with the tab is written with it.
   const setView = useCallback(
-    (next: HudView) => {
+    (next: HudView, card?: string | null) => {
       setBoardView(next);
-      setHashParams(() => tabAddress(window.location.hash, next), { replace: true });
+      setHashParams(() => {
+        const leaving = (hashParamsOf(window.location.hash).get("tab") ?? "comb") !== next;
+        const params = tabAddress(window.location.hash, next);
+        if (leaving) {
+          for (const key of Object.values(SELECTION_KEY)) params.delete(key);
+        }
+        if (card && isExplorerTab(next)) params.set(SELECTION_KEY[next], card);
+        return params;
+      }, { replace: true });
     },
     [setHashParams],
   );
@@ -2314,7 +2326,17 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     }
   };
 
-  const toggleLang = () => setLang(lang === "ru" ? "en" : "ru");
+  // The address says the language too, as the header's LanguageSwitcher already
+  // makes it: measured before this, /?lang=ru stayed in the address after the toggle
+  // switched the page to English, so a reload came back in Russian. history.state
+  // is kept, since HashRouter keeps its entry index there.
+  const toggleLang = () => {
+    const next = lang === "ru" ? "en" : "ru";
+    setLang(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", next);
+    window.history.replaceState(window.history.state, "", url);
+  };
 
   const copyAgent = async () => {
     if (agentCopyTimer.current !== null) {
@@ -2743,6 +2765,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           ) : boardView === "specs" ? (
             <QueenSpecs
               showDirective={isNarrow}
+              onNavigate={setView}
               c={{
                 directive: c.specsDirective,
                 directiveBody: c.specsDirectiveBody,
@@ -2757,6 +2780,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
             <QueenAgents
               kind={boardView}
               showDirective={isNarrow}
+              onNavigate={setView}
               c={{
                 directive: boardView === "skills" ? c.skillsDirective : boardView === "crons" ? c.cronsDirective : boardView === "functions" ? c.functionsDirective : boardView === "tools" ? c.toolsDirective : boardView === "project" ? c.projectDirective : c.agentsDirective,
                 directiveBody: boardView === "skills" ? c.skillsDirectiveBody : boardView === "crons" ? c.cronsDirectiveBody : boardView === "functions" ? c.functionsDirectiveBody : boardView === "tools" ? c.toolsDirectiveBody : boardView === "project" ? c.projectDirectiveBody : c.agentsDirectiveBody,
