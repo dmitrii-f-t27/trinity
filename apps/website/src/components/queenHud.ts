@@ -303,6 +303,151 @@ export function skipReasonWords(key: string): string {
   return key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
 }
 
+/** One skip category and how many candidates the round filed under it. */
+export interface SkipCount { key: string; count: number }
+
+const isCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+/** The server's closed category set (queen-public-status.ts, SKIP_CATEGORIES). */
+const SKIP_CATEGORIES = new Set(["claimed", "completed", "missingBoundary", "fileConflict", "incompleteSpec", "notFirst", "other"]);
+
+/**
+ * lastTick.skipSummary as counts in wire order. The wire sends
+ * { count, issues, more } per category (older servers a bare number); only
+ * the count is read. A key outside the server's closed set is filed under
+ * "other", as the server files a sentence it does not know. Null when the
+ * summary is absent, any entry is unreadable, or the counts do not sum to
+ * skippedCount, which the server guarantees they do: a malformed summary says
+ * nothing, never a zero.
+ */
+export function skipCounts(summary: unknown, skipped: number | null = null): SkipCount[] | null {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary)) return null;
+  const counts: SkipCount[] = [];
+  let total = 0;
+  for (const [wireKey, value] of Object.entries(summary)) {
+    const count = value && typeof value === "object" ? (value as { count?: unknown }).count : value;
+    if (!isCount(count)) return null;
+    const key = SKIP_CATEGORIES.has(wireKey) ? wireKey : "other";
+    const filed = counts.find((r) => r.key === key);
+    if (filed) filed.count += count;
+    else counts.push({ key, count });
+    total += count;
+  }
+  return skipped !== null && total !== skipped ? null : counts;
+}
+
+/** The refusal queend writes when no candidate survives a round. */
+const NOTHING_TO_CHOOSE = "nothing to choose";
+
+export type IdleReason =
+  | { kind: "stale"; free: number; ageSeconds: number; intervalSeconds: number }
+  | { kind: "refused"; free: number; refusal: string; checked: number | null; counts: SkipCount[] | null };
+
+/**
+ * Why free worker slots started nothing, from /queen/status alone. Measured
+ * 2026-09-15: BEES 0/4 was read as broken bees while the round had said
+ * "nothing to choose" and 449 of 488 candidates had no ## Boundary. Null when
+ * there is nothing to explain or nothing trustworthy to explain it with: no
+ * free slot, a round that dispatched, a scheduler that is off, an unreadable
+ * tick. A tick older than two intervals (the server's TICK_STALENESS_INTERVALS)
+ * is stale, and a stale round explains nothing.
+ */
+export function idleReason(status: unknown, serverNowMs: number): IdleReason | null {
+  if (!status || typeof status !== "object") return null;
+  const { scheduler, workers, lastTick } = status as {
+    scheduler?: { enabled?: unknown; intervalSeconds?: unknown } | null;
+    workers?: { capacity?: unknown; active?: unknown } | null;
+    lastTick?: { decidedAt?: unknown; allowed?: unknown; refusal?: unknown; skippedCount?: unknown; skipSummary?: unknown } | null;
+  };
+  if (!scheduler || scheduler.enabled !== true) return null;
+  const interval = scheduler.intervalSeconds;
+  if (typeof interval !== "number" || !Number.isFinite(interval) || interval <= 0) return null;
+  if (!workers || !isCount(workers.capacity) || !isCount(workers.active)) return null;
+  const free = workers.capacity - workers.active;
+  if (free <= 0) return null;
+  if (!lastTick || typeof lastTick.decidedAt !== "string" || typeof lastTick.allowed !== "boolean") return null;
+  const decidedMs = Date.parse(lastTick.decidedAt);
+  if (Number.isNaN(decidedMs)) return null;
+  const ageMs = serverNowMs - decidedMs;
+  if (ageMs > interval * 1000 * 2) {
+    return { kind: "stale", free, ageSeconds: Math.floor(ageMs / 1000), intervalSeconds: interval };
+  }
+  if (lastTick.allowed || typeof lastTick.refusal !== "string" || !lastTick.refusal.trim()) return null;
+  if (lastTick.refusal !== NOTHING_TO_CHOOSE) return { kind: "refused", free, refusal: lastTick.refusal, checked: null, counts: null };
+  // skippedCount counts skip LINES, not issues. queend (main.swift, choose)
+  // files "delegatable but ..." and goes on judging the same issue; in a round
+  // that chose nothing, that issue always files " held by " next. So an
+  // incompleteSpec line never blocked anything and counts its issue twice: it
+  // is left out of the reasons and out of how many issues were checked. More
+  // of them than fileConflict lines contradicts the decider, and says nothing.
+  const skipped = isCount(lastTick.skippedCount) ? lastTick.skippedCount : null;
+  const read = skipCounts(lastTick.skipSummary, skipped);
+  const countOf = (key: string) => read?.find((r) => r.key === key)?.count ?? 0;
+  const incomplete = countOf("incompleteSpec");
+  const counts = read && incomplete <= countOf("fileConflict") ? read.filter((r) => r.key !== "incompleteSpec") : null;
+  const checked = counts && skipped !== null ? skipped - incomplete : null;
+  return { kind: "refused", free, refusal: lastTick.refusal, checked, counts };
+}
+
+export interface IdleWords {
+  idle: string;
+  nothingToChoose: string;
+  /** The tile's word for any other refusal; the line keeps the wire's text. */
+  refused: string;
+  /** Label for how many issues the round checked. */
+  checked: string;
+  stale: string;
+  /** With {age} and {interval}. */
+  staleDetail: string;
+  unitS: string;
+  unitMin: string;
+  unitH: string;
+  /** A label per skip category, printed "label: count", so no count has to agree with a word. */
+  reasons: Record<string, string>;
+}
+
+export interface IdleLine { head: string; tail: string | null; text: string; example: boolean }
+
+function spanWords(seconds: number, words: IdleWords): string {
+  if (seconds < 120) return `${seconds} ${words.unitS}`;
+  if (seconds < 7200) return `${Math.floor(seconds / 60)} ${words.unitMin}`;
+  return `${Math.floor(seconds / 3600)} ${words.unitH}`;
+}
+
+/**
+ * The idle reason as one line. The head is short enough for the BEES tile:
+ * the free slots and "nothing to choose", "round refused" or "round stale".
+ * The tail is what the wire counted: how many issues the round checked and
+ * the three largest skip reasons, or the stale tick's age. Any other refusal
+ * prints in the line as the wire wrote it; only queend's fixed "nothing to
+ * choose" has words of its own. The format example is offered only when
+ * issues were skipped for having no ## Boundary.
+ */
+export function idleLine(reason: IdleReason, words: IdleWords): IdleLine {
+  const lead = `${reason.free} ${words.idle}`;
+  if (reason.kind === "stale") {
+    const head = `${lead}: ${words.stale}`;
+    const tail = words.staleDetail
+      .replace("{age}", spanWords(reason.ageSeconds, words))
+      .replace("{interval}", spanWords(reason.intervalSeconds, words));
+    return { head, tail, text: `${head} — ${tail}`, example: false };
+  }
+  if (reason.refusal !== NOTHING_TO_CHOOSE) {
+    return { head: `${lead}: ${words.refused}`, tail: null, text: `${lead}: ${reason.refusal}`, example: false };
+  }
+  const head = `${lead}: ${words.nothingToChoose}`;
+  const top = (reason.counts ?? []).filter((r) => r.count > 0).sort((a, b) => b.count - a.count).slice(0, 3);
+  const said = top.map((r) => `${words.reasons[r.key] ?? words.reasons.other}: ${r.count}`).join(", ");
+  const tail = top.length === 0 ? null : reason.checked !== null ? `${words.checked}: ${reason.checked}; ${said}` : said;
+  return {
+    head,
+    tail,
+    text: tail ? `${head} — ${tail}` : head,
+    example: (reason.counts ?? []).some((r) => r.key === "missingBoundary" && r.count > 0),
+  };
+}
+
 /**
  * A hardware device's family string -> the crystal hue on the comb: gold for
  * CPU (the default), cyan for FPGA, green for GPU - the ring colours of the

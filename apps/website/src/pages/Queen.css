@@ -5573,6 +5573,88 @@ main:where(.queen27-page.is-shell) section {
   }
 }
 
+/* ---- why free bees are idle (2026-09-15) ----------------------------------
+   BEES 0/4 was read as broken bees while the round had said "nothing to
+   choose". On a desktop the line floats under the map's head, over the top
+   edge of the field, and wraps rather than being cut: the head itself is one
+   row that clips anything taller. Its top is the head as served from t27.ai,
+   42px (measured 1440x900 and 1280x720, en and ru: the identity chip is 28px
+   there, and the head's bottom rule is its last pixel; 40px covered that
+   rule). qa/queen-idle-layout-contract.mjs holds the line at or below the
+   head. */
+.queen27-page.is-shell .queen27-hud-viewport > .queen27-hud-idle {
+  position: absolute;
+  z-index: 3;
+  grid-area: 1 / 1 / -1 / -1;
+  top: calc(var(--hud-chrome-top) + 42px);
+  right: calc(var(--hud-col-w) + var(--hud-gap) * 2);
+  left: calc(var(--hud-rail-w) + var(--hud-gap) * 2);
+  align-self: start;
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--hud-line);
+  background: #000000b8;
+  color: var(--hud-gold);
+  font-size: 0.66rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Desktop only: at 0,5,0 it outranked the phone block, and a page collapsed at
+   1440 then narrowed to 390 pushed the line 84px out of the window. */
+@media (min-width: 901px) {
+  .queen27-page.is-shell.is-command-collapsed .queen27-hud-viewport > .queen27-hud-idle {
+    left: 84px;
+  }
+}
+
+.queen27-page.is-shell .queen27-hud-idle a {
+  color: var(--hud-cyan);
+  text-decoration: underline;
+}
+
+.queen27-page.is-shell .queen27-hud-idle a:focus-visible {
+  outline: 2px solid var(--hud-cyan);
+  outline-offset: 2px;
+}
+
+.queen27-page.is-shell.is-bare .queen27-hud-idle {
+  display: none;
+}
+
+/* On a phone the line is a row of its own between the head and the body.
+   Laid over the top of the body's row it took the taps meant for what starts
+   there (measured 390x844 on t27.ai: TRI's screen tabs, and the first
+   disclosure of the specs, skills and crons views), so the body gives up the
+   line's height instead and the page stays one screen. Portrait, or tall
+   enough; a landscape phone is the next block. */
+@media (max-width: 900px) and (orientation: portrait), (max-width: 900px) and (min-height: 501px) {
+  .queen27-page.is-shell .queen27-hud-viewport:has(> .queen27-hud-idle) {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .queen27-page.is-shell .queen27-hud-viewport > .queen27-hud-idle {
+    position: static;
+    grid-area: 2 / 1 / 3 / -1;
+    margin: var(--hud-gap) var(--hud-gap) 0;
+  }
+
+  .queen27-page.is-shell .queen27-hud-viewport:has(> .queen27-hud-idle) > .queen27-hud-vp-body {
+    grid-area: 3 / 1 / -1 / -1;
+  }
+}
+
+/* A landscape phone has no row to give. Its head is a 40px band whose tools
+   spill below it (measured 844x390: tools at y 126-154 under a head ending at
+   124), and the line over that band took every tool and the identity chip.
+   The line is not shown there. The BEES tile's sub-line is hidden at that
+   size as well, so this orientation says what it said before the line. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .queen27-page.is-shell .queen27-hud-viewport > .queen27-hud-idle {
+    display: none;
+  }
+}
+
 /* ---- a round's resolution moment (loop cycle 004, P1-1) ------------------- */
 .queen27-page.is-shell .queen27-hud-res-round.is-resolved,
 .queen27-page.is-shell .queen27-hud-round.is-resolved {
@@ -6588,7 +6670,7 @@ body.queen-shell .queen-starfield-source {
    markup rather than hidden here — four previews each booting Babylon is four
    more WebGL contexts on one page. */
 .queen27-page.is-shell.is-embed .queen27-hud-viewport
-  > :is(.queen27-hud-top, .queen27-hud-command, .queen27-hud-intel, .queen27-hud-vp-head, .queen27-hud-bottom, .queen27-context-chip) {
+  > :is(.queen27-hud-top, .queen27-hud-command, .queen27-hud-intel, .queen27-hud-vp-head, .queen27-hud-idle, .queen27-hud-bottom, .queen27-context-chip) {
   display: none;
 }
 

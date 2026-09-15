@@ -27,6 +27,9 @@ import {
   rewriteEndpoints,
   roundStrip,
   skipReasonWords,
+  skipCounts,
+  idleReason,
+  idleLine,
   latestEventFor,
   sectorRows,
   type CombHandle,
@@ -161,6 +164,8 @@ interface QueenStatus {
   status: "ok";
   /** The swarm's own word for its state on the wire (working, idle, …). */
   swarmState?: string | null;
+  /** Paid worker slots: configured capacity and the started, unfinished bees. */
+  workers?: { capacity: number; active: number; idle: number } | null;
   scheduler: {
     enabled: boolean;
     intervalSeconds: number;
@@ -170,7 +175,8 @@ interface QueenStatus {
     allowed: boolean;
     refusal: string | null;
     skippedCount: number;
-    skipSummary?: Record<string, number>;
+    /** Per category { count, issues, more }; older servers sent a bare count. */
+    skipSummary?: Record<string, number | { count: number; issues?: number[]; more?: number }>;
   } | null;
   dispatches: {
     total: number;
@@ -265,7 +271,19 @@ const COPY = {
     swarmIdle: "IDLE",
     swarmPaused: "PAUSED",
     swarmUnknown: "STATE —",
-    hudReady: "ready",
+    hudNoVerdict: "finished, no verdict",
+    idleNothing: "nothing to choose",
+    idleRefused: "round refused",
+    idleChecked: "checked",
+    idleStale: "round stale",
+    idleStaleDetail: "last decision {age} ago, rounds every {interval}",
+    idleMissingBoundary: "no ## Boundary",
+    idleClaimed: "claimed",
+    idleCompleted: "done but open",
+    idleFileConflict: "touch held files",
+    idleNotFirst: "not first",
+    idleOther: "other",
+    idleExample: "an issue written the way bees can take it",
     unavailable: "BACKEND UNAVAILABLE",
     checking: "CHECKING BACKEND",
     scheduler: "Scheduler",
@@ -607,7 +625,19 @@ const COPY = {
     swarmIdle: "ЖДЁТ",
     swarmPaused: "ПАУЗА",
     swarmUnknown: "СОСТОЯНИЕ —",
-    hudReady: "готово",
+    hudNoVerdict: "без вердикта",
+    idleNothing: "нечего выбрать",
+    idleRefused: "раунд отказал",
+    idleChecked: "проверено",
+    idleStale: "раунд устарел",
+    idleStaleDetail: "последнее решение {age} назад, раунды каждые {interval}",
+    idleMissingBoundary: "без ## Boundary",
+    idleClaimed: "заняты",
+    idleCompleted: "сделаны и не закрыты",
+    idleFileConflict: "задевают занятые файлы",
+    idleNotFirst: "не первые",
+    idleOther: "прочие",
+    idleExample: "задача в формате, который пчёлы берут",
     unavailable: "BACKEND НЕДОСТУПЕН",
     checking: "ПРОВЕРЯЮ BACKEND",
     scheduler: "Планировщик",
@@ -2360,6 +2390,34 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
   const decisionInfo = decision
     ? decisionDetail(decision, data?.dispatches.running ?? null, latest?.issue ?? null, c)
     : null;
+  // Why free slots are idle, from the status already fetched, on the server's
+  // clock. Measured 2026-09-15: BEES 0/4 was read as broken bees while the
+  // round said "nothing to choose" and 449 of 488 issues had no ## Boundary.
+  // Only on a live read: after a failed fetch the hook keeps the last data,
+  // and a kept round would age into "round stale", blaming the scheduler for
+  // a page that cannot see the server.
+  const idleNow = isLive ? idleReason(data, now + (state.offsetMs ?? 0)) : null;
+  const idleWhy = idleNow
+    ? idleLine(idleNow, {
+        idle: c.factoryIdle,
+        nothingToChoose: c.idleNothing,
+        refused: c.idleRefused,
+        checked: c.idleChecked,
+        stale: c.idleStale,
+        staleDetail: c.idleStaleDetail,
+        unitS: c.unitS,
+        unitMin: c.unitMin,
+        unitH: c.unitH,
+        reasons: {
+          missingBoundary: c.idleMissingBoundary,
+          claimed: c.idleClaimed,
+          completed: c.idleCompleted,
+          fileConflict: c.idleFileConflict,
+          notFirst: c.idleNotFirst,
+          other: c.idleOther,
+        },
+      })
+    : null;
   // wire field first (P1-18): the refusal or what the round did leads, the
   // verb follows, so a narrow gold block cuts the verb, never the reason
 
@@ -2519,7 +2577,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
       ? c.unavailable
       : c.checking;
   const statusTone = isLive ? "is-live" : state.kind === "error" ? "is-cold" : "is-muted";
-  const skipEntries = Object.entries(decision?.skipSummary ?? {});
+  const skipEntries = skipCounts(decision?.skipSummary) ?? [];
 
   // The feed used to be a second list beside the Queen, saying the same things
   // she now says in her own log — and it left her 90px of a column she is meant
@@ -2606,7 +2664,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           )}
           {skipEntries.length > 0 && (
             <ul className="queen27-hud-skips">
-              {skipEntries.map(([reason, count]) => (
+              {skipEntries.map(({ key: reason, count }) => (
                 <li key={reason}>
                   <b>{count}</b> {skipReasonWords(reason)}
                 </li>
@@ -2845,6 +2903,19 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           </div>
         </header>
 
+        {idleWhy && (
+          <p className="queen27-hud-idle" data-idle={idleNow?.kind}>
+            <span>{idleWhy.text}</span>
+            {idleWhy.example && (
+              <>
+                {" · "}
+                <a href="https://github.com/gHashTag/t27/issues/3587" target="_blank" rel="noreferrer">
+                  {c.idleExample}
+                </a>
+              </>
+            )}
+          </p>
+        )}
         <div className="queen27-hud-vp-body">
           {/* Embedded, the scene is skipped — a page of previews would be a page
               of WebGL contexts — except on the comb, where the scene IS the
@@ -3073,11 +3144,18 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
         <div className="queen27-hud-res queen27-hud-res-bees">
           <i aria-hidden="true">◆</i>
           <small>{c.hudBees}</small>
+          {/* One response for the whole tile: /queen/status's started, unfinished
+              bees over its slots, the reading idleReason takes free slots from.
+              The research poll's reading only when the status carries none. */}
           <strong id="stat-bees">
-            {data ? data.dispatches.running : "—"}/{workers?.capacity ?? "—"}
+            {data?.workers
+              ? `${data.workers.active}/${data.workers.capacity}`
+              : `${data ? data.dispatches.running : "—"}/${workers?.capacity ?? "—"}`}
           </strong>
-          <span>
-            {workers?.idle ?? "—"} {c.factoryIdle}
+          <span title={idleWhy?.text}>
+            {idleWhy
+              ? idleWhy.head
+              : `${data?.workers ? data.workers.capacity - data.workers.active : (workers?.idle ?? "—")} ${c.factoryIdle}`}
           </span>
         </div>
 
@@ -3096,7 +3174,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           <strong id="stat-verdicts">{pulse?.verdicts ?? "—"}</strong>
           <span>
             {c.hud24h} · {board ? `${reviewCards.length} ${reviewColumnTitle}` : "—"}
-            {typeof data?.dispatches.unreviewed === "number" ? ` · ${data.dispatches.unreviewed} ${c.hudReady}` : ""}
+            {typeof data?.dispatches.unreviewed === "number" ? ` · ${data.dispatches.unreviewed} ${c.hudNoVerdict}` : ""}
           </span>
         </div>
 
