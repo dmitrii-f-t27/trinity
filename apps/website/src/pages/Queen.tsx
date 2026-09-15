@@ -21,7 +21,7 @@ import { QueenSectors } from "../components/QueenIntel";
 import { SceneBoundary } from "../components/SceneBoundary";
 import { QueenLoading } from "../components/QueenLoading";
 import {
-  HUD_KEYS,
+  hudKeyIndex,
   HUD_VIEWS,
   decisionDetail,
   rewriteEndpoints,
@@ -71,6 +71,8 @@ const QueenCombBabylon = lazy(() =>
 );
 const ENGINE_FLAG =
   typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("engine") : null;
+// Where the menu keeps "single-key shortcuts off": a local convenience, not a credential.
+const KEY_SHORTCUTS_STORAGE = "queen.hud.key-shortcuts";
 import { useI18n } from "../i18n/context";
 import { QueenTri } from "../components/QueenTri";
 import { QueenIdentity } from "../components/QueenIdentity";
@@ -348,6 +350,7 @@ const COPY = {
     triLoading: "Opening app.t27.ai…",
     triNoAnswer: "The app did not answer inside the game: it may not allow t27.ai to frame it yet.",
     triOpenApp: "Open this screen in the app",
+    triAppError: "The app hit an error inside the game.",
     triFrameTitle: "Trinity app",
     triInsidePlayer: "You are already inside the app: TRI is the app, and the app is around this game. Use its tabs.",
     triPreview: "A preview does not load the app. Open TRI in the game itself.",
@@ -358,6 +361,20 @@ const COPY = {
     identityRoleKeeper: "Keeper",
     identityRoleOwner: "Owner",
     identityRoleBee: "Bee",
+    identityPending: "Checking TRI…",
+    identityConfirm: "Confirm in TRI",
+    identityConfirmTitle: "TRI asks you to confirm in the box at the bottom of the page",
+    identityConfirmAgainTitle: "Show the TRI confirmation again",
+    identityResume: "Resume in TRI",
+    identityResumeTitle: "Your TRI sign-in ran out on this page: open TRI to renew it and come back to this view",
+    identityRetry: "Retry",
+    identityOffline: "TRI unreachable",
+    identityNoAnswer: "TRI did not answer",
+    identityBusy: "TRI busy, wait a minute",
+    identityRefused: "TRI refused",
+    identityUnavailable: "Identity unavailable",
+    identityWebOnly: "Identity is on the web version",
+    identityOffSite: "Identity works on t27.ai",
     agentsLoading: "Loading the Explorer…",
     agentsSpecs: "specs",
     agentsSpecCode: "spec+code",
@@ -510,6 +527,9 @@ const COPY = {
     hudNextRound: "SINCE ROUND",
     hudMenu: "MENU",
     hudLanguage: "EN / RU",
+    hudShortcuts: "KEY SHORTCUTS",
+    hudOn: "ON",
+    hudOff: "OFF",
     hudViews: "VIEWS",
     hudIntel: "INTEL FEED",
     hudLive: "LIVE",
@@ -672,6 +692,7 @@ const COPY = {
     triLoading: "Открываю app.t27.ai…",
     triNoAnswer: "Приложение не ответило внутри игры: возможно, оно ещё не разрешает t27.ai показывать себя во фрейме.",
     triOpenApp: "Открыть этот экран в приложении",
+    triAppError: "Приложение столкнулось с ошибкой внутри игры.",
     triFrameTitle: "Приложение Trinity",
     triInsidePlayer: "Вы уже внутри приложения: TRI — это само приложение, и оно вокруг этой игры. Пользуйтесь его вкладками.",
     triPreview: "Превью не загружает приложение. Откройте TRI в самой игре.",
@@ -682,6 +703,20 @@ const COPY = {
     identityRoleKeeper: "Хранитель",
     identityRoleOwner: "Владелец",
     identityRoleBee: "Пчела",
+    identityPending: "Проверяю TRI…",
+    identityConfirm: "Подтвердите в TRI",
+    identityConfirmTitle: "TRI просит подтвердить в окне внизу страницы",
+    identityConfirmAgainTitle: "Показать подтверждение TRI снова",
+    identityResume: "Продолжить в TRI",
+    identityResumeTitle: "Вход в TRI на этой странице истёк: откройте TRI, чтобы обновить его и вернуться к этому виду",
+    identityRetry: "Повторить",
+    identityOffline: "TRI недоступен",
+    identityNoAnswer: "TRI не ответил",
+    identityBusy: "TRI занят, подождите минуту",
+    identityRefused: "TRI отказал",
+    identityUnavailable: "Профиль недоступен",
+    identityWebOnly: "Профиль — в веб-версии",
+    identityOffSite: "Профиль работает на t27.ai",
     agentsLoading: "Загружаем Обозреватель…",
     agentsSpecs: "спек",
     agentsSpecCode: "спека+код",
@@ -836,6 +871,9 @@ const COPY = {
     hudNextRound: "С ПРОШЛОГО ЦИКЛА",
     hudMenu: "МЕНЮ",
     hudLanguage: "EN / RU",
+    hudShortcuts: "КЛАВИШИ",
+    hudOn: "ВКЛ",
+    hudOff: "ВЫКЛ",
     hudViews: "ВИДЫ",
     hudIntel: "ЛЕНТА РАЗВЕДКИ",
     hudLive: "В СЕТИ",
@@ -1966,6 +2004,32 @@ const EMPTY_EVENTS: QueenActivityEvent[] = [];
 export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={}) {
   const { lang, setLang } = useI18n();
   const c = lang === "ru" ? COPY.ru : COPY.en;
+  const identityCopy = useMemo(
+    () => ({
+      signIn: c.identitySignIn,
+      signInTitle: c.identitySignInTitle,
+      signInAgain: c.identitySignInAgain,
+      signedIn: c.identitySignedIn,
+      roleKeeper: c.identityRoleKeeper,
+      roleOwner: c.identityRoleOwner,
+      roleBee: c.identityRoleBee,
+      pending: c.identityPending,
+      confirm: c.identityConfirm,
+      confirmTitle: c.identityConfirmTitle,
+      confirmAgainTitle: c.identityConfirmAgainTitle,
+      resume: c.identityResume,
+      resumeTitle: c.identityResumeTitle,
+      retry: c.identityRetry,
+      offline: c.identityOffline,
+      noAnswer: c.identityNoAnswer,
+      busy: c.identityBusy,
+      refused: c.identityRefused,
+      unavailable: c.identityUnavailable,
+      webOnly: c.identityWebOnly,
+      offSite: c.identityOffSite,
+    }),
+    [c],
+  );
   const state = useQueenStatus();
   const boardState = useQueenBoard();
   const activityState = useQueenActivity();
@@ -2052,6 +2116,24 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     setContextOpen(view === "comb" && !isPhone && !sharedCatalog);
   }
   const [menuOpen, setMenuOpen] = useState(false);
+  // Single-key shortcuts (1-0, t, p, r) can be turned off from the menu (WCAG
+  // 2.1.4): a letter typed for something else must not switch the view.
+  const [keyShortcuts, setKeyShortcuts] = useState(() => {
+    try {
+      return window.localStorage.getItem(KEY_SHORTCUTS_STORAGE) !== "off";
+    } catch {
+      return true;
+    }
+  });
+  const toggleKeyShortcuts = () => {
+    const next = !keyShortcuts;
+    setKeyShortcuts(next);
+    try {
+      window.localStorage.setItem(KEY_SHORTCUTS_STORAGE, next ? "on" : "off");
+    } catch {
+      /* storage blocked: this page still follows the choice until it reloads */
+    }
+  };
   const [doctrineOpen, setDoctrineOpen] = useState(false);
   const [roundOpen, setRoundOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -2302,12 +2384,14 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
         return;
       }
       if (event.altKey || event.ctrlKey || event.metaKey) return;
-      const at = HUD_KEYS.indexOf(event.key.toLowerCase());
+      if (!keyShortcuts) return;
+      // The typed letter, or the physical key for another script: r is TRI on a Russian layout too.
+      const at = hudKeyIndex(event);
       if (at >= 0 && at < HUD_VIEWS.length) setView(HUD_VIEWS[at]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setView]);
+  }, [setView, keyShortcuts]);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -2697,15 +2781,9 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
             {!embedded && (
               <QueenIdentity
                 view={view}
-                c={{
-                  signIn: c.identitySignIn,
-                  signInTitle: c.identitySignInTitle,
-                  signInAgain: c.identitySignInAgain,
-                  signedIn: c.identitySignedIn,
-                  roleKeeper: c.identityRoleKeeper,
-                  roleOwner: c.identityRoleOwner,
-                  roleBee: c.identityRoleBee,
-                }}
+                screen={view === "tri" ? hashParams.get("screen") : null}
+                lang={lang}
+                c={identityCopy}
               />
             )}
             <button
@@ -2843,6 +2921,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
                 crm: c.triCrm,
                 loading: c.triLoading,
                 noAnswer: c.triNoAnswer,
+                appError: c.triAppError,
                 openApp: c.triOpenApp,
                 frameTitle: c.triFrameTitle,
                 insidePlayer: c.triInsidePlayer,
@@ -3116,6 +3195,17 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
                 <button type="button" onClick={toggleLang}>
                   <span>{c.hudLanguage}</span>
                   <b>{lang.toUpperCase()}</b>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  data-setting="key-shortcuts"
+                  aria-pressed={keyShortcuts}
+                  onClick={toggleKeyShortcuts}
+                >
+                  <span>{c.hudShortcuts}</span>
+                  <b>{keyShortcuts ? c.hudOn : c.hudOff}</b>
                 </button>
               </li>
               <li>
