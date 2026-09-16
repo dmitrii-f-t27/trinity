@@ -76,6 +76,9 @@ export function QueenCommandPanel({
           // the rail derives its row count from the item list, never from a hardcoded number
           "--queen-views": items.length,
           "--queen-tile-rows": Math.ceil(items.length / 2),
+          // the portrait phone lays the rail out as two rows (queen-phone.css),
+          // so its column count is half the views, rounded up: 13 views, 7 columns
+          "--queen-phone-cols": Math.ceil(items.length / 2),
         } as CSSProperties
       }
     >
