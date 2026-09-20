@@ -21,7 +21,7 @@ import { join } from 'node:path'
 import { generate, SKILLS_OUT, CRONS_OUT, AGENTS_OUT, FUNCTIONS_OUT, TOOLS_OUT, FUNCTIONS_MANIFEST, EXPERIENCE_PATH, AGENT_COUNT, AGENT_LAYERS, HOSTS, CONTROLS, ON_FAILURE, FN_TRIGGERS, FN_ON_FAILURE, FN_SIDE_EFFECTS, FN_PROBE_RESULTS, FN_CONTROLS, functionDifferences, I18N_SPEC_DIR, I18N_FIELD_SOURCE, REPO_ROOT } from '../scripts/agents-from-specs.mjs'
 import { canonicalSpecEditUrl, vendoredSpecUrl, specSlug } from '../src/lib/agentSpecs.ts'
 import { MODULES } from '../src/lib/queenModules.ts'
-import { HUD_VIEWS, HUD_KEYS } from '../src/components/queenHud.ts'
+import { HUD_VIEWS, HUD_KEYS, RAIL_VIEWS, SPEC_LAYERS, BOARD_VIEWS, railViewOf } from '../src/components/queenHud.ts'
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const skills = JSON.parse(readFileSync(SKILLS_OUT, 'utf8'))
@@ -347,6 +347,106 @@ for (const tab of ['skills', 'crons', 'agents', 'functions', 'tools', 'project']
   assert.equal(HUD_KEYS[HUD_VIEWS.indexOf(tab)], m.key, `${tab}: the key on the card (${m.key}) is not the keyboard key`)
   for (const lang of ['en', 'ru']) assert.ok(m[lang].name && m[lang].hint && m[lang].body.length > 40, `${tab}: ${lang} copy missing`)
 }
+// Every module says what it is for, not only what it shows, and says it once.
+// `body` describes the view; `play` is the reason a person is standing in front
+// of it. A missing one leaves a paragraph about someone else's instrument, and
+// a duplicated one is this repository's oldest defect — a list copied by hand
+// until two of its entries say the same thing about different things.
+const plays = new Map()
+for (const m of MODULES) {
+  for (const lang of ['en', 'ru']) {
+    const play = m[lang].play
+    assert.ok(typeof play === 'string' && play.length > 40, `${m.tab}: ${lang} play line missing or too short to say anything`)
+    assert.notEqual(play, m[lang].body, `${m.tab}: ${lang} play repeats the body instead of giving the reason`)
+    const seen = plays.get(`${lang}:${play}`)
+    assert.equal(seen, undefined, `${m.tab}: ${lang} play is the same sentence as ${seen}'s`)
+    plays.set(`${lang}:${play}`, m.tab)
+  }
+}
+
+// ...and the homepage actually shows it. Three blocks mount the line: the one
+// every module shares, and the two hand-written ones (the comb's and the
+// corpus's) that draw their own description but take the move from the same
+// record.
+const src = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const modulePage = src('components/ModuleHeroBlock.tsx')
+assert.match(modulePage, /<PlayLine>\{m\.play\}<\/PlayLine>/, 'the shared module block does not render the play line')
+for (const [file, tab] of [['components/QueenHeroBlock.tsx', 'comb'], ['components/SpecHeroBlock.tsx', 'specs']]) {
+  const text = src(file)
+  assert.match(
+    text,
+    new RegExp(`<PlayLine>\\{MODULES\\.find\\(\\(module\\) => module\\.tab === '${tab}'\\)!\\[lang\\]\\.play\\}</PlayLine>`),
+    `${file} writes its own description but does not take ${tab}'s play line from the module record`,
+  )
+}
+// Reachability, which is the property that actually matters and the one the
+// homepage lost. It used to render every module but three as a full-size block:
+// eighteen consecutive screens of one layout, which is why the showcase is now
+// a named few. A named few is only safe if nothing falls out of the page with
+// it, so the invariant checked here is not "these three are omitted" but "every
+// module is reachable": the showcase names blocks, ModulesBlock draws a card
+// for each of MODULES, and between them no module is unreachable from the
+// homepage. Add a fifteenth module to lib/queenModules and it appears in the
+// index without anyone touching App.tsx; delete the index and this fails.
+const app = src('App.tsx')
+const showcase = app.match(/const SHOWCASE = \[([^\]]*)\]/)
+assert.ok(showcase, 'the homepage no longer names its showcase modules in one list')
+const shown = [...showcase[1].matchAll(/'([a-z]+)'/g)].map((match) => match[1])
+for (const tab of shown) {
+  assert.ok(MODULES.some((m) => m.tab === tab), `the homepage showcases '${tab}', which is not a module`)
+  assert.ok(tab !== 'comb' && tab !== 'specs', `'${tab}' has a block of its own; showcasing it would render it twice`)
+}
+assert.match(app, /<ModulesBlock \/>/, 'the homepage does not mount the index, so every module the showcase leaves out is unreachable')
+// The index draws three groups -- the rail's buttons, the ladder inside SPECS,
+// the board inside KANBAN -- and they have to stay a partition of MODULES or the
+// homepage silently drops a module. The predicates are asked of the shell's own
+// lists, so this is checkable here rather than only readable there.
+const modulesBlock = src('components/ModulesBlock.tsx')
+assert.match(modulesBlock, /RAIL_VIEWS as readonly string\[\]\)\.includes\(tab\)/, 'the index no longer reads the rail from RAIL_VIEWS, so its groups can drift from the buttons')
+assert.match(modulesBlock, /MODULES\.filter\(\(m\) => isRailModule\(m\.tab\)\)/, 'the rail group is no longer MODULES on the rail, so a module can fall off the homepage')
+assert.match(modulesBlock, /MODULES\.filter\(\(m\) => isLadderRung\(m\.tab\)\)/, 'the ladder group is no longer the spec layers the rail does not draw')
+assert.match(modulesBlock, /MODULES\.filter\(\(m\) => isBoardReading\(m\.tab\)\)/, 'the board group is no longer the board views the rail does not draw')
+for (const m of MODULES) {
+  const group = RAIL_VIEWS.includes(m.tab)
+    ? 'rail'
+    : SPEC_LAYERS.includes(m.tab)
+      ? 'ladder'
+      : BOARD_VIEWS.includes(m.tab)
+        ? 'board'
+        : null
+  assert.ok(group, `module '${m.tab}' is in none of the index's three groups, so its card is drawn nowhere`)
+}
+assert.match(modulesBlock, /modules\.map\(\(module\)/, 'the index no longer draws a card for every module in a group')
+// The line loses its colour and its rule to any `.block p` selector unless the
+// class outranks one: the reason it is written twice.
+assert.match(readFileSync(new URL('../src/components/PlayLine.css', import.meta.url), 'utf8'), /\.play-line\.play-line \{/, 'the play line style no longer outranks the block paragraph rules it sits inside')
+
+// The motto is one wording in three places -- the mark's caption, the head of
+// the headline, and the names of the three moves. Three copies of three words
+// is the classic way for a site to end up saying "Direct" in the hero and
+// "Govern" in the body, so none of the three is allowed to type them: each
+// reads lib/motto. This checks that they still do, in both languages.
+const motto = src('lib/motto.ts')
+for (const lang of ['en', 'ru']) {
+  const block = motto.match(new RegExp(`${lang}: \\{[\\s\\S]*?verbs: \\[([^\\]]*)\\]`))
+  assert.ok(block, `lib/motto names no ${lang} verbs`)
+  assert.equal([...block[1].matchAll(/'[^']+'/g)].length, 3, `the ${lang} motto is not three verbs`)
+  assert.match(motto, new RegExp(`${lang}: \\{[\\s\\S]*?caption: '`), `lib/motto gives ${lang} no caption for the mark`)
+  assert.match(motto, new RegExp(`${lang}: \\{[\\s\\S]*?headline: '`), `lib/motto gives ${lang} no headline opening`)
+}
+const hero = src('components/GameHero.tsx')
+assert.match(hero, /className="game-hero-motto">\{motto\.caption\}/, 'the mark has lost its caption, or the caption is no longer the motto')
+assert.match(hero, /<h1 id="game-hero-title">\{motto\.headline\}/, 'the headline no longer opens with the motto')
+const agi = src('components/AgiGameBlock.tsx')
+for (const lang of ['en', 'ru']) {
+  for (const i of [0, 1, 2]) {
+    assert.ok(
+      agi.includes(`name: MOTTO.${lang}.verbs[${i}]`),
+      `the ${lang} move ${i + 1} is typed into AgiGameBlock instead of read from the motto`,
+    )
+  }
+}
+
 assert.equal(MODULES.length, HUD_VIEWS.length, 'every module is a view and every view a module')
 assert.ok(HUD_KEYS.length >= HUD_VIEWS.length, 'every view has a key')
 assert.equal(new Set(HUD_KEYS).size, HUD_KEYS.length, 'keys are unique')
@@ -366,6 +466,62 @@ assert.equal(passportModule.key, 'b', 'PASSPORT opens on b: digits spent, t is T
 assert.ok(passportModule.en.hint.includes('(key b)') && passportModule.ru.hint.includes('(клавиша b)'), 'PASSPORT names its letter key in both hints')
 for (const lang of ['en', 'ru']) assert.ok(passportModule[lang].name && passportModule[lang].body.length > 40, `passport: ${lang} copy missing`)
 assert.equal(HUD_KEYS.slice(0, HUD_VIEWS.length).join(''), '1234567890tprb', 'the rail keys are 1-9, 0, t, p, r, b in that order')
+
+// The rail is no longer the whole vocabulary. HUD_VIEWS stays the fourteen
+// addresses -- every ?tab=, every key, every module card -- while the rail draws
+// RAIL_VIEWS, because SKILLS, CRONS, AGENTS, TOOLS and FUNCTIONS are now reached
+// inside SPECS as the six rungs of the ladder, and MISSION MAP and FACTORY
+// inside KANBAN as the other two readings of the one board. The lists have to
+// stay each other's complement: a view on none of them is unreachable, and a
+// member on both its family's list and the rail is drawn twice.
+assert.ok(SPEC_LAYERS.every((layer) => HUD_VIEWS.includes(layer)), 'a ladder layer is not a view, so it has no address and no key')
+assert.ok(BOARD_VIEWS.every((view) => HUD_VIEWS.includes(view)), 'a board view is not a view, so it has no address and no key')
+assert.ok(RAIL_VIEWS.every((view) => HUD_VIEWS.includes(view)), 'the rail draws a button for something that is not a view')
+assert.equal(SPEC_LAYERS[0], 'specs', 'SPECS is the first rung: it is the module the rail opens and the ladder stands in')
+assert.equal(BOARD_VIEWS[0], 'kanban', 'KANBAN is the board the rail opens and the row stands in')
+assert.deepEqual(
+  [...SPEC_LAYERS],
+  ['specs', 'skills', 'crons', 'agents', 'tools', 'functions'],
+  'the ladder is specs, skills, crons, agents, tools, functions -- in that order, which is not the order of their keys',
+)
+assert.deepEqual(
+  [...BOARD_VIEWS],
+  ['kanban', 'map', 'factory'],
+  'the board is kanban, mission map, factory -- the order of their keys, 3/4/5',
+)
+assert.deepEqual(
+  [...new Set([...RAIL_VIEWS, ...SPEC_LAYERS, ...BOARD_VIEWS])].sort(),
+  [...HUD_VIEWS].sort(),
+  'rail plus ladder plus board is no longer every view: something is unreachable',
+)
+assert.deepEqual(
+  RAIL_VIEWS.filter((view) => SPEC_LAYERS.includes(view)),
+  ['specs'],
+  'only SPECS may be on the rail and in the ladder; another layer on both is drawn twice',
+)
+assert.deepEqual(
+  RAIL_VIEWS.filter((view) => BOARD_VIEWS.includes(view)),
+  ['kanban'],
+  'only KANBAN may be on the rail and in the board row; another reading on both is drawn twice',
+)
+assert.equal(
+  RAIL_VIEWS.length,
+  HUD_VIEWS.length - (SPEC_LAYERS.length - 1) - (BOARD_VIEWS.length - 1),
+  'the rail is the views less the five layers folded into SPECS and the two readings folded into KANBAN',
+)
+// Every view still answers railViewOf, and answers with a button the rail draws
+// -- that is what lights the rail while a folded member is open.
+for (const view of HUD_VIEWS) {
+  assert.ok(RAIL_VIEWS.includes(railViewOf(view)), `${view} lights a rail button the rail does not draw`)
+}
+// The rail reads its keys from the item, not from the button's position: with
+// nine buttons over fourteen names a positional key prints 5 on TECHNOLOGY TREE.
+const command = src('components/QueenCommand.tsx')
+assert.match(command, /hotkey: string/, 'a rail item no longer carries its own key, so the key shown is the button position')
+assert.doesNotMatch(command, /HUD_KEYS\[/, 'QueenCommand indexes HUD_KEYS by position again; the rail is shorter than the key list')
+// The ladder is the only place the five folded layers still advertise their keys.
+const ladder = src('components/QueenLadder.tsx')
+assert.match(ladder, /hudKeyOf\(item\.layer\)/, 'the ladder no longer shows each layer its key, and 7/8/9/0/t are advertised nowhere')
 
 // 6. Translations are connected through .t27 contract specs, never hardcoded.
 //    Every specs/i18n/*.t27 the corpus carries is in both catalogs' i18n lists
