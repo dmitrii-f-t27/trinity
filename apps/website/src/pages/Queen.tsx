@@ -20,9 +20,17 @@ import { QueenFactory } from "../components/QueenFactory";
 import { QueenSectors } from "../components/QueenIntel";
 import { SceneBoundary } from "../components/SceneBoundary";
 import { QueenLoading } from "../components/QueenLoading";
+import { QueenLadder, type LadderLayer } from "../components/QueenLadder";
+import { loadLadderCounts, type LadderCounts } from "../lib/agentSpecs";
 import {
   hudKeyIndex,
+  hudKeyOf,
   HUD_VIEWS,
+  RAIL_VIEWS,
+  SPEC_LAYERS,
+  BOARD_VIEWS,
+  railViewOf,
+  isSpecLayer,
   decisionDetail,
   rewriteEndpoints,
   roundStrip,
@@ -103,11 +111,9 @@ import "./Queen.css";
 // the phone's chrome, after Queen.css so that at equal specificity it wins
 import "./queen-phone.css";
 
-const DEFAULT_QUEEN_API =
-  "https://trios-agent-server-production.up.railway.app";
-const QUEEN_API = (
-  (import.meta.env.VITE_QUEEN_API as string | undefined) ?? DEFAULT_QUEEN_API
-).replace(/\/+$/, "");
+// The address moved to lib/queenApi so the homepage can ask the same server
+// this page asks, rather than carry a second copy of the literal.
+import { BOUNDARY_EXAMPLE_ISSUE, QUEEN_API } from "../lib/queenApi";
 const LIVE_POLL_MS = 5_000;
 const FOUNDATION_POLL_MS = 60_000;
 const MODULES_POLL_MS = 15_000;
@@ -324,10 +330,16 @@ const COPY = {
     kanbanHint: "Operational columns",
     mapHint: "Strategic lifecycle sectors",
     factoryHint: "Live engineering production",
+    // The KANBAN module's own sub-navigation: three readings of the one board,
+    // which used to be three buttons of the rail.
+    boardAria: "The board: kanban, mission map, factory",
     combView: "COMB",
     combHint: "The board as a field of marks",
     specsView: "SPECS",
     specsHint: "The corpus she is generated from",
+    // The SPECS module's own sub-navigation: the six layers of the ladder,
+    // which used to be six buttons of the rail.
+    ladderAria: "The ladder: specs, skills, crons, agents, tools, functions",
     skillsView: "SKILLS",
     skillsHint: "Agent skills, each stated by a .t27 spec",
     cronsView: "CRONS",
@@ -682,10 +694,12 @@ const COPY = {
     kanbanHint: "Операционные колонки",
     mapHint: "Стратегические сектора цикла",
     factoryHint: "Живое инженерное производство",
+    boardAria: "Доска: канбан, карта миссий, фабрика",
     combView: "СОТЫ",
     combHint: "Доска как поле из меток",
     specsView: "СПЕКИ",
     specsHint: "Корпус, из которого её порождают",
+    ladderAria: "Лестница: спеки, скиллы, кроны, агенты, инструменты, функции",
     skillsView: "СКИЛЛЫ",
     skillsHint: "Скиллы агентов, каждый заявлен спекой .t27",
     cronsView: "КРОНЫ",
@@ -2464,6 +2478,22 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  // How many each layer of the ladder holds. The Explorers used to print these
+  // in a strip of their own inside the frame; that strip was a second ladder on
+  // the same screen, so it is gone and the numbers stand on the rungs instead.
+  // The shell is a different document from the frames and cannot read what they
+  // loaded, so it fetches the smallest catalog itself. A failure leaves the
+  // rungs without numbers, which is what they had before.
+  const [ladderCounts, setLadderCounts] = useState<LadderCounts | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadLadderCounts().then(
+      (counts) => { if (live) setLadderCounts(counts); },
+      () => {},
+    );
+    return () => { live = false; };
+  }, []);
+
   useEffect(
     () => () => {
       if (agentCopyTimer.current !== null) {
@@ -2525,39 +2555,78 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     else setIntelExpanded((expanded) => !expanded);
   };
 
-  const commandItems = [
+  // Every view, with the glyph and the key it has always answered. The rail
+  // draws the seven in RAIL_VIEWS; the five layers below SPECS and the two
+  // board views beside KANBAN are drawn by their own module's sub-navigation
+  // instead (components/QueenLadder), which is why seven of these entries no
+  // longer appear on the left edge. Keys are unchanged and come from hudKeyOf,
+  // so 7 is still SKILLS, t still TOOLS and 4 still MISSION MAP — they now open
+  // the module that holds them, standing on that view.
+  const viewItems = [
     { view: "comb" as const, glyph: "▽", label: c.combView, hint: c.combHint },
     // Second, directly after the comb: the corpus is the Queen's core, not an
-    // appendix to the board views.
+    // appendix to the board views — and now the door to the whole ladder.
     { view: "specs" as const, glyph: "⬡", label: c.specsView, hint: c.specsHint },
     { view: "kanban" as const, glyph: "▦", label: c.kanbanView, hint: c.kanbanHint },
     { view: "map" as const, glyph: "⌘", label: c.mapView, hint: c.mapHint },
     { view: "factory" as const, glyph: "⚙", label: c.factoryView, hint: c.factoryHint },
     { view: "research" as const, glyph: "◈", label: c.tech, hint: c.researchHint },
-    // Seventh and eighth: the agents' skills and schedules, each a catalog
-    // generated from .t27 specs, opened whole like the corpus is.
+    // The agents' skills and schedules, each a catalog generated from .t27
+    // specs, opened whole like the corpus is. Layers of the ladder: inside SPECS.
     { view: "skills" as const, glyph: "⟁", label: c.skillsView, hint: c.skillsHint },
     { view: "crons" as const, glyph: "◷", label: c.cronsView, hint: c.cronsHint },
-    // Ninth: the agents themselves — the fourth layer, who holds the skills
+    // The agents themselves — the fourth layer, who holds the skills
     // under SOUL.md and AGENTS.md, with their experience joined by evidence.
     { view: "agents" as const, glyph: "Ω", label: c.agentsView, hint: c.agentsHint },
-    // Tenth: the functions — where a spec meets a running
-    // service, witnessed by the vendored manifest and read live once a minute.
+    // The functions — where a spec meets a running service, witnessed by the
+    // vendored manifest and read live once a minute.
     { view: "functions" as const, glyph: "ƒ", label: c.functionsView, hint: c.functionsHint },
-    // Eleventh (key t; the digits are exhausted): the tools — what every agent should know: the
-    // tri CLI and the MCP servers, each read from its spec and its source.
+    // The tools — what every agent should know: the tri CLI and the MCP
+    // servers, each read from its spec and its source.
     { view: "tools" as const, glyph: "⟐", label: c.toolsView, hint: c.toolsHint },
-    // Twelfth, on the letter p (HUD_KEYS[11]; the digits are spent, t is TOOLS): the
-    // system documentation — the project, the rules of the game for its
-    // agents, and the system in detail, framed from #/docs.
+    // On the letter p (the digits are spent, t is TOOLS): the system
+    // documentation — the project, the rules of the game for its agents, and
+    // the system in detail, framed from #/docs.
     { view: "project" as const, glyph: "§", label: c.projectView, hint: c.projectHint },
-    // Thirteenth, on the letter r (HUD_KEYS[12]; digits spent, t is TOOLS, p is
-    // PROJECT): TRI, the app at app.t27.ai inside the game, one screen per address.
+    // On the letter r (digits spent, t is TOOLS, p is PROJECT): TRI, the app at
+    // app.t27.ai inside the game, one screen per address.
     { view: "tri" as const, glyph: "△", label: c.triView, hint: c.triHint },
     { view: "passport" as const, glyph: "▤", label: c.passportView, hint: c.passportHint },
-  ];
-  const viewLabel =
-    commandItems.find((item) => item.view === view)?.label ?? c.combView;
+  ].map((item) => ({ ...item, hotkey: hudKeyOf(item.view) }));
+  const commandItems = viewItems.filter((item) =>
+    (RAIL_VIEWS as readonly string[]).includes(item.view),
+  );
+  // The ladder's rungs, in the ladder's own order (queenHud.SPEC_LAYERS) rather
+  // than the rail's — Tools is the fifth layer and Functions the sixth, which
+  // the rail's key order had the other way round — with the labels the rail used
+  // to print for them.
+  const ladderItems: LadderLayer[] = SPEC_LAYERS.map((layer) => {
+    const item = viewItems.find((entry) => entry.view === layer)!;
+    return { layer, glyph: item.glyph, label: item.label, hint: item.hint };
+  });
+  // The board's three readings, in the board's own order (queenHud.BOARD_VIEWS):
+  // the columns, the same cards as ground, and what the swarm is producing on
+  // them. Built exactly as the ladder's rungs are, from the same view entries,
+  // so the two rows cannot disagree about a label or a key. No counts: the
+  // ladder's numbers are how many cards a catalog holds, and the three board
+  // views all hold the one board.
+  const boardItems: LadderLayer[] = BOARD_VIEWS.map((member) => {
+    const item = viewItems.find((entry) => entry.view === member)!;
+    return { layer: member, glyph: item.glyph, label: item.label, hint: item.hint };
+  });
+  const viewLabel = viewItems.find((item) => item.view === view)?.label ?? c.combView;
+  const ladderNav = (
+    <QueenLadder
+      layers={ladderItems}
+      current={view}
+      onSelect={setView}
+      aria={c.ladderAria}
+      counts={ladderCounts}
+    />
+  );
+  const boardNav = (
+    <QueenLadder layers={boardItems} current={view} onSelect={setView} aria={c.boardAria} family="board" />
+  );
   const doctrine = [
     { n: "01", title: c.spec, copy: c.specCopy, tone: "" },
     { n: "02", title: c.queen, copy: c.queenCopy, tone: "is-queen" },
@@ -2755,6 +2824,13 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     <main
       className={`queen27-page is-shell${commandCollapsed ? " is-command-collapsed" : ""}${isFullscreen ? " is-bare" : ""}${embedded ? " is-embed" : ""}`}
       data-view={view}
+      // Which module the reader is in, as against which layer of it: for the
+      // six layers of the ladder this is "specs" for all six. A rule that
+      // wants "inside the SPECS module" -- the map's command row does not
+      // belong there, and the body must not reserve its height -- asks this,
+      // not data-view, which said "specs" on one of the six and left the other
+      // five reserving 66px for a row that is not rendered on any of them.
+      data-rail-view={railViewOf(view)}
     >
       <section
         className="queen27-hud-viewport"
@@ -2911,49 +2987,56 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           </div>
         </header>
 
-        {idleWhy && (
-          <p className="queen27-hud-idle" data-idle={idleNow?.kind}>
-            <span>{idleWhy.text}</span>
-            {idleWhy.example && (
-              <>
-                {" · "}
-                <a href="https://github.com/gHashTag/t27/issues/3587" target="_blank" rel="noreferrer">
-                  {c.idleExample}
-                </a>
-              </>
-            )}
-          </p>
-        )}
+        {/* Why free bees are idle used to be a line floating here, over the top
+            of the map. It is a notification about the round, and the round's tile
+            is in the header -- where the same words were already printed, short,
+            beside the count they are about. Two places said it; the floating one
+            was the one that covered the ladder, the Explorer's search field and,
+            on a phone, the controls under it, and it was removed rather than
+            moved a third time. The full sentence and the example issue went to
+            the tile, so nothing it carried was lost. */}
         <div className="queen27-hud-vp-body">
           {/* Embedded, the scene is skipped — a page of previews would be a page
               of WebGL contexts — except on the comb, where the scene IS the
               view. One preview on the homepage boots one context, which is what
               the hive block booted before there were six blocks. */}
           {(!embedded || boardView === "comb") && hiveScene}
+          {/* KANBAN, MISSION MAP and FACTORY are one module now, so each of the
+              three is drawn under the board's own row (boardNav) rather than
+              from a rail button of its own. The body is a one-cell grid — every
+              view is stacked in it, over the scene — so the row and the view it
+              switches share one cell as a column. */}
           {boardView === "kanban" ? (
-            <KanbanView
-              columns={boardColumns}
-              cards={cards}
-              repo={repo}
-              error={boardState.error}
-              loaded={board !== null}
-              c={c}
-              lang={lang}
-            />
+            <div className="queen27-board-stack">
+              {boardNav}
+              <KanbanView
+                columns={boardColumns}
+                cards={cards}
+                repo={repo}
+                error={boardState.error}
+                loaded={board !== null}
+                c={c}
+                lang={lang}
+              />
+            </div>
           ) : boardView === "map" ? (
-            <MissionMapView
-              columns={boardColumns}
-              cards={cards}
-              repo={repo}
-              error={boardState.error}
-              loaded={board !== null}
-              c={c}
-              lang={lang}
-            />
+            <div className="queen27-board-stack">
+              {boardNav}
+              <MissionMapView
+                columns={boardColumns}
+                cards={cards}
+                repo={repo}
+                error={boardState.error}
+                loaded={board !== null}
+                c={c}
+                lang={lang}
+              />
+            </div>
           ) : boardView === "specs" ? (
             <QueenSpecs
               showDirective={isNarrow}
               onNavigate={setView}
+              ladder={ladderNav}
               c={{
                 directive: c.specsDirective,
                 directiveBody: c.specsDirectiveBody,
@@ -2969,6 +3052,9 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
               kind={boardView}
               showDirective={isNarrow}
               onNavigate={setView}
+              // PROJECT is the system documentation, not a layer of the ladder:
+              // it keeps its own rail button and gets no rung row.
+              ladder={isSpecLayer(boardView) ? ladderNav : undefined}
               c={{
                 directive: boardView === "skills" ? c.skillsDirective : boardView === "crons" ? c.cronsDirective : boardView === "functions" ? c.functionsDirective : boardView === "tools" ? c.toolsDirective : boardView === "project" ? c.projectDirective : c.agentsDirective,
                 directiveBody: boardView === "skills" ? c.skillsDirectiveBody : boardView === "crons" ? c.cronsDirectiveBody : boardView === "functions" ? c.functionsDirectiveBody : boardView === "tools" ? c.toolsDirectiveBody : boardView === "project" ? c.projectDirectiveBody : c.agentsDirectiveBody,
@@ -3022,54 +3108,57 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
               embedded
             />
           ) : (
-            <QueenFactory
-              workers={researchState.data?.workers ?? null}
-              researchNodes={researchState.data?.nodes ?? []}
-              researchEdges={researchState.data?.edges ?? []}
-              researchLayers={researchState.data?.layers ?? []}
-              researchError={researchState.error}
-              hardware={hardwareState.data}
-              hardwareError={hardwareState.error}
-              error={boardState.error ?? researchState.error}
-              labels={{
-                aria: c.factoryView,
-                flow: c.factoryFlow,
-                throughput: c.factoryThroughput,
-                queueDensity: c.factoryQueueDensity,
-                workerBays: c.factoryWorkerBays,
-                active: c.executing,
-                idle: c.factoryIdle,
-                station: c.factoryStation,
-                modules: c.factoryModules,
-                empty: c.empty,
-                offline: c.factoryOffline,
-                criteria: c.criteria,
-                missing: c.missing,
-                openIssue: c.factoryOpenIssue,
-                selectedModule: c.factorySelectedModule,
-                liveContract: c.factoryLiveContract,
-                cityTitle: c.cityTitle,
-                cityCopy: c.cityCopy,
-                cityDistricts: c.cityDistricts,
-                cityLaboratories: c.cityLaboratories,
-                citySelected: c.citySelected,
-                cityEvidence: c.cityEvidence,
-                cityOffline: c.cityOffline,
-                cityBuildTitle: c.cityBuildTitle,
-                cityComplete: c.cityComplete,
-                cityAssembling: c.cityAssembling,
-                cityBlueprint: c.cityBlueprint,
-                citySealed: c.citySealed,
-                cityDependencies: c.cityDependencies,
-                foundryTitle: c.foundryTitle,
-                foundryVerified: c.foundryVerified,
-                foundryUnavailable: c.foundryUnavailable,
-                foundryTotal: c.foundryTotal,
-                foundryOnline: c.foundryOnline,
-                foundryProgrammed: c.foundryProgrammed,
-                foundryKey: c.foundryKey,
-              }}
-            />
+            <div className="queen27-board-stack">
+              {boardNav}
+              <QueenFactory
+                workers={researchState.data?.workers ?? null}
+                researchNodes={researchState.data?.nodes ?? []}
+                researchEdges={researchState.data?.edges ?? []}
+                researchLayers={researchState.data?.layers ?? []}
+                researchError={researchState.error}
+                hardware={hardwareState.data}
+                hardwareError={hardwareState.error}
+                error={boardState.error ?? researchState.error}
+                labels={{
+                  aria: c.factoryView,
+                  flow: c.factoryFlow,
+                  throughput: c.factoryThroughput,
+                  queueDensity: c.factoryQueueDensity,
+                  workerBays: c.factoryWorkerBays,
+                  active: c.executing,
+                  idle: c.factoryIdle,
+                  station: c.factoryStation,
+                  modules: c.factoryModules,
+                  empty: c.empty,
+                  offline: c.factoryOffline,
+                  criteria: c.criteria,
+                  missing: c.missing,
+                  openIssue: c.factoryOpenIssue,
+                  selectedModule: c.factorySelectedModule,
+                  liveContract: c.factoryLiveContract,
+                  cityTitle: c.cityTitle,
+                  cityCopy: c.cityCopy,
+                  cityDistricts: c.cityDistricts,
+                  cityLaboratories: c.cityLaboratories,
+                  citySelected: c.citySelected,
+                  cityEvidence: c.cityEvidence,
+                  cityOffline: c.cityOffline,
+                  cityBuildTitle: c.cityBuildTitle,
+                  cityComplete: c.cityComplete,
+                  cityAssembling: c.cityAssembling,
+                  cityBlueprint: c.cityBlueprint,
+                  citySealed: c.citySealed,
+                  cityDependencies: c.cityDependencies,
+                  foundryTitle: c.foundryTitle,
+                  foundryVerified: c.foundryVerified,
+                  foundryUnavailable: c.foundryUnavailable,
+                  foundryTotal: c.foundryTotal,
+                  foundryOnline: c.foundryOnline,
+                  foundryProgrammed: c.foundryProgrammed,
+                  foundryKey: c.foundryKey,
+                }}
+              />
+            </div>
           )}
         </div>
 
@@ -3164,10 +3253,28 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
               ? `${data.workers.active}/${data.workers.capacity}`
               : `${data ? data.dispatches.running : "—"}/${workers?.capacity ?? "—"}`}
           </strong>
-          <span title={idleWhy?.text}>
-            {idleWhy
-              ? idleWhy.head
-              : `${data?.workers ? data.workers.capacity - data.workers.active : (workers?.idle ?? "—")} ${c.factoryIdle}`}
+          {/* The whole reason lives here now: the head short enough for the tile,
+              the sentence on hover and for a screen reader, and -- when the
+              reason is a brief no bee can take -- the example issue one click
+              away, which is what the line that floated over the map carried.
+              The link goes INSIDE the span rather than replacing it: the header's
+              narrow-screen rules fold a tile's sub-line away by `> span`, and an
+              anchor in its place would have been the one sub-line that stayed
+              when the tiles are down to a name and a number. */}
+          <span
+            className="queen27-hud-idle-why"
+            data-idle={idleNow?.kind}
+            title={idleWhy?.example ? `${idleWhy.text} · ${c.idleExample}` : idleWhy?.text}
+          >
+            {idleWhy?.example ? (
+              <a href={BOUNDARY_EXAMPLE_ISSUE} target="_blank" rel="noreferrer">
+                {idleWhy.head}
+              </a>
+            ) : idleWhy ? (
+              idleWhy.head
+            ) : (
+              `${data?.workers ? data.workers.capacity - data.workers.active : (workers?.idle ?? "—")} ${c.factoryIdle}`
+            )}
           </span>
         </div>
 
@@ -3398,7 +3505,9 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
       {!isPhone && (
         <QueenCommandPanel
           items={commandItems}
-          view={view}
+          // A ladder layer lights SPECS: it is not on the rail any more, it is
+          // inside the module the rail's second button opens.
+          view={railViewOf(view)}
           onSelect={setView}
           collapsed={commandCollapsed}
           onToggleCollapsed={() => setCommandCollapsed((collapsed) => !collapsed)}
@@ -3461,7 +3570,9 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           <>
             <QueenCommandPanel
               items={commandItems}
-              view={view}
+              // Same rule as the desktop rail: a ladder layer lights SPECS,
+              // which is the button that now holds it.
+              view={railViewOf(view)}
               onSelect={setView}
               collapsed={false}
               onToggleCollapsed={() => undefined}
