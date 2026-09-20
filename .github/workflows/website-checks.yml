@@ -144,6 +144,13 @@ jobs:
       # still refuse a spec whose own tests do not hold.
       - name: Viewport spec
         run: npm run check:viewport && npm run test:viewport-spec
+      # The agent-facing surface (/agents.t27 and /llms.txt) is generated from
+      # specs/catalog/onboarding.t27 through the compiler, and the generator
+      # re-compiles what it is about to publish. This step is also what keeps
+      # the four consent constants from being edited into an instruction
+      # addressed at somebody else's agent.
+      - name: Agent onboarding spec
+        run: npm run check:onboarding
       # The world scan's contract (specs/catalog/discovery.t27 through the compiler),
       # its pure decisions, and the manifest merge that must never touch a founding
       # source. The scan itself runs against GitHub in t27-world-scan.yml.
