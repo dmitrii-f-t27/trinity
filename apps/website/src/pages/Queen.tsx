@@ -4057,7 +4057,12 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
           )}
         </div>
 
-        {!(sharedCatalog && boardView === "comb") && <QueenContext
+        {/* The legacy CONTEXT panel belongs to the comb it describes, and only
+            the old comb: the shared catalog has its own inspector. Drawn on
+            every other view, its collapsed chip floated over FEED, AI, PROFILE
+            and ROADMAP with nothing to show (owner, 2026-09-22: "remove the
+            phantom button of the old design"). */}
+        {boardView === "comb" && !sharedCatalog && <QueenContext
           open={contextOpen}
           onClose={() => setContextOpen(false)}
           onOpen={() => setContextOpen(true)}
