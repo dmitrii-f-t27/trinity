@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChatInput from './chat/ChatInput'
 import ChatMessage from './chat/ChatMessage'
-import type { ChatResponse } from '../services/chatApi'
-import { askQueen, queenHealth, queenModelName } from '../services/queenModel'
-import type { HudEvent } from './queenHud'
+import { NotSignedIn, type ChatResponse } from '../services/chatApi'
+import { askQueen, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
+import { signInHref } from '../lib/triIdentity'
+import { HUD_VIEWS, type HudEvent } from './queenHud'
 import './QueenChat.css'
 
 export interface QueenChatContext {
@@ -31,6 +32,9 @@ const copy = {
     clearSubject: 'Drop the subject',
     events: 'events',
     thinking: 'The Queen is answering',
+    signedOut: 'The Queen answers people she knows. Sign in with Telegram and ask her here.',
+    signIn: 'Sign in',
+    signInTitle: 'Sign in with Telegram and come back to this view',
   },
   ru: {
     title: 'КОРОЛЕВА', hide: 'Скрыть', show: 'Спросить королеву',
@@ -43,6 +47,9 @@ const copy = {
     clearSubject: 'Убрать предмет',
     events: 'событий',
     thinking: 'Королева отвечает',
+    signedOut: 'Королева отвечает тем, кого знает. Войдите через Telegram и спрашивайте здесь.',
+    signIn: 'Войти',
+    signInTitle: 'Войти через Telegram и вернуться к этому виду',
   },
 } as const
 
@@ -70,6 +77,11 @@ export default function QueenChat({
     try { return localStorage.getItem('queen-chat-open') !== '0' } catch { return true }
   })
   const [live, setLive] = useState<boolean | null>(null)
+  // Whether there is anybody signed in — a boolean, never the token. The
+  // component cannot leak what it was never given, and the token itself is read
+  // fresh at the moment a question is sent (queenModel.askQueen), so nothing
+  // here can go stale into a request.
+  const [signedIn, setSignedIn] = useState(() => queenCaller().signedIn)
   const [turns, setTurns] = useState<Turn[]>([])
   const [subject, setSubject] = useState<HudEvent | null>(null)
   const [busy, setBusy] = useState(false)
@@ -87,7 +99,13 @@ export default function QueenChat({
   // offline, never as an empty conversation that looks ready.
   useEffect(() => {
     let alive = true
-    const probe = () => { queenHealth().then((ok) => { if (alive) setLive(ok) }).catch(() => { if (alive) setLive(false) }) }
+    const probe = () => {
+      // Asked on the same beat: a session that expired while the panel was open
+      // has to close the input, and a sign-in that happened in another tab of
+      // this app has to open it, without a reload either way.
+      setSignedIn(queenCaller().signedIn)
+      queenHealth().then((ok) => { if (alive) setLive(ok) }).catch(() => { if (alive) setLive(false) })
+    }
     probe()
     const id = window.setInterval(probe, 20000)
     return () => { alive = false; window.clearInterval(id) }
@@ -125,6 +143,10 @@ export default function QueenChat({
     askQueen(`[${line}]${quoted ? ` ${quoted}` : ''} ${question}`)
       .then((res) => setTurns((prev) => [...prev, { kind: 'turn', at: Date.now(), role: 'assistant', ...res, content: res.response }]))
       .catch((error: unknown) => {
+        // Signed out is not the Queen failing, and must not be reported as one:
+        // she is answering other people at this moment. The panel closes the
+        // input and says where to go instead.
+        if (error instanceof NotSignedIn) { setSignedIn(false); return }
         setLive(false)
         // Why, when there is a why. Her server reports a quota or a refusal in
         // words, and the proxy passes them through; a bare "did not answer"
@@ -203,7 +225,20 @@ export default function QueenChat({
         </p>
       )}
 
-      <ChatInput onSend={send} disabled={busy} />
+      {signedIn ? (
+        <ChatInput onSend={send} disabled={busy} />
+      ) : (
+        // Not a disabled input: a box you can type into and never send is a
+        // worse answer than a sentence that says why and where to go. The link
+        // is signInHref, the same address the identity chip uses, so there is
+        // one sign-in in this bundle rather than two that can drift apart.
+        <p className="queen-chat-signin">
+          <span>{t.signedOut}</span>
+          <a href={signInHref(context.view, HUD_VIEWS)} target="_top" rel="noopener" title={t.signInTitle}>
+            {t.signIn}
+          </a>
+        </p>
+      )}
     </section>
   )
 }
