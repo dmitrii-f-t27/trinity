@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {specExplorerHash,canonicalSpecUrl,resolveManifestSpec} from '../src/lib/specCatalog.ts';
 import {loadSpecSource,analyzeCached,wasmUrl} from '../src/lib/t27Compiler.ts';
 import {atlasAgentPacket} from '../src/lib/queenUniverseAtlas.ts';
-import {t27WasmTag} from '../scripts/t27-wasm-tag.mjs';
+import {t27WasmTag} from '../scripts/t27-wasm-tag.ts';
 
 // The bundle gets this identifier from vite's `define`; node has no such step,
 // so the gate supplies it the way the browser would. Assigned in the module

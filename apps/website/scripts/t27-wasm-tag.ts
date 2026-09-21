@@ -18,6 +18,13 @@
 // wire. With the hash in the query the header becomes true, because different
 // bytes are a different URL and the stale entry is simply never asked for.
 //
+// TypeScript rather than .mjs, though nothing here needs a type annotation:
+// `vite.config.ts` is type-checked by `npm run typecheck:ratchet`, and importing
+// an untyped .mjs from it is an implicit `any` -- TS7016, which the ratchet read
+// as a file that had gained an error. Both readers take it as it is: vite loads
+// its config through esbuild, and every qa gate already runs under
+// `node --experimental-strip-types` and imports .ts by its real extension.
+//
 // Read from the file the build is about to copy, which is the only source that
 // cannot be stale. `public/t27/manifest.json` also describes this artifact, but
 // it is written by `sync-t27-specs.mjs`, which nothing in `npm run build`
@@ -42,17 +49,13 @@ export const T27_WASM_PATH = fileURLToPath(
  * months in the first place (see the header of src/lib/t27Compiler.ts), and an
  * untagged URL is the exact bug this module exists to prevent.
  */
-export function t27WasmTag() {
+export function t27WasmTag(): string {
   let bytes
   try {
     bytes = readFileSync(T27_WASM_PATH)
   } catch (error) {
-    throw new Error(`t27-wasm-tag: cannot read ${T27_WASM_PATH}: ${error.message}`)
+    const why = error instanceof Error ? error.message : String(error)
+    throw new Error(`t27-wasm-tag: cannot read ${T27_WASM_PATH}: ${why}`)
   }
   return createHash('sha256').update(bytes).digest('hex').slice(0, 16)
-}
-
-/** The URL the page fetches the compiler from, tag included. */
-export function t27WasmUrl() {
-  return `t27/t27_compiler.wasm?v=${t27WasmTag()}`
 }
