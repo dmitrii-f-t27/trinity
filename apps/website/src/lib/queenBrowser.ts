@@ -150,3 +150,156 @@ export async function callBroker(env: BrokerEnv, call: BrokerCall): Promise<Brow
 
 /** How long a `starting` answer waits before it is asked again. */
 export const STARTING_POLL_MS = 2000
+
+/* ────────────────────────────────────────────────────────────────────────
+ * THE QUEEN, DRIVING THE BROWSER ON SCREEN.
+ *
+ * Owner, 2026-09-21: "I want to talk to the Queen and have her drive the
+ * browser", and "she must know which tab I am talking to her from".
+ *
+ * The Queen's own chat (queen-proxy -> trios-agent-server) has no browser
+ * tools, and cannot have the person's: those live in the render's agent,
+ * bound to the person the token names. So on the BROWSER tab the question
+ * goes to that agent -- the same one the app's chat uses, with all nine
+ * browser_* tools -- and the tab is told to it in words, so it acts in the
+ * window the person is watching instead of asking what they mean.
+ *
+ * Measured before this was written: asked "which tabs are open, just look",
+ * that agent called browser_status and listed the three open tabs.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface ChatTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** How many earlier turns ride along, so "and now click it" has an "it". */
+export const HISTORY_TURNS = 8
+
+/**
+ * What the agent is told about where it is. Every rule in it is one the
+ * server enforces anyway (the guard, the password rule); saying it saves a
+ * turn of the model finding out.
+ */
+export function browserContext(lang: 'ru' | 'en'): string {
+  return lang === 'ru'
+    ? '[Контекст: человек пишет из вкладки BROWSER доски Королевы на app.t27.ai. Прямо сейчас у него на экране его собственный браузер — тот же, которым ты управляешь инструментами browser_*. Всё, что ты делаешь, он видит. Действуй в этом браузере, не спрашивай, о каком браузере речь. Пароли и коды человек вводит сам, в окне: не проси их и не набирай. На банке, почте и оплате сначала browser_ask_permission.]'
+    : "[Context: the person is writing from the BROWSER tab of the Queen's board on app.t27.ai. Their own browser is on their screen right now -- the same one you drive with the browser_* tools -- and they see everything you do. Act in that browser; do not ask which browser is meant. Passwords and codes the person types themselves, in the window: never ask for them or type them. On a bank, mail or payment page, browser_ask_permission first.]"
+}
+
+/** The messages sent: earlier turns, then this question with the context. */
+export function agentMessages(history: readonly ChatTurn[], question: string, lang: 'ru' | 'en'): ChatTurn[] {
+  const earlier = history.filter((t) => t.content.trim() !== '').slice(-HISTORY_TURNS)
+  return [...earlier, { role: 'user', content: `${browserContext(lang)}\n\n${question}` }]
+}
+
+export interface AgentAnswer {
+  text: string
+  tools: string[]
+  model: string | null
+  error: string | null
+}
+
+/**
+ * The agent answers in NDJSON, one event per line: `текст` pieces are the
+ * answer, `инструмент` names a tool it called, `провайдер` names the model,
+ * `ошибка` is a failure in words. Thinking is not shown. A line that does not
+ * parse is skipped rather than failing the answer that surrounds it.
+ */
+export function readAgentStream(raw: string): AgentAnswer {
+  const answer: AgentAnswer = { text: '', tools: [], model: null, error: null }
+  for (const line of raw.split('\n')) readAgentLine(answer, line)
+  answer.text = answer.text.trim()
+  return answer
+}
+
+/** One NDJSON line into the answer so far. Returns true when it changed. */
+export function readAgentLine(answer: AgentAnswer, line: string): boolean {
+  if (!line.trim()) return false
+  let e: Record<string, unknown>
+  try {
+    e = JSON.parse(line)
+  } catch {
+    return false
+  }
+  const kind = e['тип']
+  if (kind === 'текст' && typeof e['текст'] === 'string') answer.text += e['текст']
+  else if (kind === 'инструмент' && typeof e['имя'] === 'string') answer.tools.push(e['имя'])
+  else if (kind === 'провайдер' && typeof e.id === 'string') answer.model = typeof e.model === 'string' ? `${e.id}/${e.model}` : e.id
+  else if (kind === 'ошибка' && typeof e['текст'] === 'string') answer.error = e['текст']
+  else return false
+  return true
+}
+
+/**
+ * The same reading, as the bytes arrive. The owner, 2026-09-21: the steps
+ * should be seen while she works -- "opening...", "clicking..." -- not only
+ * the answer at the end. `onProgress` gets a copy after every event that
+ * changed something; a line split across two chunks waits for its end.
+ */
+export async function readAgentBody(
+  body: ReadableStream<Uint8Array>,
+  onProgress?: (soFar: AgentAnswer) => void,
+): Promise<AgentAnswer> {
+  const answer: AgentAnswer = { text: '', tools: [], model: null, error: null }
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let rest = ''
+  const take = (line: string) => {
+    if (readAgentLine(answer, line) && onProgress) onProgress({ ...answer, tools: [...answer.tools] })
+  }
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    rest += decoder.decode(value, { stream: true })
+    const lines = rest.split('\n')
+    rest = lines.pop() ?? ''
+    for (const line of lines) take(line)
+  }
+  rest += decoder.decode()
+  take(rest)
+  answer.text = answer.text.trim()
+  return answer
+}
+
+export class AgentSignedOut extends Error {}
+
+export interface AgentEnv {
+  fetch(
+    url: string,
+    init: { method: 'POST'; credentials: 'omit'; headers: Record<string, string>; body: string },
+  ): Promise<{ ok: boolean; status: number; text(): Promise<string>; body?: ReadableStream<Uint8Array> | null }>
+  token(): string | null
+}
+
+/**
+ * One question to the person's agent. The token goes in one header with
+ * credentials omitted, as everywhere in this file. 401 is "signed out", not
+ * a failure; any other refusal is thrown with the server's own words.
+ */
+export async function askBrowserAgent(
+  env: AgentEnv,
+  history: readonly ChatTurn[],
+  question: string,
+  lang: 'ru' | 'en',
+  onProgress?: (soFar: AgentAnswer) => void,
+): Promise<AgentAnswer> {
+  const token = env.token()
+  if (!token) throw new AgentSignedOut()
+  const res = await env.fetch(`${BROKER_BASE}/api/agent/chat`, {
+    method: 'POST',
+    credentials: 'omit',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ messages: agentMessages(history, question, lang) }),
+  })
+  if (res.status === 401) throw new AgentSignedOut()
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '')
+    throw new Error(`agent ${res.status}${raw ? `: ${raw.slice(0, 300)}` : ''}`)
+  }
+  const answer = res.body
+    ? await readAgentBody(res.body, onProgress)
+    : readAgentStream(await res.text().catch(() => ''))
+  if (!answer.text && answer.error) throw new Error(answer.error)
+  return answer
+}

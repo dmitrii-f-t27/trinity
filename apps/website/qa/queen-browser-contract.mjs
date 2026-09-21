@@ -8,14 +8,21 @@
 //   node --experimental-strip-types qa/queen-browser-contract.mjs
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   BROKER_BASE,
   callBroker,
   frameSrcOf,
   panelMode,
   viewOf,
+  agentMessages,
+  askBrowserAgent,
+  readAgentStream,
+  readAgentBody,
+  AgentSignedOut,
+  HISTORY_TURNS,
 } from '../src/lib/queenBrowser.ts'
-import { HUD_VIEWS, hudKeyOf } from '../src/components/queenHud.ts'
+import { HUD_VIEWS, hudKeyOf, RAIL_VIEWS, railViewOf, BOARD_VIEWS, PROJECT_VIEWS } from '../src/components/queenHud.ts'
 import { MODULES } from '../src/lib/queenModules.ts'
 
 const APP = 'https://app.t27.ai'
@@ -104,5 +111,121 @@ assert.equal(hudKeyOf('browser'), 'w')
 const mod = MODULES.find((m) => m.tab === 'browser')
 assert.ok(mod, 'a module entry, so the homepage and ?tab= know it')
 assert.equal(mod.key, 'w')
+
+// 6. The panel paints ABOVE the hive. The scene is an absolutely positioned
+//    layer and paints over unpositioned content; shipped without this, the
+//    comb covered the live window on app.t27.ai. A stylesheet is the only
+//    place this lives, so the stylesheet is what is checked -- the rule for
+//    the panel itself, not any line that merely mentions it.
+{
+  const css = readFileSync(new URL('../src/components/QueenBrowser.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const panel = /\.queen27-page\.is-shell \.queen27-browser\s*\{([^}]*)\}/.exec(css)
+  assert.ok(panel, 'the panel has its own rule')
+  assert.match(panel[1], /position:\s*relative/, 'the panel is positioned, or the hive paints over it')
+  const z = /z-index:\s*(\d+)/.exec(panel[1])
+  assert.ok(z && Number(z[1]) >= 1, 'the panel stacks above the scene holder')
+  const live = /\.queen27-browser\.is-live\s*\{([^}]*)\}/.exec(css)
+  assert.ok(live && /background:\s*#000/.test(live[1]), 'the live window sits on an opaque ground')
+  const hide = /\[data-view="browser"\][^{]*\.queen-scene-holder[^{]*\{([^}]*)\}/.exec(css)
+  assert.ok(hide && /visibility:\s*hidden/.test(hide[1]), 'on this view the hive scene is hidden, not drawn over the window')
+}
+
+// 7. The Queen drives the browser: the question reaches the person's own
+//    agent WITH the tab it was asked from, and its stream is read right.
+{
+  const msgs = agentMessages([], 'open t27.ai', 'en')
+  assert.equal(msgs.length, 1)
+  assert.match(msgs[0].content, /BROWSER tab/, 'the agent is told which tab the person is on')
+  assert.match(msgs[0].content, /browser_\*/, 'and that the browser tools are the ones to use')
+  assert.match(msgs[0].content, /open t27\.ai$/, 'the question itself is last, untouched')
+  assert.match(agentMessages([], 'x', 'ru')[0].content, /вкладки BROWSER/)
+
+  const long = Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `turn ${i}` }))
+  const withHistory = agentMessages([...long, { role: 'assistant', content: '  ' }], 'and now click it', 'en')
+  assert.equal(withHistory.length, HISTORY_TURNS + 1, 'earlier turns ride along, bounded')
+  assert.equal(withHistory[0].content, `turn ${20 - HISTORY_TURNS}`, 'the most recent ones')
+
+  const stream = [
+    '{"тип":"ход","id":"1"}',
+    '{"тип":"провайдер","id":"zai","model":"glm-5.3"}',
+    '{"тип":"размышление","текст":"let me look"}',
+    '{"тип":"инструмент","имя":"browser_status","аргументы":"{}"}',
+    'not json',
+    '{"тип":"текст","текст":"Three tabs "}',
+    '{"тип":"текст","текст":"are open."}',
+    '{"тип":"готово","витков":2}',
+  ].join('\n')
+  const a = readAgentStream(stream)
+  assert.equal(a.text, 'Three tabs are open.', 'thinking is not part of the answer')
+  assert.deepEqual(a.tools, ['browser_status'])
+  assert.equal(a.model, 'zai/glm-5.3')
+  assert.equal(readAgentStream('{"тип":"ошибка","текст":"provider 429"}').error, 'provider 429')
+
+  const calls = []
+  const env = (status, body) => ({
+    token: () => 'tok-9',
+    fetch: async (url, init) => { calls.push({ url, init }); return { ok: status < 300, status, text: async () => body } },
+  })
+  const got = await askBrowserAgent(env(200, stream), [], 'which tabs?', 'en')
+  assert.equal(got.text, 'Three tabs are open.')
+  const [{ url, init }] = calls
+  assert.equal(url, `${BROKER_BASE}/api/agent/chat`)
+  assert.equal(init.credentials, 'omit')
+  assert.equal(init.headers.Authorization, 'Bearer tok-9')
+  assert.ok(!init.body.includes('tok-9'), 'the token rides in the header only')
+  assert.match(JSON.parse(init.body).messages.at(-1).content, /BROWSER tab[\s\S]*which tabs\?$/)
+  await assert.rejects(askBrowserAgent(env(401, ''), [], 'x', 'en'), AgentSignedOut)
+  await assert.rejects(askBrowserAgent({ ...env(200, stream), token: () => null }, [], 'x', 'en'), AgentSignedOut)
+  await assert.rejects(askBrowserAgent(env(200, '{"тип":"ошибка","текст":"provider 429"}'), [], 'x', 'en'), /provider 429/)
+}
+
+// 9. The steps are seen as they happen: the stream is read as it arrives,
+//    even when a chunk ends mid-line or mid-letter.
+{
+  const lines = [
+    '{"тип":"провайдер","id":"zai","model":"glm-5.3"}',
+    '{"тип":"инструмент","имя":"browser_open","аргументы":"{}"}',
+    '{"тип":"инструмент","имя":"browser_click","аргументы":"{}"}',
+    '{"тип":"текст","текст":"Открыла t27.ai"}',
+    '{"тип":"готово"}',
+  ].join('\n') + '\n'
+  const bytes = new TextEncoder().encode(lines)
+  // Cut into 7-byte chunks: Cyrillic letters are 2 bytes, so some split.
+  const chunks = []
+  for (let i = 0; i < bytes.length; i += 7) chunks.push(bytes.slice(i, i + 7))
+  const body = () => new ReadableStream({ start(c) { chunks.forEach((x) => c.enqueue(x)); c.close() } })
+  const seen = []
+  const a = await readAgentBody(body(), (soFar) => seen.push(soFar))
+  assert.equal(a.text, 'Открыла t27.ai', 'no letter broken by a chunk boundary')
+  assert.deepEqual(a.tools, ['browser_open', 'browser_click'])
+  const firstTool = seen.findIndex((p) => p.tools.length === 1)
+  const firstText = seen.findIndex((p) => p.text !== '')
+  assert.ok(firstTool >= 0 && firstTool < firstText, 'the step is shown before the answer arrives')
+  seen[firstTool].tools.push('mutated')
+  assert.deepEqual(a.tools, ['browser_open', 'browser_click'], 'progress hands out copies')
+
+  const progress = []
+  const env = {
+    token: () => 't',
+    fetch: async () => ({ ok: true, status: 200, text: async () => { throw new Error('read as a whole') }, body: body() }),
+  }
+  const got = await askBrowserAgent(env, [], 'q', 'ru', (p) => progress.push(p.tools.length))
+  assert.equal(got.text, 'Открыла t27.ai', 'a response with a body is streamed, not read whole')
+  assert.ok(progress.includes(2))
+}
+
+// 8. The rail as the owner laid it out, 2026-09-21: TECH TREE inside KANBAN,
+//    PASSPORT inside PROJECT. Both stay valid addresses; the rail lights the
+//    family's door for them.
+assert.ok(BOARD_VIEWS.includes('research'))
+assert.deepEqual([...PROJECT_VIEWS], ['project', 'passport'])
+for (const folded of ['research', 'passport']) {
+  assert.ok(HUD_VIEWS.includes(folded), `${folded} is still an address`)
+  assert.ok(!RAIL_VIEWS.includes(folded), `${folded} is not its own rail button`)
+}
+assert.equal(railViewOf('research'), 'kanban')
+assert.equal(railViewOf('passport'), 'project')
+assert.ok(RAIL_VIEWS.includes('browser') && RAIL_VIEWS.includes('project') && RAIL_VIEWS.includes('tri'))
 
 console.log('queen-browser contract: ok')

@@ -56,7 +56,7 @@
 // contract drives the same code with fakes.
 
 import { mcpPayload } from './mcpAnswer.ts'
-import { appSessionFromWindow, type AppSessionVerdict } from './appSessionIdentity.ts'
+import { APP_ORIGIN as BOARD_APP_ORIGIN, BOARD_PATH, appSessionFromWindow, onAppBoard, type AppSessionVerdict } from './appSessionIdentity.ts'
 
 export const GAME_ORIGIN = 'https://t27.ai'
 export const APP_ORIGIN = 'https://app.t27.ai'
@@ -368,20 +368,42 @@ export function whoamiProfile(body: unknown): Pick<Identity, 'name' | 'avatar' |
 export const PLAYER_VIEWS: readonly string[] = [
   'comb', 'specs', 'kanban', 'map', 'factory', 'research', 'skills',
   'crons', 'agents', 'functions', 'tools', 'project', 'tri',
+  // Known to the player since gHashTag/999-multibots-telegraf#2736 (its
+  // QUEEN_VIEWS); until they were listed here too, signing in from PASSPORT or
+  // BROWSER still came back to the comb.
+  'passport', 'browser',
+  // Taught to the player in the same deploy as the view itself
+  // (999-multibots-telegraf player/src/lib/returnTarget.ts QUEEN_VIEWS).
+  'roadmap',
 ] as const
 
 /**
+ * Where a sign-in comes back to: the board this document IS. The board moved to
+ * app.t27.ai/queen/, but this link kept sending the return to t27.ai -- another
+ * site, where the app's frame is a guest and cannot read the session just made
+ * (seen 2026-09-21: signed in, then "a signature or an agent key is required"
+ * on the profile and the club). The player accepts both homes
+ * (999-multibots-telegraf player/src/lib/returnTarget.ts APP_BOARD).
+ */
+export const APP_BOARD_HOME = `${BOARD_APP_ORIGIN}${BOARD_PATH}`
+export function signInHome(): string {
+  if (typeof window === 'undefined') return `${GAME_ORIGIN}/`
+  return onAppBoard(window.location.origin, window.location.pathname) ? APP_BOARD_HOME : `${GAME_ORIGIN}/`
+}
+
+/**
  * The top-level sign-in link: the player's login, with a return to a fixed
- * Queen route. The player (gHashTag/999-multibots-telegraf
+ * Queen route on this board's home (signInHome). The player (gHashTag/999-multibots-telegraf
  * apps/vibee-editor/player/src/lib/returnTarget.ts) accepts exactly
  * https://t27.ai/#/queen, ?tab=<view> and ?tab=tri&screen=<screen>. So: one
  * route per view it knows, and on the TRI tab its screen (none for its first
  * screen, the way the Queen's own address carries none). No ids, no path, no
  * embed.
  */
-export function signInHref(view: string, views: readonly string[], screen?: string | null, screens: readonly string[] = []): string {
+export function signInHref(view: string, views: readonly string[], screen?: string | null, screens: readonly string[] = [], home: string = signInHome()): string {
+  const base = home === APP_BOARD_HOME ? APP_BOARD_HOME : `${GAME_ORIGIN}/`
   const tab = view !== 'comb' && views.includes(view) && PLAYER_VIEWS.includes(view) && /^[a-z]+$/.test(view) ? view : null
-  let route = tab ? `${GAME_ORIGIN}/#/queen?tab=${tab}` : `${GAME_ORIGIN}/#/queen`
+  let route = tab ? `${base}#/queen?tab=${tab}` : `${base}#/queen`
   if (tab === 'tri' && typeof screen === 'string' && screen !== screens[0] && screens.includes(screen) && /^[a-z]{1,16}$/.test(screen)) route += `&screen=${screen}`
   return `${APP_ORIGIN}/?return=${encodeURIComponent(route)}`
 }

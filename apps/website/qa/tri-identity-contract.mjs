@@ -47,6 +47,7 @@ import {
   chipOf,
   whoamiProfile,
   signInHref,
+  APP_BOARD_HOME,
   PLAYER_VIEWS,
   createTriIdentity,
 } from '../src/lib/triIdentity.ts'
@@ -203,14 +204,11 @@ const SCREEN_IDS = TRI_SCREENS.map((entry) => entry.screen)
 //      A new one appearing unannounced fails this gate exactly as before.
 const UNKNOWN_TO_PLAYER = HUD_VIEWS.filter((view) => !PLAYER_VIEWS.includes(view))
 eq(PLAYER_VIEWS.filter((view) => !HUD_VIEWS.includes(view)), [], 'the player follows no view the Queen does not have')
-// BROWSER costs the same as PASSPORT: signing in from it returns to the comb,
-// one press away from the browser. Its own sign-in link points into the app
-// directly (lib/queenBrowser.ts APP_BROWSER_URL), so the person who wants the
-// browser has a way there that does not depend on the return.
-// ROADMAP costs the same: it needs no sign-in at all (it reads two static files
-// and public GitHub issue state), so the only loss is that a sign-in started
-// from it returns to the comb, one press away.
-eq([...UNKNOWN_TO_PLAYER], ['passport', 'browser', 'roadmap'], 'the views the deployed player has not been told about, and no others')
+// PASSPORT and BROWSER were named here until the player learned them
+// (999-multibots-telegraf#2736, its QUEEN_VIEWS), and ROADMAP until the same
+// deploy that ships it taught the player its name. Now none: every view
+// returns to itself.
+eq([...UNKNOWN_TO_PLAYER], [], 'the views the deployed player has not been told about, and no others')
 eq([...SCREEN_IDS].sort(), [...PLAYER_SCREENS].sort(), "the player's copy of the TRI screens is the Queen's table")
 
 const returns = new Set()
@@ -247,6 +245,13 @@ for (const hostile of ['tri&screen=crm', 'kanban&embed=1', 'profile/144022504', 
 }
 eq(new URL(signInHref('constructor', HUD_VIEWS)).searchParams.get('return'), `${GAME_ORIGIN}/#/queen`, 'an object key is not a view')
 eq(new URL(signInHref('nope', HUD_VIEWS)).searchParams.get('return'), `${GAME_ORIGIN}/#/queen`, 'an unknown view returns to the comb')
+// The board on app.t27.ai/queen/ signs in and comes back to ITSELF, not to
+// t27.ai: there the app's frame is a guest and never sees the session
+// (2026-09-21). The player accepts exactly this home (returnTarget.ts APP_BOARD).
+eq(APP_BOARD_HOME, 'https://app.t27.ai/queen/', 'the app board home')
+eq(new URL(signInHref('tri', HUD_VIEWS, 'profile', SCREEN_IDS, APP_BOARD_HOME)).searchParams.get('return'), `${APP_BOARD_HOME}#/queen?tab=tri&screen=profile`, 'from the app board, back to the same screen of the app board')
+eq(new URL(signInHref('kanban', HUD_VIEWS, null, [], APP_BOARD_HOME)).searchParams.get('return'), `${APP_BOARD_HOME}#/queen?tab=kanban`, 'from the app board, back to the same view')
+eq(new URL(signInHref('kanban', HUD_VIEWS, null, [], 'https://evil.test/queen/')).searchParams.get('return'), `${GAME_ORIGIN}/#/queen?tab=kanban`, 'a home that is not the app board falls back to the game, never to itself')
 ok([...returns].every((r) => r.startsWith(`${GAME_ORIGIN}/#/queen`) && !/embed|screen|path|lead|\d/.test(r.slice(GAME_ORIGIN.length))), 'no view return carries embed, a screen, a path or an id')
 // One route per view the PLAYER knows -- the views it does not know share the
 // comb's return, so the count follows its list, not ours.
