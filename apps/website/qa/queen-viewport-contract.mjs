@@ -207,8 +207,10 @@ const DECLARED = [
   // window is shorter than the budget (COLLAPSE is sticky at the bottom), and
   // the phone icon row scrolls sideways
   '.queen27-hud-command',
-  // the Queen's own log: the board's events and the conversation about them
-  '.queen-chat-log',
+  // the Queen's own panel: the conversation, the filtered log in its own tab,
+  // the agents' network in a third, and the kind chips, which hold one line and
+  // scroll sideways rather than wrapping onto four rows in a 280px column
+  '.queen-chat-log', '.queen-chat-net', '.queen-chat-chips',
   '.queen27-hud-menu', '.queen27-hud-round-pop',
   // the views. The kanban's second lane -- the signed-in visitor's own clients
   // -- scrolls sideways exactly as the first one does, and is named here in its
