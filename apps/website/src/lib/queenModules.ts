@@ -279,6 +279,23 @@ export const MODULES = [
       play: 'Место, где видно, как работает агент, и где его можно подменить. Откройте, войдите на сайт сами — и пусть агент продолжает в том же окне.',
     },
   },
+  {
+    tab: 'roadmap',
+    key: 'm',
+    glyph: '⇶',
+    en: {
+      name: 'ROADMAP',
+      hint: 'The game: the whole stack rewritten in .t27 (key m)',
+      body: 'The goal of the game, measured. Everything below the interface is to be written once in .t27 and generated to its target, with one exception: the seed, t27c, stays hand-written Rust. This view counts what the code that runs app.t27.ai is written in today -- every repository behind it, by language, from the files git tracks at a named commit -- and lays out the rewrite as stages, each one a goal issue labelled roadmap whose state is read live. Opens on the letter m.',
+      play: 'Where the whole swarm\'s work adds up to one number: the share of the stack in .t27. Pick a stage, port its files, and watch the dial move.',
+    },
+    ru: {
+      name: 'ДОРОЖНАЯ КАРТА',
+      hint: 'Игра: весь стек переписать на .t27 (клавиша m)',
+      body: 'Цель игры в цифрах. Всё ниже интерфейса должно быть написано один раз на .t27 и сгенерировано в свою цель, с одним исключением: зерно, t27c, остаётся рукописным Rust. Этот вид считает, на чём сегодня написан код, который держит app.t27.ai, — каждый репозиторий за ним, по языкам, по файлам, которые отслеживает git, на названном коммите, — и раскладывает переписывание на этапы, каждый из которых — задача-цель с меткой roadmap, чьё состояние читается вживую. Открывается буквой m.',
+      play: 'Место, где работа всего роя сходится в одно число: доля стека на .t27. Возьмите этап, перенесите его файлы — и смотрите, как сдвигается стрелка.',
+    },
+  },
 ] as const
 
 export type QueenModule = (typeof MODULES)[number];
