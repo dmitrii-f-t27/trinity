@@ -103,6 +103,7 @@ export function deriveTags(rel, repo, kinds, entry) {
   if (entry.loss > 0) tags.add('issue/dropped-content')
   if (entry.tcErrors > 0) tags.add('issue/type-errors')
   if (entry.failedBackends.length) tags.add('issue/backend-rejected')
+  if (entry.partialBackends?.length) tags.add('issue/backend-partial')
 
   return [...tags].sort()
 }
@@ -146,7 +147,13 @@ export function summarise(kinds, entry, health) {
     const w = []
     if (entry.loss > 0) w.push(`${entry.loss} item${entry.loss > 1 ? 's' : ''} dropped by error recovery`)
     if (entry.tcErrors > 0) w.push(`${entry.tcErrors} type error${entry.tcErrors > 1 ? 's' : ''}`)
-    parts.push(`Compiles with ${listy(w)}.`)
+    if (entry.partialBackends?.length) {
+      const who = listy(entry.partialBackends.map((b) => TARGET_LABEL[b] || b))
+      w.push(`${entry.notEmitted} declaration${entry.notEmitted > 1 ? 's' : ''} announced but not printed by ${who}`)
+    }
+    // `listy([])` is the empty string, and `Compiles with .` was what a spec
+    // whose only warning is a partial artifact would have read.
+    parts.push(w.length ? `Compiles with ${listy(w)}.` : 'Compiles with warnings.')
   } else {
     parts.push('Clean through every layer.')
   }
@@ -200,12 +207,28 @@ export function corpusEntry(rel, repo, text, analyze) {
 
   const kinds = kindsOf(a)
   const failedBackends = a ? Object.entries(a.targets).filter(([, v]) => !v.ok).map(([k]) => k) : []
+  // A backend that produced an artifact and said, in that artifact, what it
+  // could not print. Only the declaration backends have this third answer, and
+  // they report the count rather than leaving a reader to parse `__NOT_EMITTED__`
+  // back out of the code. Whole and half-printed must not share a colour: a
+  // partial module is exactly what a "Working" chip would be lying about.
+  const partialBackends = a
+    ? Object.entries(a.targets).filter(([, v]) => v.ok && v.notEmitted > 0).map(([k]) => k)
+    : []
+  const notEmitted = a
+    ? Object.values(a.targets).reduce((n, v) => Math.max(n, v.ok ? v.notEmitted || 0 : 0), 0)
+    : 0
   const loss = a ? a.discarded.length + a.swallowed.length + a.lexerDiscarded.length : 0
   const tcErrors = a?.typecheck?.errorCount ?? 0
   // Three states, worst-wins. "fail" means something refused to produce output
-  // at all; "warn" means it produced output but the compiler flagged or dropped
-  // something on the way.
-  const health = !a || a.astError || failedBackends.length ? 'fail' : loss > 0 || tcErrors > 0 ? 'warn' : 'ok'
+  // at all; "warn" means it produced output but the compiler flagged, dropped,
+  // or declined to print something on the way.
+  const health =
+    !a || a.astError || failedBackends.length
+      ? 'fail'
+      : loss > 0 || tcErrors > 0 || partialBackends.length
+        ? 'warn'
+        : 'ok'
 
   const parts = rel.split('/')
   // Two segments, not one: with the corpus widened past specs/, a single
@@ -230,6 +253,11 @@ export function corpusEntry(rel, repo, text, analyze) {
     loss,
     tcErrors,
     failedBackends,
+    partialBackends,
+    // The largest number any one backend announced, not the sum: the js and ts
+    // artifacts leave out the same declarations, so adding them would count
+    // every omission twice.
+    notEmitted,
     // Output size per backend, so the library can show what a spec actually
     // produces without re-running the compiler.
     outBytes: a ? Object.fromEntries(Object.entries(a.targets).map(([k, v]) => [k, v.ok ? v.bytes : null])) : {},
