@@ -54,7 +54,8 @@ export const ONBOARDING_REQUIRED = {
   BACKENDS: 'arr', BACKENDS_NOTE: 'str',
   TS_SHARES_THE_JS_VALUE_LAYER: 'bool', JS_TS_DIVERGENCES: 'u16',
   MEASURED_AT: 'str', SPEC_COUNT: 'u16', SPEC_LINES: 'u32',
-  HEALTH_OK: 'u16', HEALTH_WARN: 'u16', HEALTH_FAIL: 'u16', HEALTH_FAIL_NOTE: 'str', HEALTH_FAIL_JS_ONLY: 'u16',
+  HEALTH_OK: 'u16', HEALTH_WARN: 'u16', HEALTH_FAIL: 'u16', HEALTH_FAIL_NOTE: 'str',
+  HEALTH_FAIL_UNPARSED: 'u16', HEALTH_FAIL_JS_ONLY: 'u16', HEALTH_PARTIAL: 'u16',
   REPO_COUNT: 'u8', WORLD_COUNT: 'u8',
   GAME: 'str', GAME_DOC: 'str', GAME_BOARD: 'str', WIN_CONDITION: 'str',
   CAMPAIGN: 'str', CAMPAIGN_NOTE: 'str', CYCLE: 'arr', CYCLE_ABOUT: 'arr',
@@ -173,6 +174,15 @@ export function corpusProblems(f, file, manifest) {
     // that was measuring the wrong set. Compare against DECLARATIONS_ONLY instead, so the
     // next backend of this kind is a one-word edit there and not a wrong number here.
     HEALTH_FAIL_JS_ONLY: manifest.specs.filter((s) => sameSet(s.failedBackends ?? [], DECLARATIONS_ONLY)).length,
+    // The half of health=fail that HEALTH_FAIL_NOTE promises the manifest separates, actually
+    // separated. Zero AST nodes means the parser produced nothing, so no backend ran: its
+    // clean counters say nothing ran, not that nothing went wrong. The remainder parsed and
+    // then lost a backend, which is a different fault and a different fix.
+    HEALTH_FAIL_UNPARSED: manifest.specs.filter((s) => s.health === 'fail' && !s.nodes).length,
+    // A spec whose artifact exists and says, in itself, what it could not print. Counted here
+    // for the same reason as the rest: a number this document states about the corpus is
+    // measured from the corpus or it is not published.
+    HEALTH_PARTIAL: manifest.specs.filter((s) => (s.partialBackends ?? []).length > 0).length,
   }
   // The spec claims codegen_ts shares codegen_js's value layer. That is falsifiable over the
   // corpus and therefore gets falsified here rather than believed: a spec that loses one of
