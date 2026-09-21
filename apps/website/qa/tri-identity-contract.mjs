@@ -205,8 +205,9 @@ const SCREEN_IDS = TRI_SCREENS.map((entry) => entry.screen)
 const UNKNOWN_TO_PLAYER = HUD_VIEWS.filter((view) => !PLAYER_VIEWS.includes(view))
 eq(PLAYER_VIEWS.filter((view) => !HUD_VIEWS.includes(view)), [], 'the player follows no view the Queen does not have')
 // PASSPORT and BROWSER were named here until the player learned them
-// (999-multibots-telegraf#2736, its QUEEN_VIEWS). Now none: every view returns
-// to itself.
+// (999-multibots-telegraf#2736, its QUEEN_VIEWS), and ROADMAP until the same
+// deploy that ships it taught the player its name. Now none: every view
+// returns to itself.
 eq([...UNKNOWN_TO_PLAYER], [], 'the views the deployed player has not been told about, and no others')
 eq([...SCREEN_IDS].sort(), [...PLAYER_SCREENS].sort(), "the player's copy of the TRI screens is the Queen's table")
 

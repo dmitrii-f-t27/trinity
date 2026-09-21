@@ -372,6 +372,9 @@ export const PLAYER_VIEWS: readonly string[] = [
   // QUEEN_VIEWS); until they were listed here too, signing in from PASSPORT or
   // BROWSER still came back to the comb.
   'passport', 'browser',
+  // Taught to the player in the same deploy as the view itself
+  // (999-multibots-telegraf player/src/lib/returnTarget.ts QUEEN_VIEWS).
+  'roadmap',
 ] as const
 
 /**

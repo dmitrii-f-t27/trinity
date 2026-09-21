@@ -95,6 +95,7 @@ const ENGINE_FLAG =
 const KEY_SHORTCUTS_STORAGE = "queen.hud.key-shortcuts";
 import { useI18n } from "../i18n/context";
 import { QueenTri } from "../components/QueenTri";
+import QueenRoadmap from "../components/QueenRoadmap";
 import Passport from "./Passport";
 import { QueenBrowser } from "../components/QueenBrowser";
 import { QueenIdentity } from "../components/QueenIdentity";
@@ -393,6 +394,8 @@ const COPY = {
     triHint: "The app inside the game: feed, agent, AI generation, profile and CRM (key r)",
     // The fourteenth view: the record proposed to the OCP neuromorphic working
     // group, and the three measured cases of ours that pay for it.
+    roadmapView: "ROADMAP",
+    roadmapHint: "The game: the whole stack rewritten in .t27, by language and stage (key m)",
     passportView: "PASSPORT",
     passportHint: "What must travel with a result: the record proposed to the OCP working group (key b)",
     // The fifteenth view: the person's own remote browser, the one the agent drives.
@@ -806,6 +809,8 @@ const COPY = {
     projectSources: "источников закреплено",
     triView: "TRI",
     triHint: "Приложение внутри игры: лента, агент, ИИ-генерация, профиль и CRM (клавиша r)",
+    roadmapView: "ДОРОЖНАЯ КАРТА",
+    roadmapHint: "Игра: весь стек на .t27 — по языкам и этапам (клавиша m)",
     passportView: "ПАСПОРТ",
     passportHint: "Что обязано ехать вместе с результатом: запись, поданная в рабочую группу OCP (клавиша b)",
     browserView: "БРАУЗЕР",
@@ -3403,6 +3408,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     { view: "tri" as const, glyph: "△", label: c.triView, hint: c.triHint },
     { view: "passport" as const, glyph: "▤", label: c.passportView, hint: c.passportHint },
     { view: "browser" as const, glyph: "◍", label: c.browserView, hint: c.browserHint },
+    { view: "roadmap" as const, glyph: "⇶", label: c.roadmapView, hint: c.roadmapHint },
   ].map((item) => ({ ...item, hotkey: hudKeyOf(item.view) }));
   // TRI is drawn as one button per screen, owner's word 2026-09-21: every
   // screen of the app its own tab. The first keeps TRI's key; the rest are
@@ -3955,6 +3961,8 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
                 preview: c.triPreview,
               }}
             />
+          ) : boardView === "roadmap" ? (
+            <QueenRoadmap lang={lang === "ru" ? "ru" : "en"} />
           ) : boardView === "passport" ? (
             // The record itself, not a frame of it: the page and this view read
             // one content module, so the working group and the map cannot drift.
