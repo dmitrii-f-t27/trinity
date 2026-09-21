@@ -167,14 +167,45 @@ interface Exports {
 
 let modulePromise: Promise<Exports> | null = null
 
+/**
+ * The first 16 hex of the vendored wasm's SHA-256, substituted at build time by
+ * `t27WasmTag()` in vite.config.ts. Declared with no fallback on purpose: see
+ * the `define` there for why a ReferenceError beats a silent default.
+ */
+declare const __T27_WASM_TAG__: string
+
+/**
+ * The compiler's URL, with the hash of its own bytes in the query string.
+ *
+ * The path is fixed and the host answers it with a one-year `immutable`
+ * cache, so without this a browser that has ever loaded the Explorer keeps
+ * whichever compiler it first saw -- for a year, without revalidating. That is
+ * not a hypothetical: the build that added the TypeScript backend shipped a
+ * page whose TypeScript tab said "This backend produced no output", because
+ * the cached wasm behind the same URL only knew six. nginx matches on the path
+ * and ignores the query, so the long cache survives; the HTTP cache key
+ * includes the query, so new bytes are a new URL and the stale entry is never
+ * asked for again.
+ *
+ * Read when the compiler is first wanted, not at module scope. In the bundle
+ * either would be the same literal, but `qa/spec-catalog-contract.mjs` imports
+ * this file into node and supplies the tag on `globalThis` -- and an ES
+ * module's imports finish evaluating before the importer's first statement
+ * runs, so a top-level const would throw before the gate could define it.
+ */
+export function wasmUrl(): string {
+  return `t27/t27_compiler.wasm?v=${__T27_WASM_TAG__}`
+}
+
 /** Instantiate once and share; the module is stateless between calls. */
 export function loadCompiler(): Promise<Exports> {
   if (!modulePromise) {
-    modulePromise = WebAssembly.instantiateStreaming(fetch('t27/t27_compiler.wasm'), {})
+    const url = wasmUrl()
+    modulePromise = WebAssembly.instantiateStreaming(fetch(url), {})
       .catch(async () => {
         // instantiateStreaming needs an exact application/wasm content type,
         // which not every static host sends. Fall back to the buffer form.
-        const res = await fetch('t27/t27_compiler.wasm')
+        const res = await fetch(url)
         if (!res.ok) throw new Error(`could not fetch compiler wasm (${res.status})`)
         return WebAssembly.instantiate(await res.arrayBuffer(), {})
       })
