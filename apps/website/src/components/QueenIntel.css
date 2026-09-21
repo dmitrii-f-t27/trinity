@@ -14,6 +14,29 @@
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
+/* The ground above is half of it. --hud-panel resolves to 0.88, so 12% of the
+   hive would come through with its EDGES intact, and a cell outline crossing a
+   headline is read as part of the word. Thickening the veil cannot fix that:
+   alpha scales the field's amplitude and leaves its spatial frequency where it
+   was. The blur is the low pass that takes the outline out.
+   Written in the conditional because nothing on the board wears this class
+   today: QueenIntelFeed is the only component that renders .queen27-intel
+   (QueenIntel.tsx:180), it is exported and no module imports it -- Queen.tsx
+   takes QueenSectors and nothing else out of this file. So this was not seen
+   on a screen, and the paragraph above is the arithmetic for the ground the
+   rule paints, not a photograph. The declaration stays because the rule above
+   still paints that ground and the class is still live CSS; the day the feed
+   is mounted it arrives with both halves.
+   The feed only. In the shell the sectors panel sits in the top bar, where
+   Queen.css strips it to `background: none` on
+   `.queen27-hud-sectors > .queen27-sectors`, which is the only place
+   QueenSectors ever renders, and the bar itself is already frosted -- a blur
+   there would be a second layer over a surface that paints nothing, and the
+   band would show on the map. */
+.queen27-intel {
+  backdrop-filter: blur(6px);
+}
+
 /* ---- header strips ---------------------------------------------------- */
 
 .queen27-intel-head,

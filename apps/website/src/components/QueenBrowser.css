@@ -12,7 +12,17 @@
 
    z-index stays low on purpose: the HUD's top bar and its menu sit at 5-9 in
    the same page, and a browser window above the menu would swallow it. The
-   hive is taken out of the way instead, below. */
+   hive is taken out of the way instead, below.
+
+   This pair no longer DECIDES that order, it agrees with it. Queen.css now sets
+   position and z-index: 1 on every child of .queen27-hud-vp-body except the
+   hive, at a higher specificity than this rule can reach, because the same
+   paint-order defect was on every view and not just this one. Two rules writing
+   one stacking order is the shape passport.css deleted rather than kept -- the
+   difference is that there the number written was not the number that computed,
+   and here they agree, and qa/queen-browser-contract.mjs asserts this rule
+   specifically: positioned, and >= 1. It stays so that assertion has something
+   to read, and so this file still says out loud why the number is 1 and not 7. */
 .queen27-page.is-shell .queen27-browser {
   position: relative;
   z-index: 1;
@@ -27,14 +37,42 @@
   background: #000;
 }
 
+/* THE INK ON THIS VIEW. Three rules in this file write it -- the note below,
+   the hint on the live bar, the quiet button -- and this is the one place it is
+   explained.
+
+   All three said `var(--muted, #8b9490)`, and the fallback is dead: index.css
+   declares --muted: #888888 on :root, so the number a reader of this file can
+   see is the one number the browser never uses, and what drew was a duller grey
+   than the one written down. passport.css carries the same lesson about
+   --accent, found the same way -- by measuring the running page instead of
+   reading the declaration. --hud-muted is the board's own word for a label or a
+   note; it is declared on .queen27-page.is-shell, which every rule in this file
+   is already scoped to, and qa/queen-contrast-contract.mjs pins it at 4.5:1.
+
+   MEASURED HARDER THAN IT DRAWS, deliberately. The last rule in this file hides
+   the hive on this view, so nothing lit is behind these grounds: the note reads
+   on solid black, where even #888888 cleared the bar at 5.76:1. The contrast
+   gate does not model a view that switches the scene off -- it assumes a lit
+   field behind every translucent ground, everywhere -- and it read the dead
+   #8b9490 over that imagined field as 2.75:1. Rather than teach the gate a
+   third kind of exemption for the sake of one file, the note clears the harsher
+   bar as written: 5.99:1 against a fully lit field, 12.19 against the black it
+   actually gets. The arithmetic stays true if the scene ever comes back.
+
+   Only the note is measured twice, because only the note is translucent. The
+   quiet button's ground is opaque (the reason is at that rule, at the foot of
+   this file), so a field behind it changes nothing it composites and it reads
+   12.11:1 whether the hive is lit or hidden -- one number, not a pair. The hint
+   declares no ground of its own and rides the live bar's #000. */
 .queen27-page.is-shell .queen27-browser.is-note {
-  background: var(--hud-veil, rgba(2, 8, 6, 0.6));
+  background: var(--hud-veil, rgba(2, 8, 6, 0.72));
   backdrop-filter: blur(6px);
   align-items: flex-start;
   justify-content: center;
   gap: 12px;
   padding: 16px;
-  color: var(--muted, #8b9490);
+  color: var(--hud-muted, rgba(255, 255, 255, 0.78));
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 13px;
   line-height: 1.5;
@@ -59,7 +97,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--muted, #8b9490);
+  /* Same ink, same reason: see the note rule above. 11px is the smallest type
+     on this view, so it is the line that could least afford the duller grey. */
+  color: var(--hud-muted, rgba(255, 255, 255, 0.78));
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 11px;
 }
@@ -81,10 +121,23 @@
   cursor: pointer;
 }
 
+/* OPAQUE, and it is the only ground in this file that can honestly say so.
+   This button is rendered on one branch of the component and one only, the live
+   bar, whose wrapper paints #000 with no alpha at all -- so there is no field
+   behind this row to let through, and a translucent ground here was describing
+   a backdrop that does not exist. It read 1.74:1 against a lit field, the worst
+   pair in the file, and it was hiding behind the note's failure because an
+   assertion stops at the first one.
+
+   Not var(--hud-ground): that token is declared `transparent` on the shell, so
+   the #020806 every caller writes beside it is a fallback that never applies --
+   the same dead-fallback shape as the ink above, and two more surfaces in this
+   tree are standing on it. The literal is written out here because it is what
+   this rule means. Ink as above. */
 .queen27-page.is-shell .queen27-browser-btn.is-quiet {
   border-color: rgba(0, 255, 136, 0.22);
-  background: rgba(2, 8, 6, 0.6);
-  color: var(--muted, #8b9490);
+  background: #020806;
+  color: var(--hud-muted, rgba(255, 255, 255, 0.78));
 }
 
 .queen27-page.is-shell .queen27-browser-btn:disabled {
