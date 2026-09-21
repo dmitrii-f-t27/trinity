@@ -182,6 +182,24 @@ jobs:
       # of an input nobody can send from. Pure, no browser, no network.
       - name: Only registered people write to the Queen
         run: npm run check:queen-chat-gate
+      # The Queen's panel is three tabs: her conversation, the board's log with
+      # a filter over it, and the agents' network. Two of them are arithmetic
+      # over the feed and this runs that arithmetic -- including the decision
+      # that no chip lit means every kind, which read the other way opens the
+      # tab on an empty list and tells the reader the swarm is idle. The third
+      # holds the ceiling on what the network may claim: the wire carries an
+      # issue on every row and no agent name anywhere, so the tab says so in
+      # both languages instead of drawing names nobody published.
+      - name: The Queen's three tabs
+        run: npm run check:queen-chat-tabs
+      # "it is dim" (the owner, 2026-09-21, with a photograph of the clients
+      # strip). The board draws every panel over a live hive, so each colour
+      # here has two contrasts and only one of them gets looked at. This does
+      # the WCAG arithmetic over a field at full brightness: the tokens against
+      # each ground, and every hand-written ground in the file. Before it, the
+      # filter chips measured 1.6:1.
+      - name: The HUD can be read while the map is lit
+        run: npm run check:queen-contrast
       # Why free bees are idle, read from /queen/status alone: real snapshots
       # and malformed ones through the pure reader, no fabricated zeros, a
       # stale round called stale. Pure, no browser.

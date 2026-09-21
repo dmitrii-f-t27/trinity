@@ -4,7 +4,11 @@ import ChatMessage from './chat/ChatMessage'
 import { NotSignedIn, type ChatResponse } from '../services/chatApi'
 import { askQueen, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
 import { signInHref } from '../lib/triIdentity'
-import { HUD_VIEWS, type HudEvent } from './queenHud'
+import { HUD_VIEWS, type HudEvent, type HudEventKind } from './queenHud'
+import {
+  a2aNetwork, CHAT_TABS, filterEvents, kindCounts, NO_FILTER,
+  type ChatTab, type LogFilter,
+} from './queenChatNetwork'
 import './QueenChat.css'
 
 export interface QueenChatContext {
@@ -14,18 +18,18 @@ export interface QueenChatContext {
 }
 
 type Turn = { kind: 'turn'; at: number; role: 'user' | 'assistant'; content: string } & Partial<ChatResponse>
-type Entry = Turn | { kind: 'event'; at: number; event: HudEvent }
 
-// The feed runs to 120 rows. All of them in the log would bury the conversation,
-// so the column holds the recent ones and the feed itself keeps the rest.
-const EVENT_WINDOW = 40
+// The feed runs to 120 rows. The LOGS tab holds all of them, because that is
+// what it is for; the number is kept here so the A2A tab can say which window
+// its links were counted over rather than implying they are the whole swarm.
+const EVENT_WINDOW = 120
 
 const copy = {
   en: {
     title: 'QUEEN', hide: 'Hide', show: 'Ask the Queen',
     context: 'In context', offline: 'OFFLINE', online: 'LIVE', checking: 'CHECKING',
     offlineNote: 'No Queen is answering. Start one with `tri serve --chat`, or point VITE_QUEEN_CHAT_URL at a deployed one. Nothing here is answered from a sample.',
-    empty: 'She sees what is on screen and what the board just did. Ask about any of it.',
+    empty: 'Ask her about the board. She sees the view you are on; the traffic it makes is in LOGS, and who it travelled between is in A2A.',
     failed: 'The Queen did not answer.',
     about: 'Ask about this',
     subject: 'Asking about',
@@ -35,12 +39,25 @@ const copy = {
     signedOut: 'The Queen answers people she knows. Sign in with Telegram and ask her here.',
     signIn: 'Sign in',
     signInTitle: 'Sign in with Telegram and come back to this view',
+    tabQueen: 'QUEEN', tabLogs: 'LOGS', tabA2A: 'A2A',
+    tabQueenTitle: 'The conversation', tabLogsTitle: 'Everything the board did, filtered', tabA2ATitle: 'Who the traffic travelled between',
+    filterKinds: 'Kinds', filterText: 'issue number, or a word',
+    filterClear: 'Clear', filterShowing: 'showing',
+    logEmpty: 'Nothing in the feed matches that.',
+    netNote: 'The feed carries an issue on every row and no worker name anywhere: /a2a answers 403, /queen/agents 404 (measured 2026-09-21). So the network is the Queen at the hub and one link per issue, with each message counted in the direction it travelled.',
+    netLinks: 'links', netMessages: 'messages',
+    netUp: 'to the Queen', netDown: 'to a worker',
+    netBusy: 'busy now',
+    netScope: 'The links are counted over the last {n} events. The busy figure is the swarm’s own, at this moment. They count different things and are not meant to agree.',
+    netEmpty: 'No traffic in the window.',
+    netUnattributed: 'rows carried no issue',
+    stance: { accepted: 'accepted', 'with-worker': 'with a worker', 'with-queen': 'with the Queen' },
   },
   ru: {
     title: 'КОРОЛЕВА', hide: 'Скрыть', show: 'Спросить королеву',
     context: 'В контексте', offline: 'OFFLINE', online: 'LIVE', checking: 'ПРОВЕРКА',
     offlineNote: 'Королева не отвечает. Поднимите её через `tri serve --chat` или укажите VITE_QUEEN_CHAT_URL на развёрнутую. Ни один ответ здесь не берётся из образца.',
-    empty: 'Она видит, что на экране и что доска только что сделала. Спрашивайте о любом из этого.',
+    empty: 'Спрашивайте её о доске. Она видит вид, на котором вы стоите; его трафик — во вкладке ЛОГИ, а между кем он шёл — в A2A.',
     failed: 'Королева не ответила.',
     about: 'Спросить об этом',
     subject: 'Разговор о',
@@ -50,6 +67,19 @@ const copy = {
     signedOut: 'Королева отвечает тем, кого знает. Войдите через Telegram и спрашивайте здесь.',
     signIn: 'Войти',
     signInTitle: 'Войти через Telegram и вернуться к этому виду',
+    tabQueen: 'КОРОЛЕВА', tabLogs: 'ЛОГИ', tabA2A: 'A2A',
+    tabQueenTitle: 'Диалог', tabLogsTitle: 'Всё, что сделала доска, с фильтром', tabA2ATitle: 'Между кем шёл трафик',
+    filterKinds: 'Виды', filterText: 'номер задачи или слово',
+    filterClear: 'Сбросить', filterShowing: 'показано',
+    logEmpty: 'В ленте нет ничего подходящего.',
+    netNote: 'В ленте на каждой строке есть задача и нигде нет имени рабочего: /a2a отвечает 403, /queen/agents — 404 (измерено 2026-09-21). Поэтому сеть — это королева в центре и одна связь на задачу, а каждое сообщение посчитано в ту сторону, в которую оно шло.',
+    netLinks: 'связей', netMessages: 'сообщений',
+    netUp: 'королеве', netDown: 'рабочему',
+    netBusy: 'в работе сейчас',
+    netScope: 'Связи посчитаны по последним {n} событиям. Число занятых — собственное число роя на эту секунду. Это разные величины, и совпадать они не обязаны.',
+    netEmpty: 'В окне нет трафика.',
+    netUnattributed: 'строк без задачи',
+    stance: { accepted: 'принято', 'with-worker': 'у рабочего', 'with-queen': 'у королевы' },
   },
 } as const
 
@@ -64,18 +94,24 @@ function contextLine(ctx: QueenChatContext, subject: HudEvent | null): string {
 }
 
 export default function QueenChat({
-  context, lang, events = [], describe, issueHref,
+  context, lang, events = [], describe, issueHref, workers = null,
 }: {
   context: QueenChatContext
   lang: 'ru' | 'en'
   events?: HudEvent[]
   describe?: (event: HudEvent) => string
   issueHref?: (event: HudEvent) => string | null
+  /** The swarm's own count of paid slots, for the A2A tab. Never derived here. */
+  workers?: { capacity: number; active: number; idle: number } | null
 }) {
   const t = copy[lang === 'ru' ? 'ru' : 'en']
   const [open, setOpen] = useState(() => {
     try { return localStorage.getItem('queen-chat-open') !== '0' } catch { return true }
   })
+  // The conversation is the tab she opens on. The other two are places to look
+  // something up and come back from, which is why "Ask about this" in either of
+  // them lands here with the subject already set.
+  const [tab, setTab] = useState<ChatTab>('queen')
   const [live, setLive] = useState<boolean | null>(null)
   // Whether there is anybody signed in — a boolean, never the token. The
   // component cannot leak what it was never given, and the token itself is read
@@ -84,6 +120,7 @@ export default function QueenChat({
   const [signedIn, setSignedIn] = useState(() => queenCaller().signedIn)
   const [turns, setTurns] = useState<Turn[]>([])
   const [subject, setSubject] = useState<HudEvent | null>(null)
+  const [filter, setFilter] = useState<LogFilter>(NO_FILTER)
   const [busy, setBusy] = useState(false)
   // How long she has been at it. A model that thinks for half a minute and a
   // model that is not there look the same from a chair: nothing arrives. The
@@ -111,15 +148,20 @@ export default function QueenChat({
     return () => { alive = false; window.clearInterval(id) }
   }, [])
 
-  // One stream, in time order: what the board did and what was said about it.
-  const entries = useMemo<Entry[]>(() => {
-    const rows: Entry[] = events
-      .slice(-EVENT_WINDOW)
-      .map((event) => ({ kind: 'event' as const, at: Date.parse(event.at) || 0, event }))
-    return [...rows, ...turns].sort((a, b) => a.at - b.at)
-  }, [events, turns])
+  const feed = useMemo(() => events.slice(-EVENT_WINDOW), [events])
+  const shown = useMemo(() => filterEvents(feed, filter), [feed, filter])
+  const counts = useMemo(() => kindCounts(feed), [feed])
+  const net = useMemo(() => a2aNetwork(feed), [feed])
+  const filtered = filter.kinds.length > 0 || filter.text.trim() !== ''
 
-  useEffect(() => { log.current?.scrollTo({ top: log.current.scrollHeight }) }, [entries.length, busy])
+  // The conversation runs forward in time, the way a conversation does. The two
+  // derived tabs run newest-first, because they are read by looking rather than
+  // by following, and a filter that answers at the bottom of a scroller has not
+  // answered.
+  useEffect(() => {
+    if (tab !== 'queen') return
+    log.current?.scrollTo({ top: log.current.scrollHeight })
+  }, [tab, turns.length, busy])
 
   // The clock is started where the question is sent, not here: setting state in
   // an effect's body re-renders before the browser has painted the one it is
@@ -130,6 +172,15 @@ export default function QueenChat({
     const tick = setInterval(() => setWaited(Math.round((Date.now() - started) / 1000)), 1000)
     return () => clearInterval(tick)
   }, [busy])
+
+  const ask = useCallback((event: HudEvent) => { setSubject(event); setTab('queen') }, [])
+
+  const toggleKind = useCallback((kind: HudEventKind) => {
+    setFilter((prev) => ({
+      ...prev,
+      kinds: prev.kinds.includes(kind) ? prev.kinds.filter((k) => k !== kind) : [...prev.kinds, kind],
+    }))
+  }, [])
 
   const send = useCallback((text: string) => {
     const question = text.trim()
@@ -165,6 +216,28 @@ export default function QueenChat({
     )
   }
 
+  const label: Record<ChatTab, string> = { queen: t.tabQueen, logs: t.tabLogs, a2a: t.tabA2A }
+  const hint: Record<ChatTab, string> = { queen: t.tabQueenTitle, logs: t.tabLogsTitle, a2a: t.tabA2ATitle }
+  const badge: Record<ChatTab, number | null> = { queen: turns.length || null, logs: feed.length || null, a2a: net.links.length || null }
+
+  const eventRow = (event: HudEvent) => (
+    <article
+      key={`e:${event.id}`}
+      className={`queen-chat-event${subject?.id === event.id ? ' is-subject' : ''}`}
+      data-kind={event.kind}
+    >
+      <p>{describe ? describe(event) : event.title}</p>
+      <div className="queen-chat-event-actions">
+        <button type="button" onClick={() => ask(event)}>{t.about}</button>
+        {issueHref && issueHref(event) && (
+          <a href={issueHref(event) as string} target="_blank" rel="noopener noreferrer">
+            #{event.issue}
+          </a>
+        )}
+      </div>
+    </article>
+  )
+
   return (
     <section className="queen-chat" aria-label={t.title}>
       <header className="queen-chat-head">
@@ -178,54 +251,151 @@ export default function QueenChat({
         </button>
       </header>
 
-      <p className="queen-chat-context">
-        <span>{t.context}:</span> <code>{contextLine(context, subject)}</code>
-      </p>
-
-      <div className="queen-chat-log" ref={log}>
-        {entries.length === 0 && <p className="queen-chat-empty">{live === false ? t.offlineNote : t.empty}</p>}
-        {entries.map((entry, i) => entry.kind === 'event' ? (
-          <article
-            key={`e:${entry.event.id}`}
-            className={`queen-chat-event${subject?.id === entry.event.id ? ' is-subject' : ''}`}
-            data-kind={entry.event.kind}
+      <nav className="queen-chat-tabs" role="tablist" aria-label={t.title}>
+        {CHAT_TABS.map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="tab"
+            id={`queen-chat-tab-${name}`}
+            aria-selected={tab === name}
+            aria-controls={`queen-chat-panel-${name}`}
+            title={hint[name]}
+            className={`queen-chat-tabbtn${tab === name ? ' is-on' : ''}`}
+            onClick={() => setTab(name)}
           >
-            <p>{describe ? describe(entry.event) : entry.event.title}</p>
-            <div className="queen-chat-event-actions">
-              <button type="button" onClick={() => setSubject(entry.event)}>{t.about}</button>
-              {issueHref && issueHref(entry.event) && (
-                <a href={issueHref(entry.event) as string} target="_blank" rel="noopener noreferrer">
-                  #{entry.event.issue}
-                </a>
-              )}
-            </div>
-          </article>
-        ) : (
-          <ChatMessage
-            key={`t:${i}:${entry.at}`}
-            role={entry.role}
-            content={entry.content}
-            source={entry.source}
-            confidence={entry.confidence}
-            latency_us={entry.latency_us}
-          />
+            {label[name]}
+            {badge[name] !== null && <b>{badge[name]}</b>}
+          </button>
         ))}
-        {busy && (
-          <p className="queen-chat-pending" aria-live="polite">
-            {t.thinking}
-            <b>{waited}s</b>
-          </p>
+      </nav>
+
+      {tab === 'queen' && (
+        <p className="queen-chat-context">
+          <span>{t.context}:</span> <code>{contextLine(context, subject)}</code>
+        </p>
+      )}
+
+      <div
+        className="queen-chat-body"
+        role="tabpanel"
+        id={`queen-chat-panel-${tab}`}
+        aria-labelledby={`queen-chat-tab-${tab}`}
+      >
+        {tab === 'queen' && (
+          <div className="queen-chat-log" ref={log}>
+            {turns.length === 0 && <p className="queen-chat-empty">{live === false ? t.offlineNote : t.empty}</p>}
+            {turns.map((turn, i) => (
+              <ChatMessage
+                key={`t:${i}:${turn.at}`}
+                role={turn.role}
+                content={turn.content}
+                source={turn.source}
+                confidence={turn.confidence}
+                latency_us={turn.latency_us}
+              />
+            ))}
+            {busy && (
+              <p className="queen-chat-pending" aria-live="polite">
+                {t.thinking}
+                <b>{waited}s</b>
+              </p>
+            )}
+          </div>
+        )}
+
+        {tab === 'logs' && (
+          <>
+            <div className="queen-chat-filter">
+              <div className="queen-chat-chips" role="group" aria-label={t.filterKinds}>
+                {counts.map(({ kind, count }) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={filter.kinds.includes(kind)}
+                    className={`queen-chat-chip${filter.kinds.includes(kind) ? ' is-on' : ''}`}
+                    data-kind={kind}
+                    onClick={() => toggleKind(kind)}
+                  >
+                    {kind}<b>{count}</b>
+                  </button>
+                ))}
+              </div>
+              <div className="queen-chat-find">
+                <input
+                  type="search"
+                  value={filter.text}
+                  placeholder={t.filterText}
+                  aria-label={t.filterText}
+                  onChange={(e) => setFilter((prev) => ({ ...prev, text: e.target.value }))}
+                />
+                <span className="queen-chat-count">{t.filterShowing} {shown.length}/{feed.length}</span>
+                {filtered && (
+                  <button type="button" className="queen-chat-clear" onClick={() => setFilter(NO_FILTER)}>
+                    {t.filterClear}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="queen-chat-log">
+              {shown.length === 0 && <p className="queen-chat-empty">{t.logEmpty}</p>}
+              {[...shown].reverse().map(eventRow)}
+            </div>
+          </>
+        )}
+
+        {tab === 'a2a' && (
+          <div className="queen-chat-net">
+            <dl className="queen-chat-net-sum">
+              <div><dt>{t.netLinks}</dt><dd>{net.links.length}</dd></div>
+              <div><dt>{t.netMessages}</dt><dd>{net.messages}</dd></div>
+              <div><dt>{t.netUp}</dt><dd>{net.toQueen}</dd></div>
+              <div><dt>{t.netDown}</dt><dd>{net.toWorker}</dd></div>
+              {workers && (
+                <div><dt>{t.netBusy}</dt><dd>{workers.active}/{workers.capacity}</dd></div>
+              )}
+            </dl>
+            <p className="queen-chat-net-note">{t.netNote}</p>
+            <p className="queen-chat-net-note">
+              {t.netScope.replace('{n}', String(feed.length))}
+              {net.unattributed > 0 && ` · ${net.unattributed} ${t.netUnattributed}`}
+            </p>
+            {net.links.length === 0 && <p className="queen-chat-empty">{t.netEmpty}</p>}
+            <ol className="queen-chat-links">
+              {net.links.map((link) => (
+                <li key={link.issue} className="queen-chat-link" data-stance={link.stance}>
+                  <p className="queen-chat-link-head">
+                    <b>#{link.issue}</b>
+                    <span className="queen-chat-link-flow" aria-label={`${link.toWorker} ${t.netDown}, ${link.toQueen} ${t.netUp}`}>
+                      <i aria-hidden="true">↓</i>{link.toWorker}
+                      <i aria-hidden="true">↑</i>{link.toQueen}
+                    </span>
+                    <em>{t.stance[link.stance]}</em>
+                  </p>
+                  <p className="queen-chat-link-title">{link.title}</p>
+                  <div className="queen-chat-event-actions">
+                    <button type="button" onClick={() => ask(link.last)}>{t.about}</button>
+                    {issueHref && issueHref(link.last) && (
+                      <a href={issueHref(link.last) as string} target="_blank" rel="noopener noreferrer">
+                        #{link.issue}
+                      </a>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
       </div>
 
-      {subject && (
+      {tab === 'queen' && subject && (
         <p className="queen-chat-subject">
           <span>{t.subject}:</span> <b>{describe ? describe(subject) : subject.title}</b>
           <button type="button" onClick={() => setSubject(null)}>{t.clearSubject}</button>
         </p>
       )}
 
-      {signedIn ? (
+      {tab === 'queen' && (signedIn ? (
         <ChatInput onSend={send} disabled={busy} />
       ) : (
         // Not a disabled input: a box you can type into and never send is a
@@ -238,7 +408,7 @@ export default function QueenChat({
             {t.signIn}
           </a>
         </p>
-      )}
+      ))}
     </section>
   )
 }

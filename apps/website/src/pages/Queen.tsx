@@ -3446,6 +3446,11 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
         events={events}
         describe={describe}
         issueHref={(event) => (event.issue && repo ? `https://github.com/${repo}/issues/${event.issue}` : null)}
+        // The A2A tab counts links out of the feed; how many slots are actually
+        // busy is the swarm's own number and is never inferred from events.
+        // Same fallback the factory strip uses: /queen/status first, the
+        // research graph's copy when status has not answered yet.
+        workers={data?.workers ?? workers}
       />
     </Suspense>
   );
