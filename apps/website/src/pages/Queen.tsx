@@ -3415,7 +3415,7 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
     profile: { glyph: "◐", label: c.triProfile },
     crm: { glyph: "☰", label: c.triCrm },
   };
-  const commandItems: CommandItem[] = viewItems
+  const railItems: CommandItem[] = viewItems
     .filter((item) => (RAIL_VIEWS as readonly string[]).includes(item.view))
     .flatMap((item): CommandItem[] =>
       item.view !== "tri"
@@ -3430,6 +3430,13 @@ export default function Queen({sharedCatalog}:{sharedCatalog?:UniverseAtlas}={})
             current: triGroupOf(screen) === triGroupNow,
           })),
     );
+  // PROFILE last, after every other tab: the owner's word, 2026-09-21. The
+  // person's own page closes the rail rather than sitting between the AI
+  // pipeline and the CRM.
+  const commandItems: CommandItem[] = [
+    ...railItems.filter((item) => item.screen !== "profile"),
+    ...railItems.filter((item) => item.screen === "profile"),
+  ];
   const selectTriScreen = (screen: string) => {
     setBoardView("tri");
     setHashParams(() => triAddress(window.location.hash, triScreenOf(screen), null), { replace: true });
