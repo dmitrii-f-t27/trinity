@@ -322,6 +322,34 @@ for (const rule of RULES) {
   )
 }
 
+// THE SAME DEFECT, A THIRD TIME, WHICH IS WHY THE PROPERTY IS NOW ABOUT INK AS
+// WELL AS GROUND.
+//
+// The loop above says a shell layer may restyle a resting chip's BACKGROUND and
+// must leave the pressed one alone. Writing the lane switch produced the mirror
+// image of that and slipped straight past it: a shell rule painting the private
+// chip's word `--hud-gold`, at 0,3,0 and later in the file than the rule that
+// makes the pressed chip's text go dark. Gold on gold. Nothing in the gate was
+// looking, because the gate was looking at backgrounds.
+//
+// So the rule is the rule, in both colours: if a shell selector reaches a chip
+// and has an opinion about ink or ground, it must decline to reach the pressed
+// one. A pressed chip is a state, and the state owns its own pair.
+//
+// The class test is `-chip`, not `.queen27-chip`: `.queen27-lane-private-chip`
+// does not contain that string, and a check that only knows the base class
+// would have watched this one sail past a fourth time.
+for (const rule of RULES) {
+  if (!rule.selector.includes('.is-shell')) continue
+  if (!/\.[\w-]*-chip\b/.test(rule.selector)) continue
+  if (!/(?:^|[;{\s])(?:color|background)\s*:/.test(rule.body)) continue
+  A(
+    rule.selector.includes(':not([aria-pressed="true"])'),
+    'a shell rule may colour a resting chip and must leave the pressed one ' +
+      `alone — this one does not: ${rule.selector.replace(/\s+/g, ' ')}`,
+  )
+}
+
 // A pressed chip is black text, so whichever rule wins MUST hand it a light
 // background in the same breath. Splitting the two across rules is how the
 // invisible chip became possible in the first place.
