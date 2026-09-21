@@ -881,14 +881,22 @@
 
 /* A pressed direction chip wears ITS OWN colour, not the shared gold of the
    generic pressed chip, so the legend and the cards it selects are the same
-   colour. It comes after that rule on purpose — same specificity, later wins. */
-.queen27-dir-chip[aria-pressed="true"] {
+   colour.
+
+   `.queen27-dir-filter` is in the selector to WIN, not to scope. An earlier
+   version of this rule was `.queen27-dir-chip[aria-pressed="true"]` and said in
+   a comment that it came after the gold rule and so won on source order. It did
+   not: the gold rule is ~6300 lines BELOW this one, both were 0,2,0, and gold
+   won every time. Naming the container makes this 0,3,0, which beats the gold
+   rule from wherever either sits in the file — and stops a comment about line
+   order from being load-bearing. */
+.queen27-dir-filter .queen27-dir-chip[aria-pressed="true"] {
   border-color: var(--queen-dir);
   color: #050505;
   background: var(--queen-dir);
 }
 
-.queen27-dir-chip[aria-pressed="true"] > i {
+.queen27-dir-filter .queen27-dir-chip[aria-pressed="true"] > i {
   background: #050505;
   box-shadow: none;
 }
@@ -972,10 +980,57 @@
   background: currentColor;
 }
 
+/* THREE LINES, AND WHY A CARD IS ALLOWED TO BE SHORTER THAN ITS TITLE.
+   Measured on the live board at 1512x949: the columns are 160px wide, a card
+   126px, and a real title — "Port part 1 of 2 of tools/verify_multitarget.py to
+   specs/port/tools/verify_multitarget.t27 (8 functions)" — took nine lines and
+   147px of a 222px card. Two and a half cards fitted on screen. A board you can
+   see two cards of is a list with extra steps, which is what the owner was
+   looking at when they said the cards were barely visible.
+   Nothing is lost by cutting it: the whole title is on the card's `title`
+   attribute, and the card is a link to the issue that holds the rest. */
 .queen27-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   font-size: 0.86rem;
   font-weight: 500;
   line-height: 1.35;
+}
+
+/* The foot of a column that has more in it than is drawn. Deliberately not a
+   card: it is the same width and sits in the same flow, but it is flat, quiet
+   and says a number, so the eye reading down a column does not stop at it
+   thinking it has found another issue. */
+.queen27-cards-more {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.queen27-cards-more > small {
+  color: var(--q-gold);
+  font-size: 1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.queen27-cards-more:hover,
+.queen27-cards-more:focus-visible {
+  border-color: var(--q-gold);
+  color: var(--text, #fff);
 }
 
 .queen27-card span {
@@ -5923,12 +5978,19 @@ main:where(.queen27-page.is-shell) section {
   min-height: 0;
 }
 
-/* The board's row, and the two lane headings that only exist once there are two
-   lanes to tell apart, all take exactly what they ask for. Named on the same
-   rule as the row rather than on one of their own: they are the same kind of
-   thing to this stack -- a line of chrome above a view -- and two rules saying
-   `flex: 0 0 auto` is one more place for that to stop being true. */
+/* The board's row, the switch that says which board is on screen, the direction
+   chips, and the heading that only exists once there is a second board to name,
+   all take exactly what they ask for. Named on the same rule as the row rather
+   than on ones of their own: they are the same kind of thing to this stack -- a
+   line of chrome above a view -- and four rules saying `flex: 0 0 auto` is
+   three more places for that to stop being true.
+
+   Anything NOT named here defaults to `flex: 0 1 auto` and shrinks instead:
+   that is how the chips ended up squeezed when the board was tall, and it is
+   why a new row above the board belongs on this list the day it is added. */
 .queen27-page.is-shell .queen27-board-stack > .queen27-ladder,
+.queen27-page.is-shell .queen27-board-stack > .queen27-lane-switch,
+.queen27-page.is-shell .queen27-board-stack > .queen27-dir-filter,
 .queen27-page.is-shell .queen27-board-stack > .queen27-lane-head {
   flex: 0 0 auto;
 }
@@ -6325,13 +6387,17 @@ main:where(.queen27-page.is-shell) section {
 }
 
 /* The containers were not the last of it: inside three views the content itself
-   was opaque — kanban columns, the factory's city panels, the tech map and its
-   nodes. Probed at the centre of every tab, these were what still stood between
-   the sky and the eye. */
-.queen27-page.is-shell .queen27-column {
-  background: rgba(2, 8, 6, 0.5);
-}
+   was opaque — the factory's city panels, the tech map and its nodes. Probed at
+   the centre of every tab, these were what still stood between the sky and the
+   eye.
 
+   The kanban column was on this list and is not any more. It had a fourth
+   `.queen27-page.is-shell .queen27-column` rule here setting the same
+   translucent green; the panel rule further down the file sets `background`
+   too, at the same specificity and later, so this one never applied to a single
+   pixel. It read as the rule that made the columns see-through and it was not —
+   which is the expensive kind of dead code, the sort you edit for an hour
+   before checking whether it wins. */
 .queen27-page.is-shell :is(.queen27-city, .queen27-city-build-queue, .queen27-city-console, .queen27-hardware-foundry) {
   background: rgba(2, 8, 6, 0.5);
 }
@@ -6885,6 +6951,23 @@ body.queen-shell .phi-starfield {
   min-width: 0;
 }
 
+.queen27-page.is-shell .queen27-cards-more {
+  border-color: var(--hud-line);
+  color: var(--hud-muted);
+  font-family: var(--hud-mono);
+  clip-path: var(--hud-notch);
+}
+
+.queen27-page.is-shell .queen27-cards-more > small {
+  color: var(--hud-gold);
+}
+
+.queen27-page.is-shell .queen27-cards-more:hover,
+.queen27-page.is-shell .queen27-cards-more:focus-visible {
+  border-color: var(--hud-gold);
+  color: var(--text, #fff);
+}
+
 .queen27-page.is-shell .queen27-card > :is(strong, span, .queen27-card-topline) {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -7253,13 +7336,166 @@ body.queen-shell .queen-starfield-source {
   background: #050505;
 }
 
+/* THE SWITCH BETWEEN THE TWO BOARDS.
+   Drawn where the two lane headings used to be, and for the same reason they
+   were: there are two boards to tell apart. It replaces them rather than
+   joining them, because only one board is on screen now. */
+.queen27-lane-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.5rem 0 0.4rem;
+}
+
+.queen27-lane-switch .queen27-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.queen27-lane-switch .queen27-chip > small {
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+/* No new colour for "private", on purpose. Seven hues on this board already
+   mean seven DIRECTIONS, and an eighth would be read as the eighth of those
+   before it was read as a warning — the two reds in that table are a card's
+   subject, not its reach. The dashes carry it instead, and the word carries it
+   for anybody the dashes do not reach, which is the same rule the direction
+   tags follow: the colour is the shortcut, never the whole of the message. */
+.queen27-lane-switch .queen27-lane-private-chip {
+  border-style: dashed;
+}
+
+.queen27-lane-private-chip > em {
+  color: var(--q-gold);
+  font-size: 0.86em;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+/* Pressed, the chip is the gold every pressed chip on this board is, and the
+   word goes dark along with the rest of it — by INHERITING, never by naming a
+   dark colour of its own.
+
+   Naming one is the defect this board has now shipped twice: a rule that says
+   `color: #050505` is only true while some other rule is still handing that
+   element a light background, and the two drift apart the first time a shell
+   layer restyles the chip. qa/queen-direction-contract.mjs refuses any rule
+   that paints #050505 without stating the background in the same breath, and it
+   refused this one — correctly, on a word whose background belongs to its
+   parent. `inherit` has no such gap: whatever colour wins on the chip, the word
+   is a quieter version of exactly that, including on a future chip that is not
+   gold at all. Qualified by the row it lives in so it wins by structure rather
+   than by sitting further down the file. */
+.queen27-lane-switch .queen27-lane-private-chip[aria-pressed="true"] > em {
+  color: inherit;
+  opacity: 0.68;
+}
+
+/* The badge on the board itself. `is-private` wraps because the sentence beside
+   the word is a sentence: on a narrow board it belongs on its own line rather
+   than cut to an ellipsis, which is how a warning comes to read "names and
+   payme…". */
+/* This heading carries more than a word: the badge, the count, whose scope is
+   being shown ("Keeper · alpha_bot · beta_bot") and the control that narrows it.
+   Measured at 1512x949 it is 67px and wraps onto two rows, the filter flush
+   right on the second. Wrapping is what keeps those rows from colliding on a
+   narrower screen; the ground is what keeps them readable, because this is the
+   one heading on the page drawn over the brightest part of the hex field.
+   Scoped to `.is-private`, so the public board's heading is untouched. */
+.queen27-lane-head.is-private {
+  flex-wrap: wrap;
+  border-radius: 0.6rem;
+  background: rgba(2, 8, 6, 0.62);
+}
+
+/* It carries its own ground, which the rest of this heading does not.
+   Everything on this page is drawn over a live hex field, and the field is
+   brightest exactly where the clients lane is narrow enough to let it through —
+   measured with the badge sitting on a lit gold cluster. A label can afford to
+   be textured; the one sentence that tells somebody a screen is about to show
+   another person's name and what they paid cannot. */
+.queen27-lane-head > .queen27-lane-private {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px dashed var(--q-gold);
+  border-radius: 999px;
+  background: rgba(2, 8, 6, 0.86);
+  color: var(--q-gold);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.queen27-lane-head > .queen27-lane-private > em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
 .queen27-page.is-shell .queen27-lane-head {
   padding-inline: var(--hud-gap, 0.5rem);
   color: var(--hud-muted);
   font-family: var(--hud-mono);
 }
 
-.queen27-page.is-shell .queen27-chip,
+.queen27-page.is-shell .queen27-lane-switch {
+  padding-inline: var(--hud-gap, 0.5rem);
+  font-family: var(--hud-mono);
+}
+
+.queen27-page.is-shell .queen27-lane-head > .queen27-lane-private {
+  border-color: var(--hud-gold);
+  color: var(--hud-gold);
+}
+
+.queen27-page.is-shell .queen27-lane-head > .queen27-lane-private > em {
+  color: var(--hud-muted);
+}
+
+/* Resting only, and the `:not()` is the whole point of the rule rather than a
+   detail of it. Without it this sits at the same 0,3,0 as the pressed rule
+   above and LATER in the file, so it would win on source order and paint the
+   word gold on the gold chip — the invisible control, a third time, in a third
+   place. The house rule on this board is that a shell layer restyles the
+   resting chip and never touches the pressed one; the direction contract
+   asserts it for backgrounds, and this is the same rule about a colour. */
+.queen27-page.is-shell
+  .queen27-lane-private-chip:not([aria-pressed="true"])
+  > em {
+  color: var(--hud-gold);
+}
+
+/* `:not([aria-pressed="true"])` is the whole point of this rule now.
+   Without it, this 0,3,0 selector overrode the background of EVERY pressed chip
+   on the shell board while leaving its `color: #050505` alone — near-black text
+   on the near-black HUD panel, measured live at rgb(5,5,5) on rgba(2,8,6,0.62),
+   which is no contrast at all. The chip that says which filter is on was the one
+   chip that could not be read.
+
+   It reached the live board on the direction chips, and it was never theirs
+   alone: the same override sits on the generic gold pressed chip, so the clients
+   lane's "all" chip — pressed by default — comes up blank the moment that lane
+   is drawn in this layout.
+
+   The shell still restyles the resting chip, which is all it ever wanted: a HUD
+   panel instead of flat black. A pressed chip is a state, not a surface, and
+   this rule now declines to have an opinion about it. */
+.queen27-page.is-shell .queen27-chip:not([aria-pressed="true"]),
 .queen27-page.is-shell .queen27-lane-search {
   border-color: var(--hud-line);
   background: var(--hud-panel);
