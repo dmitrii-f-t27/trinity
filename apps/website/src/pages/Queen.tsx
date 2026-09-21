@@ -512,12 +512,21 @@ const COPY = {
     empty: "Nothing here",
     criteria: "criteria",
     missing: "needs",
-    // The two lanes of the kanban. TASKS is the public board and is the same
-    // for everybody, signed in or not; CLIENTS appears only for a signed-in
-    // person and holds only what the hive answered for them. The lane words
-    // below are drawn ONLY when the second lane exists — signed out, the page
-    // is the board it always was, with no heading announcing an absence.
+    // The number beside it is what is STILL HIDDEN, not the size of the next
+    // page. "more 539" is a fact about the column; "more 30" would be a fact
+    // about this button, and the reader is asking about the column.
+    showMore: "show more",
+    // The two boards of the kanban, one at a time. TASKS is the public board
+    // and is the same for everybody, signed in or not; CLIENTS appears only for
+    // a signed-in person, holds only what the hive answered for them, and is
+    // never the board that happens to be on screen — it is reached by pressing
+    // for it. The words below are drawn ONLY when the second board exists —
+    // signed out, the page is the board it always was, with no switch
+    // announcing an absence.
     laneTasks: "TASKS",
+    laneSwitchAria: "Which board",
+    lanePrivate: "private",
+    lanePrivateHint: "names and payments — only you were shown this",
     // The direction chips. The names of the directions themselves are not
     // here: they travel with the rules that decide them, in
     // lib/queenDirection.ts, so a new direction cannot arrive without both.
@@ -900,11 +909,15 @@ const COPY = {
     empty: "Здесь пусто",
     criteria: "критерия",
     missing: "нужно",
-    // Две полосы канбана. ЗАДАЧИ — публичная доска, одна для всех; КЛИЕНТЫ
-    // появляются только у вошедшего и показывают только то, что улей ответил
-    // именно ему. Слова ниже рисуются ТОЛЬКО когда вторая полоса есть: без
-    // входа страница остаётся той же доской, и заголовок не объявляет пустоту.
+    showMore: "ещё",
+    // The same two boards, in Russian. The warning is deliberately blunter here
+    // than a label would be: it is the sentence a person reads a half-second
+    // before deciding whether to open a stranger's pipeline on a screen that
+    // may not be theirs alone.
     laneTasks: "ЗАДАЧИ",
+    laneSwitchAria: "Какая доска",
+    lanePrivate: "приватно",
+    lanePrivateHint: "имена и оплаты — это показали только вам",
     // The Russian names of the directions are not here either: they sit on the
     // same entries as the rules, in lib/queenDirection.ts.
     tasksDirection: "Направление",
@@ -2178,6 +2191,14 @@ function clientsReasonSentence(reason: HiveBoardReason | null, c: Copy): string 
 // it and nothing after it. That is deliberate twice over: a visitor cannot be
 // shown a board they are not on, and an empty lane is itself a statement
 // ("you have no clients") that we have no right to make about a stranger.
+//
+// HOW MUCH OF A COLUMN IS DRAWN AT ONCE. Sized from the board, not from taste:
+// a clamped card is about 110px tall inside a scroller measured at 581px, so 30
+// is roughly six screens of a column — past the fold by a long way for anybody
+// scanning, and short enough that the reader who wants more presses once rather
+// than being handed 569 cards they did not ask for.
+const CARD_PAGE = 30;
+
 function KanbanView({
   columns,
   cards,
@@ -2230,6 +2251,39 @@ function KanbanView({
         : [...current, key],
     );
   }, []);
+  // WHICH BOARD IS ON SCREEN, AND WHY IT STARTS ON THE PUBLIC ONE.
+  //
+  // The two lanes used to be drawn one under the other, and that was wrong in
+  // both directions at once.
+  //
+  // It was wrong about privacy. This page has a public address. The task board
+  // is meant to be read by anybody; the clients lane is people's names, whether
+  // they paid, and how long they have been ignored. Stacking them meant the
+  // moment somebody signed in, a screen they might be sharing, projecting or
+  // walking away from painted a stranger's pipeline underneath the public work
+  // — with nobody having asked to see it. Private things are not private
+  // because the server refuses a stranger's request, which it does; they are
+  // private because they are not put on a screen unbidden.
+  //
+  // It was wrong about the board as a board. Two lanes inside one viewport
+  // height left each column about 150px tall: one and a half cards, two
+  // scrollbars, and a title cut mid-word. A kanban whose column shows one card
+  // is a list pretending to be a board.
+  //
+  // So: one lane at a time, and 'tasks' first. The private board is one press
+  // away and is never the thing that happens to be on screen.
+  const [board, setBoard] = useState<"tasks" | "clients">("tasks");
+  // Signing out takes the lane with it, and a view pointing at a board that no
+  // longer exists would render as an empty screen with no way back. The switch
+  // itself disappears at the same moment, so nothing else could return it.
+  useEffect(() => {
+    if (!clients) setBoard("tasks");
+  }, [clients]);
+  const showTasks = board === "tasks" || !clients;
+  // How deep into each column the reader has asked to go. Per column, because
+  // BACKLOG holding 569 and REVIEW holding 9 are not one question: opening the
+  // long one should not silently build the short one's tail as well.
+  const [shownDepth, setShownDepth] = useState<Record<string, number>>({});
   const lane = clients?.lane ?? null;
   const sentence = clientsReasonSentence(clients?.reason ?? null, c);
   // With a board on screen the reason goes in the tooltip, exactly where the
@@ -2266,14 +2320,40 @@ function KanbanView({
   return (
     <>
       {clients && (
-        // The lane heads only exist when there are two lanes to tell apart. One
-        // lane needs no label, and adding one for a signed-out reader would put
-        // a word about clients on a page that has no clients on it.
-        <div className="queen27-lane-head">
-          <h3>{c.laneTasks}</h3>
-          <span title={error ?? undefined}>{loaded ? shownCards.length : "—"}</span>
+        // The switch only exists when there are two boards to tell apart. One
+        // board needs no label, and offering a signed-out reader a way to reach
+        // a clients board would put a word about clients on a page that has
+        // none — and name a screen they cannot open, which is its own small
+        // statement about what exists behind the sign-in.
+        <div
+          className="queen27-lane-switch"
+          role="group"
+          aria-label={c.laneSwitchAria}
+        >
+          <button
+            type="button"
+            className="queen27-chip"
+            aria-pressed={showTasks}
+            onClick={() => setBoard("tasks")}
+          >
+            {c.laneTasks} <small>{loaded ? shownCards.length : "—"}</small>
+          </button>
+          <button
+            type="button"
+            className="queen27-chip queen27-lane-private-chip"
+            aria-pressed={board === "clients"}
+            onClick={() => setBoard("clients")}
+          >
+            {c.laneClients} <small>{lane ? lane.shown : "—"}</small>
+            {/* The word rides on the control that opens the board, not only on
+                the board itself: the reader decides whether to show it before
+                it is drawn, and that decision is worth one word of warning. */}
+            <em>{c.lanePrivate}</em>
+          </button>
         </div>
       )}
+      {showTasks && (
+      <>
       {tally.length > 1 && (
         // The direction chips, and unlike the clients lane they are here for
         // EVERYONE — signed in or not. Nothing about them describes a person:
@@ -2337,6 +2417,25 @@ function KanbanView({
         const columnCards = shownCards.filter(
           (card) => card.column === column.key,
         );
+        // AND THEN ONLY THE TOP OF IT IS DRAWN.
+        //
+        // Measured on the live board at 1512x949: BACKLOG holds 569 cards and
+        // DONE 431, every one of them built, and a column's scroller was
+        // 163182px long inside a 581px window. That is 280 screens in one
+        // column. Nobody scrolls that; they give up, which is what the owner
+        // reported as the board being hard to use.
+        //
+        // The count in the header is still the true one — it counts
+        // columnCards, above, not what survived this line — so the page never
+        // pretends the rest is not there. It says how many are left and offers
+        // to draw them.
+        //
+        // It is also why the board was slow. 1100 cards is 1100 motion
+        // elements, each with a layout animation measuring itself on every
+        // change; a filter press re-laid out the lot.
+        const depth = shownDepth[column.key] ?? CARD_PAGE;
+        const drawn = columnCards.slice(0, depth);
+        const rest = columnCards.length - drawn.length;
         return (
           <motion.article
             className={`queen27-column is-${column.key}`}
@@ -2349,7 +2448,7 @@ function KanbanView({
             </header>
             <small>{column.blurb}</small>
             <div className="queen27-cards">
-              {columnCards.map((card) => {
+              {drawn.map((card) => {
                 const direction = directionOf(card.title);
                 return (
                 <motion.a
@@ -2364,6 +2463,13 @@ function KanbanView({
                   href={`https://github.com/${repo}/issues/${card.number}`}
                   target="_blank"
                   rel="noreferrer"
+                  // The title is clamped to three lines in a 126px column —
+                  // measured, one card's title was nine lines and 147px of a
+                  // 222px card. Clamping without this would be losing the
+                  // sentence; with it the card is short and the whole of it is
+                  // still one hover away, and the link behind it was always the
+                  // full answer.
+                  title={publicIssueTitle(card.title, card.number, lang)}
                   key={card.number}
                   layout
                   layoutId={`queen-card-${card.number}`}
@@ -2407,6 +2513,24 @@ function KanbanView({
                 </motion.a>
                 );
               })}
+              {rest > 0 && (
+                // Says the number it is hiding, and adds the same page again
+                // rather than dropping all 569 in at once — the reader who
+                // wants the whole column can have it, one press at a time,
+                // and the reader who wanted the top of it never paid for it.
+                <button
+                  type="button"
+                  className="queen27-cards-more"
+                  onClick={() =>
+                    setShownDepth((at) => ({
+                      ...at,
+                      [column.key]: depth + CARD_PAGE,
+                    }))
+                  }
+                >
+                  {c.showMore} <small>{rest}</small>
+                </button>
+              )}
               {columnCards.length === 0 && (
                 <em title={error ?? undefined}>{loaded ? c.empty : "—"}</em>
               )}
@@ -2415,10 +2539,25 @@ function KanbanView({
         );
       })}
       </motion.div>
-      {clients && (
+      </>
+      )}
+      {clients && board === "clients" && (
         <>
-          <div className="queen27-lane-head" title={lane?.howToRead ?? undefined}>
+          <div
+            className="queen27-lane-head is-private"
+            title={lane?.howToRead ?? undefined}
+          >
             <h3>{c.laneClients}</h3>
+            {/* Said on the board as well as on the control that opened it. The
+                two are not a duplicate of each other: one is a warning before
+                the names are drawn, this one is a label on a screen somebody
+                may have left open, arrived at by a back button, or be showing
+                to a room. It carries the sentence rather than a tooltip
+                because a tooltip is a fact you have to already suspect. */}
+            <b className="queen27-lane-private">
+              {c.lanePrivate}
+              <em>{c.lanePrivateHint}</em>
+            </b>
             {/* A count of the cards on this screen, and never anything else. The
                 hive sends a count on every column and every filter option and
                 this page throws all of them away (lib/hiveBoard.ts says why):

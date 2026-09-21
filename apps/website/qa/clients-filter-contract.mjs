@@ -326,4 +326,64 @@ const search = within.find((node) => tag(node) === 'input')
 A(search, 'a keeper is offered one chip per client on the platform, so there is a find box beside them')
 A(attributeOf(search, 'aria-label'), 'and the find box says what it is to somebody who cannot see the row it sits in')
 
+// ── 10. the clients board is never the board that HAPPENS to be on screen ───
+//
+// Everything above is about what the server will answer and what the page will
+// ask. This is about neither: it is about what gets painted when nobody asked
+// for anything.
+//
+// The two boards used to be stacked, so signing in meant a screen showing
+// people's names, whether they had paid and how long they had been ignored —
+// underneath a public task board, on a public address, with no one having
+// pressed for it. Every assertion above still passed while that was true,
+// because none of them was a question about the default.
+//
+// So the rule has two halves and both are structural. The clients board is
+// built only inside a test that reads the CHOSEN board, and the chosen board
+// starts as the public one. Either half alone is worth nothing: a guard whose
+// state starts at 'clients' guards the door of an open room.
+function guardedByChosenBoard(node) {
+  for (let at = node.parent; at; at = at.parent) {
+    if (!ts.isJsxExpression(at) || !at.expression) continue
+    const expression = at.expression
+    const test =
+      ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+        ? expression.left
+        : ts.isConditionalExpression(expression)
+          ? expression.condition
+          : null
+    if (test && /\bboard\s*===\s*['"]clients['"]/.test(test.getText(source))) return true
+  }
+  return false
+}
+
+for (const className of ['queen27-clients-lane', 'queen27-lane-head is-private']) {
+  const built = elementsWithClass(className)
+  EQ(built.length, 1, `${className} is built in exactly one place`)
+  A(
+    guardedByChosenBoard(built[0]),
+    `and only when the reader has chosen the clients board — ${className} is names, money and silences, and a private thing is private because it is not drawn unbidden, not only because a server would refuse a stranger who asked`,
+  )
+}
+
+let initialBoard = null
+const findBoardState = (node) => {
+  if (
+    ts.isVariableDeclaration(node) &&
+    ts.isArrayBindingPattern(node.name) &&
+    node.name.elements.map((element) => element.name?.getText(source)).join(',') === 'board,setBoard' &&
+    node.initializer &&
+    ts.isCallExpression(node.initializer)
+  ) {
+    initialBoard = node.initializer.arguments[0]?.getText(source) ?? null
+  }
+  ts.forEachChild(node, findBoardState)
+}
+findBoardState(source)
+EQ(
+  initialBoard,
+  '"tasks"',
+  'and the board a reader lands on is the public one: the private board is one press away, and is never what a shared screen, a projector or an unlocked laptop happens to be showing',
+)
+
 console.log(`Clients filter contract: PASS (${checks} checks, ${7 * 14} hostile combinations, 1 request, 0 filters asked of the hive)`)
