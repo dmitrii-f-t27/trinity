@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChatInput from './chat/ChatInput'
 import ChatMessage from './chat/ChatMessage'
 import { NotSignedIn, type ChatResponse } from '../services/chatApi'
-import { askQueen, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
+import { askQueen, askQueenInBrowser, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
 import { signInHref } from '../lib/triIdentity'
 import { HUD_VIEWS, type HudEvent, type HudEventKind } from './queenHud'
 import {
@@ -119,6 +119,9 @@ export default function QueenChat({
   // here can go stale into a request.
   const [signedIn, setSignedIn] = useState(() => queenCaller().signedIn)
   const [turns, setTurns] = useState<Turn[]>([])
+  // What the agent has done and said so far, while it is still working (the
+  // BROWSER tab only): its steps and the words that have arrived.
+  const [progress, setProgress] = useState<{ tools: string[]; text: string } | null>(null)
   const [subject, setSubject] = useState<HudEvent | null>(null)
   const [filter, setFilter] = useState<LogFilter>(NO_FILTER)
   const [busy, setBusy] = useState(false)
@@ -191,7 +194,17 @@ export default function QueenChat({
     setTurns((prev) => [...prev, { kind: 'turn', at, role: 'user', content: question }])
     setWaited(0)
     setBusy(true)
-    askQueen(`[${line}]${quoted ? ` ${quoted}` : ''} ${question}`)
+    // On the BROWSER tab the question goes to the person's own agent, which
+    // holds the browser tools; everywhere else, to the Queen as before
+    // (lib/queenBrowser.ts, askBrowserAgent, says why).
+    const history = turns
+      .filter((turn) => turn.source !== 'offline')
+      .map((turn) => ({ role: turn.role, content: turn.content }))
+    const asked: Promise<ChatResponse> =
+      context.view === 'browser'
+        ? askQueenInBrowser(history, question, lang, (soFar) => setProgress({ tools: soFar.tools, text: soFar.text }))
+        : askQueen(`[${line}]${quoted ? ` ${quoted}` : ''} ${question}`)
+    asked
       .then((res) => setTurns((prev) => [...prev, { kind: 'turn', at: Date.now(), role: 'assistant', ...res, content: res.response }]))
       .catch((error: unknown) => {
         // Signed out is not the Queen failing, and must not be reported as one:
@@ -205,8 +218,8 @@ export default function QueenChat({
         const said = error instanceof Error ? error.message.trim() : ''
         setTurns((prev) => [...prev, { kind: 'turn', at: Date.now(), role: 'assistant', content: said ? `${t.failed} ${said}` : t.failed, source: 'offline', confidence: 0 }])
       })
-      .finally(() => setBusy(false))
-  }, [busy, context, subject, describe, t.failed])
+      .finally(() => { setBusy(false); setProgress(null) })
+  }, [busy, context, subject, describe, t.failed, turns, lang])
 
   if (!open) {
     return (
@@ -295,6 +308,14 @@ export default function QueenChat({
                 latency_us={turn.latency_us}
               />
             ))}
+            {busy && progress && (progress.tools.length > 0 || progress.text) && (
+              <div className="queen-chat-progress" aria-live="polite">
+                {progress.tools.map((tool, i) => (
+                  <p key={`${i}:${tool}`} className="queen-chat-step">▸ {tool}</p>
+                ))}
+                {progress.text && <p className="queen-chat-partial">{progress.text}</p>}
+              </div>
+            )}
             {busy && (
               <p className="queen-chat-pending" aria-live="polite">
                 {t.thinking}
