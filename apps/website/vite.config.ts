@@ -6,7 +6,7 @@ import path from 'path'
 // to copy. Shared with qa/spec-catalog-contract.mjs, which hands the same
 // value to the same driver under node -- see that module for why the compiler
 // needs a content-addressed URL at all.
-import { t27WasmTag } from './scripts/t27-wasm-tag.mjs'
+import { t27WasmTag } from './scripts/t27-wasm-tag.ts'
 
 const escapeHtml = (s: unknown) =>
   String(s)
