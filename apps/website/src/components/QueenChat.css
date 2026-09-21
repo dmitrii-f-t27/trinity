@@ -1,14 +1,74 @@
 /* The Queen sits in the right column on every view, open by default and
    dismissable. Collapsed she is a tab rather than nothing, so the column does
-   not silently lose a tool. */
+   not silently lose a tool.
+
+   A column, not a grid of named rows. The panel now holds three tabs, and each
+   one puts a different number of fixed rows above the part that scrolls — the
+   conversation has a context line and an input, the log has a filter and
+   neither. With grid-template-rows the 1fr landed on whichever child happened
+   to be third, so switching tabs moved the growing row onto a paragraph. A
+   flex column says the thing that is actually true: everything is its own
+   height except the body, which takes what is left. */
 .queen-chat {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid rgba(0, 255, 136, 0.18);
   background: rgba(3, 12, 14, 0.72);
+}
+
+/* THE THREE TABS. The conversation is first and is where she opens: the owner
+   asked for the dialogue in the main tab, with the log and the agents' network
+   beside it rather than mixed into it (2026-09-21). */
+.queen-chat-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.14);
+}
+
+/* 40px rather than the 44 the input and the sign-in row hold. Three of these
+   plus a filter row plus a log is more fixed height than a 60vh phone drawer
+   has to give; they are wide, in a row of three, and nothing sits close enough
+   to mis-tap. */
+.queen-chat-tabbtn {
+  display: flex;
+  flex: 1;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #8b9490;
+  font: inherit;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.queen-chat-tabbtn.is-on {
+  border-bottom-color: var(--hud-gold, #ffd45a);
+  color: var(--hud-gold, #ffd45a);
+}
+.queen-chat-tabbtn > b {
+  color: #b9cad5;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* The one row that grows. Each tab fills it with its own column, and the part
+   that scrolls inside is declared as a scroll owner in queen-viewport. */
+.queen-chat-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 
 .queen-chat-head {
@@ -76,6 +136,7 @@
 
 .queen-chat-log {
   display: grid;
+  flex: 1 1 auto;
   align-content: start;
   gap: 8px;
   /* Never collapse to a slit: at 53px the events were there and unreadable. */
@@ -216,4 +277,184 @@
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+}
+
+/* ── LOGS: the filter ──────────────────────────────────────────────────────
+   Above the scroller, never inside it. A filter that scrolls out of reach is a
+   filter you have to scroll back up to undo, and the first thing anyone does
+   after narrowing a log too far is look for the way out. */
+.queen-chat-filter {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* One line, sideways. Eight kinds wrapped onto four rows in a 280px column and
+   pushed the log itself off the bottom of a phone drawer. */
+.queen-chat-chips {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.queen-chat-chips::-webkit-scrollbar { display: none; }
+
+.queen-chat-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: #8b9490;
+  font: inherit;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.queen-chat-chip > b {
+  color: #b9cad5;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  opacity: 0.65;
+}
+/* Lit means kept. No chip lit is every kind, which is the state the tab opens
+   in — the count beside each one is of the whole window, so a chip always says
+   how much pressing it would bring back. */
+.queen-chat-chip.is-on {
+  border-color: var(--hud-gold, #ffd45a);
+  color: var(--hud-gold, #ffd45a);
+}
+.queen-chat-chip[data-kind="error"].is-on { border-color: #ff6b6b; color: #ff6b6b; }
+
+.queen-chat-find {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.queen-chat-find input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  background: rgba(0, 0, 0, 0.25);
+  color: #d7e5e0;
+  font: inherit;
+  font-size: 11px;
+}
+.queen-chat-find input::placeholder { color: #6d7a76; }
+
+.queen-chat-clear {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--hud-gold, #ffd45a);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+/* ── A2A: the Queen at the hub, one link per issue ─────────────────────────
+   Deliberately a list and not a diagram. A drawn graph would need node names,
+   and the feed publishes none: it carries an issue on every row and no worker
+   identity anywhere (/a2a answers 403, /queen/agents 404, measured
+   2026-09-21). The note above the list says so in the panel, where a reader
+   who is counting bees can see it. */
+.queen-chat-net {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.queen-chat-net-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+}
+.queen-chat-net-sum > div { display: flex; gap: 5px; align-items: baseline; }
+.queen-chat-net-sum dt {
+  color: #8b9490;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.queen-chat-net-sum dd {
+  margin: 0;
+  color: var(--hud-gold, #ffd45a);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.queen-chat-net-note {
+  margin: 0;
+  color: #6d7a76;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.queen-chat-links {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queen-chat-link {
+  padding: 6px 8px;
+  border-left: 2px solid rgba(0, 255, 136, 0.35);
+  background: rgba(255, 255, 255, 0.02);
+}
+/* Whose turn it is, as far as the wire is able to say. An accepted review is
+   the one message that closes a loop; a send-back does not, so a link she sent
+   work back on stays lit rather than reading as done. */
+.queen-chat-link[data-stance="accepted"] { border-left-color: #2f6f52; opacity: 0.72; }
+.queen-chat-link[data-stance="with-worker"] { border-left-color: var(--hud-gold, #ffd45a); }
+
+.queen-chat-link-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+}
+.queen-chat-link-head > b { color: var(--hud-gold, #ffd45a); font-weight: 500; }
+.queen-chat-link-head > em {
+  margin-left: auto;
+  color: #8b9490;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+}
+
+.queen-chat-link-flow {
+  display: inline-flex;
+  gap: 2px;
+  align-items: baseline;
+  color: #b9cad5;
+  font-variant-numeric: tabular-nums;
+}
+.queen-chat-link-flow > i { padding-left: 5px; color: #6d7a76; font-style: normal; }
+
+.queen-chat-link-title {
+  margin: 2px 0 0;
+  color: #b9cad5;
+  font-size: 11.5px;
+  line-height: 1.4;
 }
