@@ -164,6 +164,37 @@
   cursor: pointer;
 }
 
+/* Where the input is when nobody is signed in. It occupies the same corner and
+   the same height band as ChatInput, so the panel does not jump when a session
+   begins or ends; the link is the only thing in it you can press. */
+.queen-chat-signin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border-top: 1px solid #ffffff14;
+  color: #8b9490;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.queen-chat-signin a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 0 0.7rem;
+  border: 1px solid var(--hud-gold, #ffd45a);
+  border-radius: 6px;
+  color: var(--hud-gold, #ffd45a);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
 /* She is answering. Without this the log holds the question and nothing else
    for as long as the model takes — thirty-six seconds on a local 4B — and a
    slow Queen is indistinguishable from an absent one. The number is measured

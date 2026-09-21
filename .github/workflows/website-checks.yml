@@ -32,12 +32,16 @@
 #                      the bundler succeeded, not that the page renders)
 name: Website checks
 
+# apps/queen-proxy/** is in the triggers because one of the gates below reads
+# it. The proxy is the server half of the rule that only registered people
+# write to the Queen, and a proxy-only edit that removed the gate would
+# otherwise touch no watched path and run no check at all.
 on:
   pull_request:
-    paths: ['apps/website/**', '.github/workflows/website-checks.yml']
+    paths: ['apps/website/**', 'apps/queen-proxy/**', '.github/workflows/website-checks.yml']
   push:
     branches: [main]
-    paths: ['apps/website/**']
+    paths: ['apps/website/**', 'apps/queen-proxy/**']
   workflow_dispatch:
 
 jobs:
@@ -169,6 +173,15 @@ jobs:
       # empty store is signed OUT, not broken. Pure, no browser.
       - name: Identity at the board's new home
         run: npm run check:app-session-identity
+      # What that identity is FOR. The owner's rule, 2026-09-20: only registered
+      # people write to the Queen. The gate that holds it is the proxy's, not
+      # this bundle's -- a rule shipped in a public bundle is a suggestion -- and
+      # it asks the one service that holds the signing key rather than keeping a
+      # second copy of it. Both halves run here: the proxy's decision table
+      # against a fake verifier, and the panel that shows a sign-in link instead
+      # of an input nobody can send from. Pure, no browser, no network.
+      - name: Only registered people write to the Queen
+        run: npm run check:queen-chat-gate
       # Why free bees are idle, read from /queen/status alone: real snapshots
       # and malformed ones through the pure reader, no fabricated zeros, a
       # stale round called stale. Pure, no browser.
