@@ -881,14 +881,22 @@
 
 /* A pressed direction chip wears ITS OWN colour, not the shared gold of the
    generic pressed chip, so the legend and the cards it selects are the same
-   colour. It comes after that rule on purpose — same specificity, later wins. */
-.queen27-dir-chip[aria-pressed="true"] {
+   colour.
+
+   `.queen27-dir-filter` is in the selector to WIN, not to scope. An earlier
+   version of this rule was `.queen27-dir-chip[aria-pressed="true"]` and said in
+   a comment that it came after the gold rule and so won on source order. It did
+   not: the gold rule is ~6300 lines BELOW this one, both were 0,2,0, and gold
+   won every time. Naming the container makes this 0,3,0, which beats the gold
+   rule from wherever either sits in the file — and stops a comment about line
+   order from being load-bearing. */
+.queen27-dir-filter .queen27-dir-chip[aria-pressed="true"] {
   border-color: var(--queen-dir);
   color: #050505;
   background: var(--queen-dir);
 }
 
-.queen27-dir-chip[aria-pressed="true"] > i {
+.queen27-dir-filter .queen27-dir-chip[aria-pressed="true"] > i {
   background: #050505;
   box-shadow: none;
 }
@@ -7259,7 +7267,22 @@ body.queen-shell .queen-starfield-source {
   font-family: var(--hud-mono);
 }
 
-.queen27-page.is-shell .queen27-chip,
+/* `:not([aria-pressed="true"])` is the whole point of this rule now.
+   Without it, this 0,3,0 selector overrode the background of EVERY pressed chip
+   on the shell board while leaving its `color: #050505` alone — near-black text
+   on the near-black HUD panel, measured live at rgb(5,5,5) on rgba(2,8,6,0.62),
+   which is no contrast at all. The chip that says which filter is on was the one
+   chip that could not be read.
+
+   It reached the live board on the direction chips, and it was never theirs
+   alone: the same override sits on the generic gold pressed chip, so the clients
+   lane's "all" chip — pressed by default — comes up blank the moment that lane
+   is drawn in this layout.
+
+   The shell still restyles the resting chip, which is all it ever wanted: a HUD
+   panel instead of flat black. A pressed chip is a state, not a surface, and
+   this rule now declines to have an opinion about it. */
+.queen27-page.is-shell .queen27-chip:not([aria-pressed="true"]),
 .queen27-page.is-shell .queen27-lane-search {
   border-color: var(--hud-line);
   background: var(--hud-panel);
