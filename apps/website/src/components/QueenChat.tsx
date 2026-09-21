@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChatInput from './chat/ChatInput'
 import ChatMessage from './chat/ChatMessage'
 import { NotSignedIn, type ChatResponse } from '../services/chatApi'
-import { askQueen, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
+import { askQueen, askQueenInBrowser, queenCaller, queenHealth, queenModelName } from '../services/queenModel'
 import { signInHref } from '../lib/triIdentity'
 import { HUD_VIEWS, type HudEvent, type HudEventKind } from './queenHud'
 import {
@@ -191,7 +191,17 @@ export default function QueenChat({
     setTurns((prev) => [...prev, { kind: 'turn', at, role: 'user', content: question }])
     setWaited(0)
     setBusy(true)
-    askQueen(`[${line}]${quoted ? ` ${quoted}` : ''} ${question}`)
+    // On the BROWSER tab the question goes to the person's own agent, which
+    // holds the browser tools; everywhere else, to the Queen as before
+    // (lib/queenBrowser.ts, askBrowserAgent, says why).
+    const history = turns
+      .filter((turn) => turn.source !== 'offline')
+      .map((turn) => ({ role: turn.role, content: turn.content }))
+    const asked: Promise<ChatResponse> =
+      context.view === 'browser'
+        ? askQueenInBrowser(history, question, lang)
+        : askQueen(`[${line}]${quoted ? ` ${quoted}` : ''} ${question}`)
+    asked
       .then((res) => setTurns((prev) => [...prev, { kind: 'turn', at: Date.now(), role: 'assistant', ...res, content: res.response }]))
       .catch((error: unknown) => {
         // Signed out is not the Queen failing, and must not be reported as one:
@@ -206,7 +216,7 @@ export default function QueenChat({
         setTurns((prev) => [...prev, { kind: 'turn', at: Date.now(), role: 'assistant', content: said ? `${t.failed} ${said}` : t.failed, source: 'offline', confidence: 0 }])
       })
       .finally(() => setBusy(false))
-  }, [busy, context, subject, describe, t.failed])
+  }, [busy, context, subject, describe, t.failed, turns, lang])
 
   if (!open) {
     return (
