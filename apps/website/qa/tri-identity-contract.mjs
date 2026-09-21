@@ -207,7 +207,10 @@ eq(PLAYER_VIEWS.filter((view) => !HUD_VIEWS.includes(view)), [], 'the player fol
 // one press away from the browser. Its own sign-in link points into the app
 // directly (lib/queenBrowser.ts APP_BROWSER_URL), so the person who wants the
 // browser has a way there that does not depend on the return.
-eq([...UNKNOWN_TO_PLAYER], ['passport', 'browser'], 'the views the deployed player has not been told about, and no others')
+// ROADMAP costs the same: it needs no sign-in at all (it reads two static files
+// and public GitHub issue state), so the only loss is that a sign-in started
+// from it returns to the comb, one press away.
+eq([...UNKNOWN_TO_PLAYER], ['passport', 'browser', 'roadmap'], 'the views the deployed player has not been told about, and no others')
 eq([...SCREEN_IDS].sort(), [...PLAYER_SCREENS].sort(), "the player's copy of the TRI screens is the Queen's table")
 
 const returns = new Set()
