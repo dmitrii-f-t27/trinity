@@ -1234,27 +1234,6 @@ export function alertSpan(observedFrom: string | null, nowMs: number, windowMs =
 }
 
 /**
- * What the feed holds (P1-27): its row count and the span between its
- * oldest and newest rows, from the rows themselves. The span is null with
- * fewer than two datable rows; the header then prints the count alone and
- * never a fabricated "0 s".
- */
-export function feedCoverage(events: Array<{ at: string }>): { rows: number; spanSeconds: number | null; oldestAt: string | null; newestAt: string | null } {
-  let oldest: number | null = null;
-  let newest: number | null = null;
-  let oldestAt: string | null = null;
-  let newestAt: string | null = null;
-  for (const event of events) {
-    const t = Date.parse(event.at);
-    if (!Number.isFinite(t)) continue;
-    if (oldest === null || t < oldest) { oldest = t; oldestAt = event.at; }
-    if (newest === null || t > newest) { newest = t; newestAt = event.at; }
-  }
-  const spanSeconds = oldest !== null && newest !== null && oldestAt !== newestAt ? Math.round((newest - oldest) / 1000) : null;
-  return { rows: events.length, spanSeconds, oldestAt, newestAt };
-}
-
-/**
  * How long a bee has been silent (P1-23): seconds since its last word on
  * the wire, and whether that silence outlasts one round. Cold only when a
  * round length is known; no last word yields null, never a fabricated age.
