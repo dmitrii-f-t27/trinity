@@ -26,6 +26,9 @@ import {
   WINDOW_EVENT,
   readJournal,
   journalLine,
+  setWheel,
+  shouldRenewWheel,
+  WHEEL_RENEW_MS,
 } from '../src/lib/queenBrowser.ts'
 import { HUD_VIEWS, hudKeyOf, RAIL_VIEWS, railViewOf, BOARD_VIEWS, PROJECT_VIEWS } from '../src/components/queenHud.ts'
 import { MODULES } from '../src/lib/queenModules.ts'
@@ -99,6 +102,8 @@ await assert.rejects(callBroker(recorder(500, {}).env, 'read'))
 assert.deepEqual(viewOf({ state: 'hibernating' }), { state: 'none' })
 assert.deepEqual(viewOf(null), { state: 'none' })
 assert.deepEqual(viewOf({ state: 'live', viewUrl: 42 }), { state: 'live' })
+assert.deepEqual(viewOf({ state: 'live', wheel: 'person' }), { state: 'live', wheel: 'person' }, 'who drives passes through')
+assert.deepEqual(viewOf({ state: 'live', wheel: 'robot' }), { state: 'live' }, 'and nothing else does')
 
 // 4. What may be framed: our own origin, under /live/, and nothing else.
 assert.equal(frameSrcOf('/live/s1?t=v', APP), `${APP}/live/s1?t=v`)
@@ -282,6 +287,30 @@ assert.ok(RAIL_VIEWS.includes('browser') && RAIL_VIEWS.includes('project') && RA
   assert.equal(failed.text, 'needs permission', 'the error is what matters on a failed step')
   assert.equal(line('browser_unknown', {}).verb, 'browser_unknown', 'an unknown tool keeps its own name')
   assert.match(line('browser_status', { pages: 5 }).time, /^\d\d:\d\d:\d\d$/)
+}
+
+// 12. The wheel from the board: the person's token, one header, POST.
+{
+  const calls = []
+  const env = (status, token = 'tok-w') => ({
+    token: () => token,
+    fetch: async (url, init) => { calls.push({ url, init }); return { ok: status < 300, status, json: async () => ({}) } },
+  })
+  assert.equal(await setWheel(env(200), 'person'), true)
+  assert.equal(calls[0].url, `${BROKER_BASE}/api/browser/wheel?holder=person`)
+  assert.equal(calls[0].init.method, 'POST')
+  assert.equal(calls[0].init.credentials, 'omit')
+  assert.equal(calls[0].init.headers.Authorization, 'Bearer tok-w')
+  assert.equal(await setWheel(env(200), 'agent'), true)
+  assert.match(calls[1].url, /holder=agent$/)
+  assert.equal(await setWheel(env(403), 'person'), false, 'a refusal is false, not an error')
+  const n = calls.length
+  assert.equal(await setWheel(env(200, null), 'person'), false)
+  assert.equal(calls.length, n, 'no token: nothing is asked')
+  assert.equal(await setWheel({ token: () => 't', fetch: async () => { throw new Error('down') } }, 'person'), false)
+  assert.equal(shouldRenewWheel(null, 5), true)
+  assert.equal(shouldRenewWheel(5, 5 + WHEEL_RENEW_MS - 1), false)
+  assert.equal(shouldRenewWheel(5, 5 + WHEEL_RENEW_MS), true)
 }
 
 console.log('queen-browser contract: ok')
