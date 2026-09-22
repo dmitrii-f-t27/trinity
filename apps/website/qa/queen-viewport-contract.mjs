@@ -202,7 +202,7 @@ function cleanup() {
 // a line clamp), is content the reader cannot reach.
 const DECLARED = [
   // the HUD's own scrollers
-  '.queen27-intel-list', '.queen27-sectors-list', '.queen27-context-col',
+  '.queen27-sectors-list', '.queen27-context-col',
   // the command rail: twelve views + COLLAPSE scroll their own list when a
   // window is shorter than the budget (COLLAPSE is sticky at the bottom), and
   // the phone icon row scrolls sideways
@@ -355,7 +355,7 @@ const PROBE = (phone) => `(() => {
   // --dead-api mode; collected always so a live run can print them.
   const ZERO_SEL = '#stat-bees,#stat-accepted,#stat-verdicts,#stat-research,#stat-foundry,#stat-alerts,' +
     '.queen27-sectors-count,.queen27-column > header > span,.queen27-map-sector header b,' +
-    '.queen27-hud-sector-text dd,.queen27-context-stats dd,.queen27-hud-minimap .queen27-hud-panel-head span:last-child';
+    '.queen27-hud-sector-text dd,.queen27-context-stats dd';
   const zeros = [];
   for (const n of document.querySelectorAll(ZERO_SEL)) {
     const text = (n.textContent || '').replace(/\\s+/g, ' ').trim();
