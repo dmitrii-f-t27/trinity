@@ -197,3 +197,8 @@
 .queen27-page.is-shell .queen27-browser-journal li.is-error span {
   color: #ff6b6b;
 }
+
+.queen27-page.is-shell .queen27-browser-journal em {
+  font-style: normal;
+  opacity: 0.7;
+}
