@@ -5296,16 +5296,6 @@ main:where(.queen27-page.is-shell) section {
   grid-template-rows: minmax(0, 1fr);
 }
 
-.queen27-page.is-shell .queen27-hud-minimap {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
-}
-
-.queen27-page.is-shell .queen27-hud-minimap-body {
-  min-height: 0;
-}
-
 .queen27-page.is-shell .queen27-hud-intel.is-drawer {
   position: absolute;
   z-index: 7;
@@ -5333,10 +5323,6 @@ main:where(.queen27-page.is-shell) section {
   font-size: 0.9rem;
   line-height: 1;
   background: var(--hud-ground);
-}
-
-.queen27-page.is-shell .queen27-hud-intel.is-drawer .queen27-intel-head {
-  padding-right: 2.2rem;
 }
 
 /* ---- bottom bar --------------------------------------------------------- */

@@ -191,11 +191,11 @@ const REACHED = {
     'src/components/QueenCatalogHive.css',
     'src/components/QueenCellStage.css',
     'src/components/QueenChat.css',
+    'src/components/QueenCombEmbedded.css',
     'src/components/QueenContext.css',
     'src/components/QueenIntel.css',
     'src/components/QueenLoading.css',
     'src/components/QueenMcp.css',
-    'src/components/QueenMinimap.css',
     'src/components/QueenSharedCore.css',
     'src/components/QueenSpecTreasury.css',
     'src/components/QueenTri.css',
@@ -223,8 +223,8 @@ const REACHED = {
     'src/components/QueenCatalogHive.css',
     'src/components/QueenCellStage.css',
     'src/components/QueenChat.css',
+    'src/components/QueenCombEmbedded.css',
     'src/components/QueenHeroBlock.css',
-    'src/components/QueenMinimap.css',
     'src/components/SpecHeroBlock.css',
     /* Not imported by any component on the landing page. They arrive through
        the two `@import` lines at the top of QueenCatalogHive.css, which is what
@@ -1031,11 +1031,10 @@ function groundsIn(body) {
 const UNREADABLE = new Map([
   /* `currentColor`. The colour is whatever the element's own `color` computes
      to, which is a cascade this gate does not run and will not pretend to. All
-     seven are the same object: a 5-6px dot or a progress bar's fill, sized in
+     six are the same object: a 5-6px dot or a progress bar's fill, sized in
      the rule itself, with `content: ""` or no child at all. A surface that is
      six pixels across carries no sentence, so nothing about it can be made
      illegible -- the NO_TEXT argument, arrived at from the other direction. */
-  ['src/components/QueenIntel.css:.queen27-intel-live::before', '6px pulse dot, content: ""'],
   ['src/components/QueenIntel.css:.queen27-sectors-bar > span', 'the bar fill itself, no text'],
   ['src/pages/Queen.css:.queen27-activity-stream > div span::before', '0.42rem dot, content: ""'],
   ['src/pages/Queen.css:.queen27-card .queen27-dir-tag i', '5px dot, empty <i>'],

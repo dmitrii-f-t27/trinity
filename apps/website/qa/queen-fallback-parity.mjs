@@ -34,10 +34,13 @@
 //     and writing one is correct, not drift.
 //   - a fallback that is itself a var(). Chained defaults are their own idiom.
 //
-// A stylesheet no module imports declares nothing: src/App.css sets --accent to
-// #00d4ff and --border to #222 on :root and is imported by nobody, so matching
-// a fallback against it would excuse drift against a colour that never loads.
-// Those sheets are listed and skipped.
+// A stylesheet no module imports declares nothing, so matching a fallback
+// against it would excuse drift against a colour that never loads. Those
+// sheets are listed and skipped. src/App.css is what motivated the rule -- it
+// set --accent to #00d4ff and --border to #222 on :root, against a board that
+// loads #00FF88 and rgba(255, 255, 255, 0.08) -- and it has since been deleted
+// as unreachable, so the skip list is empty today. The rule stays for the next
+// sheet that arrives unimported; the line below prints when one does.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
