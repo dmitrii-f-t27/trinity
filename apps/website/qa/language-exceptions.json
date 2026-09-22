@@ -963,6 +963,7 @@
       "Run Trinity test suites and analyze results. Use for testing VSA, VM, Firebird, WASM, or full test suite.",
       "Self-Evolving Research Agent — scans web for relevant tech, evaluates findings, proposes improvements. Uses Perplexity Sonar API via MCP.",
       "Show Trinity Cloud Dev dashboard — containers, training farm, issues, PRs, costs. Use when checking agent swarm status, cloud containers, or CI/CD pipeline.",
+      "Sign a person into their own accounts (LinkedIn, X, job boards, social networks) through THEIR remote browser, as an agent the person watches -- SSO buttons pressed by label, every case of a sign-in with the move that fits it, the person...",
       "TRI status dashboard — agent thought mode by default, /tri full for visual dashboard",
       "Technology dependency tree — shows issue DAG, prereqs, critical path, blocked/ready tasks. Single source of truth for work order.",
       "This skill should be used when user asks to \"tri skill begin\", \"PHI LOOP\", \"edit .t27 spec\", \"seal hash\", \"tri gen\", \"tri test\", \"tri verdict\", \"tri experience save\", \"tri notebook query\", \"tri notebook wrapup\", or any task requiring spe...",
