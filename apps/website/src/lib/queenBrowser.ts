@@ -49,6 +49,8 @@ export interface BrowserView {
   state: BrowserState
   sessionId?: string
   viewUrl?: string
+  /** Who drives, as the server holds it (999-multibots-telegraf #2797). */
+  wheel?: 'person' | 'agent'
 }
 
 /**
@@ -87,6 +89,7 @@ export function viewOf(answer: unknown): BrowserView {
   const view: BrowserView = { state }
   if (typeof a.sessionId === 'string') view.sessionId = a.sessionId
   if (typeof a.viewUrl === 'string') view.viewUrl = a.viewUrl
+  if (a.wheel === 'person' || a.wheel === 'agent') view.wheel = a.wheel
   return view
 }
 
@@ -405,4 +408,37 @@ export function journalLine(step: JournalStep, lang: 'ru' | 'en'): { time: strin
     ? ''
     : `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`
   return { time, verb, text: text.slice(0, 140), ok: step.ok !== false }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * ONE WHEEL, ON THE BOARD TOO.
+ *
+ * The server holds who is driving (999-multibots-telegraf render
+ * sessions.ts, #2794): touching the picture takes the wheel for a ten-minute
+ * lease and the agent's acting tools stand still; "Hand back" returns it.
+ * The app's Browser tab already sent it; the board did not, so a person
+ * driving from the board had the agent click under their hands.
+ * ──────────────────────────────────────────────────────────────────────── */
+export type WheelHolder = 'person' | 'agent'
+/** Every touch fires many events: renew the lease at most this often. */
+export const WHEEL_RENEW_MS = 30_000
+
+export function shouldRenewWheel(lastSentMs: number | null, nowMs: number): boolean {
+  return lastSentMs === null || nowMs - lastSentMs >= WHEEL_RENEW_MS
+}
+
+/** Tell the broker who holds the wheel. Never throws; false when refused. */
+export async function setWheel(env: BrokerEnv, holder: WheelHolder): Promise<boolean> {
+  const token = env.token()
+  if (!token) return false
+  try {
+    const res = await env.fetch(`${BROKER_BASE}/api/browser/wheel?holder=${holder}`, {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
