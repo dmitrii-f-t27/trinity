@@ -26,6 +26,8 @@ import {
   WINDOW_EVENT,
   readJournal,
   journalLine,
+  foldRepeats,
+  JOURNAL_SHOWN,
   setWheel,
   shouldRenewWheel,
   WHEEL_RENEW_MS,
@@ -264,7 +266,7 @@ assert.ok(RAIL_VIEWS.includes('browser') && RAIL_VIEWS.includes('project') && RA
   })
   const steps = [{ at: '2026-09-22T09:00:05Z', tool: 'browser_screenshot', ok: true, ms: 1300, detail: { seen: 'Google sign-in' } }]
   assert.deepEqual(await readJournal(env(200, { ok: true, steps })), steps)
-  assert.equal(calls[0].url, `${BROKER_BASE}/api/browser/journal?limit=6`)
+  assert.equal(calls[0].url, `${BROKER_BASE}/api/browser/journal?limit=24`)
   assert.equal(calls[0].init.method, 'GET')
   assert.equal(calls[0].init.credentials, 'omit')
   assert.equal(calls[0].init.headers.Authorization, 'Bearer tok-j')
@@ -311,6 +313,25 @@ assert.ok(RAIL_VIEWS.includes('browser') && RAIL_VIEWS.includes('project') && RA
   assert.equal(shouldRenewWheel(null, 5), true)
   assert.equal(shouldRenewWheel(5, 5 + WHEEL_RENEW_MS - 1), false)
   assert.equal(shouldRenewWheel(5, 5 + WHEEL_RENEW_MS), true)
+}
+
+// 13. Repeats fold: one line per run of the same step, counted, newest time.
+{
+  const look = (sec, seen = 'Google sign-in', ok = true) => ({
+    at: `2026-09-22T09:00:${String(sec).padStart(2, '0')}Z`,
+    tool: 'browser_screenshot',
+    ok,
+    ms: 1,
+    detail: ok ? { seen } : { error: 'down' },
+  })
+  const open = u => ({ at: '2026-09-22T08:59:00Z', tool: 'browser_open', ok: true, ms: 1, detail: { url: u } })
+  const folded = foldRepeats([look(9), look(8), look(7), open('https://t27.ai/')], 'en')
+  assert.deepEqual(folded.map(s => [s.tool, s.times]), [['browser_screenshot', 3], ['browser_open', 1]])
+  assert.equal(folded[0].at, look(9).at, 'the newest time is kept')
+  assert.deepEqual(foldRepeats([look(9), look(8, 'Other')], 'en').map(s => s.times), [1, 1], 'different facts stay apart')
+  assert.deepEqual(foldRepeats([look(9), look(8, 'x', false), look(7)], 'en').map(s => s.times), [1, 1, 1], 'a failure between breaks the run')
+  const many = Array.from({ length: 30 }, (_, i) => open(`https://site${i}.example/`))
+  assert.equal(foldRepeats(many, 'en').length, JOURNAL_SHOWN, 'still at most six lines')
 }
 
 console.log('queen-browser contract: ok')
