@@ -10,6 +10,7 @@ import {
   frameSrcOf,
   frameStateOf,
   journalLine,
+  foldRepeats,
   setWheel,
   shouldRenewWheel,
   readJournal,
@@ -240,11 +241,12 @@ export function QueenBrowser({ c, embedded, lang = 'en' }: { c: BrowserCopy; emb
         />
         {journal.length > 0 ? (
           <ol className="queen27-browser-journal" aria-label={c.journal}>
-            {journal.map((step, i) => {
+            {foldRepeats(journal, lang).map((step, i) => {
               const line = journalLine(step, lang)
               return (
                 <li key={`${step.at}:${i}`} className={line.ok ? '' : 'is-error'}>
-                  <time>{line.time}</time> <b>{line.verb}</b> <span>{line.text}</span>
+                  <time>{line.time}</time> <b>{line.verb}</b>
+                  {step.times > 1 ? <em> ×{step.times}</em> : null} <span>{line.text}</span>
                 </li>
               )
             })}

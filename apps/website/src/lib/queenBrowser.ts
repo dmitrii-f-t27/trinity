@@ -345,6 +345,8 @@ export const shouldReread = (state: FrameState | null): boolean => state === 're
  * shows the same beside its live view.
  * ──────────────────────────────────────────────────────────────────────── */
 export const JOURNAL_SHOWN = 6
+/** Read more than shown, so repeats can fold and still leave six distinct lines. */
+export const JOURNAL_READ = 24
 export const JOURNAL_POLL_MS = 5000
 
 export interface JournalStep {
@@ -356,7 +358,7 @@ export interface JournalStep {
 }
 
 /** The journal, newest first; null when it cannot be read (never throws). */
-export async function readJournal(env: BrokerEnv, limit = JOURNAL_SHOWN): Promise<JournalStep[] | null> {
+export async function readJournal(env: BrokerEnv, limit = JOURNAL_READ): Promise<JournalStep[] | null> {
   const token = env.token()
   if (!token) return null
   try {
@@ -408,6 +410,34 @@ export function journalLine(step: JournalStep, lang: 'ru' | 'en'): { time: strin
     ? ''
     : `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`
   return { time, verb, text: text.slice(0, 140), ok: step.ok !== false }
+}
+
+export interface FoldedStep extends JournalStep {
+  times: number
+}
+
+/**
+ * Twenty identical looks in a row pushed every other step off a six-line
+ * list. Consecutive steps with the same tool, outcome and line fold into one,
+ * counted, keeping the newest time (the journal is newest first). Pure.
+ */
+export function foldRepeats(steps: JournalStep[], lang: 'ru' | 'en', max = JOURNAL_SHOWN): FoldedStep[] {
+  const out: FoldedStep[] = []
+  for (const step of steps) {
+    const prev = out[out.length - 1]
+    if (
+      prev &&
+      prev.tool === step.tool &&
+      prev.ok === step.ok &&
+      journalLine(prev, lang).text === journalLine(step, lang).text
+    ) {
+      prev.times += 1
+      continue
+    }
+    if (out.length === max) break
+    out.push({ ...step, times: 1 })
+  }
+  return out
 }
 
 /* ────────────────────────────────────────────────────────────────────────
