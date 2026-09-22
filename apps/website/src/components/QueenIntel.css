@@ -1,9 +1,15 @@
-/* QueenIntel.css - INTEL FEED and SECTORS, the right column of the one-screen
-   Queen HUD. Both panels fill the cell the shell gives them; the feed's <ol>
-   and the sectors' <ul> are the only scroll owners. Colours come from the
-   --hud-* variables Queen.css defines, with the live palette as fallback. */
+/* QueenIntel.css - SECTORS, the panel that prints the six board columns as
+   territories. It fills the cell the shell gives it; its <ul> is the only
+   scroll owner. Colours come from the --hud-* variables Queen.css defines,
+   with the live palette as fallback.
 
-.queen27-intel,
+   The INTEL FEED shared this sheet until the shell gave its cell to the
+   Queen's conversation; its rules went with the component. */
+
+/* In the shell this panel sits in the top bar, where Queen.css strips it to
+   `background: none` on `.queen27-hud-sectors > .queen27-sectors` -- the bar
+   is already frosted, so the ground below is what the panel paints anywhere
+   else. */
 .queen27-sectors {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -14,32 +20,8 @@
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
-/* The ground above is half of it. --hud-panel resolves to 0.88, so 12% of the
-   hive would come through with its EDGES intact, and a cell outline crossing a
-   headline is read as part of the word. Thickening the veil cannot fix that:
-   alpha scales the field's amplitude and leaves its spatial frequency where it
-   was. The blur is the low pass that takes the outline out.
-   Written in the conditional because nothing on the board wears this class
-   today: QueenIntelFeed is the only component that renders .queen27-intel
-   (QueenIntel.tsx:180), it is exported and no module imports it -- Queen.tsx
-   takes QueenSectors and nothing else out of this file. So this was not seen
-   on a screen, and the paragraph above is the arithmetic for the ground the
-   rule paints, not a photograph. The declaration stays because the rule above
-   still paints that ground and the class is still live CSS; the day the feed
-   is mounted it arrives with both halves.
-   The feed only. In the shell the sectors panel sits in the top bar, where
-   Queen.css strips it to `background: none` on
-   `.queen27-hud-sectors > .queen27-sectors`, which is the only place
-   QueenSectors ever renders, and the bar itself is already frosted -- a blur
-   there would be a second layer over a surface that paints nothing, and the
-   band would show on the map. */
-.queen27-intel {
-  backdrop-filter: blur(6px);
-}
+/* ---- header strip ------------------------------------------------------ */
 
-/* ---- header strips ---------------------------------------------------- */
-
-.queen27-intel-head,
 .queen27-sectors-head {
   display: flex;
   align-items: center;
@@ -52,81 +34,6 @@
   padding: 0.45rem 0.7rem;
   border-bottom: 1px solid var(--hud-line, rgba(0, 255, 136, 0.22));
 }
-
-.queen27-intel-live { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--hud-green, #00ff88); }
-.queen27-intel-live::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: currentColor; box-shadow: 0 0 6px currentColor;
-  animation: queen27-intel-pulse 2s ease-in-out infinite;
-}
-.queen27-intel-live.is-offline { color: var(--hud-cold, #ff6b6b); }
-.queen27-intel-live.is-offline::before { animation: none; }
-
-/* ---- intel feed --------------------------------------------------------- */
-
-.queen27-intel-list {
-  position: relative;
-  list-style: none;
-  margin: 0;
-  padding: 0.25rem 0;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  overflow-anchor: none; /* the component anchors the reader's row itself */
-  scrollbar-width: thin;
-  scrollbar-color: var(--hud-line-strong, rgba(0, 255, 136, 0.5)) transparent;
-}
-
-.queen27-intel-row { animation: queen27-intel-in 0.45s ease-out both; }
-
-.queen27-intel-link {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr) auto;
-  align-items: start;
-  column-gap: 0.5rem;
-  padding: 0.32rem 0.7rem;
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-a.queen27-intel-link:hover,
-a.queen27-intel-link:focus-visible { background: rgba(0, 255, 136, 0.06); outline: none; }
-
-.queen27-intel-glyph { font-size: 0.7rem; line-height: 1.25rem; text-align: center; color: var(--hud-muted, rgba(255, 255, 255, 0.78)); }
-.queen27-intel-glyph[data-tone="gold"] { color: var(--hud-gold, #ffd700); }
-.queen27-intel-glyph[data-tone="cold"] { color: var(--hud-cold, #ff6b6b); }
-.queen27-intel-glyph[data-tone="green"] { color: var(--hud-green, #00ff88); }
-.queen27-intel-glyph[data-tone="cyan"] { color: var(--hud-cyan, #64dcff); }
-
-.queen27-intel-text { display: grid; min-width: 0; }
-.queen27-intel-text > b,
-.queen27-intel-text > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.queen27-intel-text > b { font-weight: 600; font-size: 0.78rem; line-height: 1.25rem; }
-.queen27-intel-text > span { font-size: 0.7rem; line-height: 1rem; color: var(--hud-muted, rgba(255, 255, 255, 0.78)); }
-
-.queen27-intel-link > time {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums;
-  font-size: 0.68rem; line-height: 1.25rem; text-align: right; white-space: nowrap;
-  color: var(--hud-muted, rgba(255, 255, 255, 0.78));
-}
-
-.queen27-intel-empty { margin: 0; padding: 1rem 0.7rem; font-size: 0.72rem; color: var(--hud-muted, rgba(255, 255, 255, 0.78)); }
-
-.queen27-intel-foot { padding: 0.3rem 0.7rem; border-top: 1px solid var(--hud-line, rgba(0, 255, 136, 0.22)); text-align: right; }
-.queen27-intel-foot > button {
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.64rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--hud-green, #00ff88);
-}
-.queen27-intel-foot > button:hover { text-decoration: underline; }
-.queen27-intel-foot > button:focus-visible { outline: 1px solid var(--hud-green, #00ff88); outline-offset: 2px; }
 
 /* ---- sectors ------------------------------------------------------------ */
 
@@ -191,16 +98,6 @@ a.queen27-intel-link:focus-visible { background: rgba(0, 255, 136, 0.06); outlin
 
 /* ---- motion ------------------------------------------------------------- */
 
-@keyframes queen27-intel-in {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes queen27-intel-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .queen27-intel-row,
-  .queen27-intel-live::before { animation: none; }
   .queen27-sectors-bar > span { transition: none; }
 }
