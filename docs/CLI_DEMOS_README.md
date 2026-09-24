@@ -68,7 +68,7 @@ using hyperdimensional computing mathematics.
 
 ![tri-benchmark](https://gHashTag.github.io/trinity/recordings/tri-benchmark.gif)
 
-**63 tok/s** — Addresses performance objections about Trinity's speed.
+~~**63 tok/s**~~ (withdrawn: a projection at a 92 MHz Fmax estimate, not a measurement; the FPGA table in the root README.md gives ~34 tok/s measured at 50 MHz) — Addresses performance objections about Trinity's speed.
 
 **Results:**
 - VSA operations: 17x+ speedup via SIMD
@@ -178,7 +178,7 @@ trinity/
 
 | Objection | Response | GIF Demo |
 |-----------|-----------|-----------|
-| "Where is benchmark?" | `tri benchmark` → 63 tok/s | ![tri-benchmark](https://gHashTag.github.io/trinity/recordings/tri-benchmark.gif) |
+| "Where is benchmark?" | `tri benchmark` → ~~63 tok/s~~ (withdrawn: a projection, not a measurement; see the FPGA table in the root README.md) | ![tri-benchmark](https://gHashTag.github.io/trinity/recordings/tri-benchmark.gif) |
 | "Where are tests?" | `tri test` → 74/74 passing | ![tri-test](https://gHashTag.github.io/trinity/recordings/tri-test.gif) |
 | "Where is reproducibility?" | `git clone → zig build → tri benchmark` | All GIFs reproducible |
 | "FPGA uses DSP?" | 0% DSP in bitstream | ![tri-fpga-synth](https://gHashTag.github.io/trinity/recordings/tri-fpga-synth.gif) |
