@@ -14,6 +14,7 @@
     "check:queen-spec-mirrors": "node --experimental-strip-types qa/queen-spec-mirrors.mjs",
     "check:queen-responsive": "node --experimental-strip-types qa/queen-responsive.mjs",
     "check:spec-catalog": "node --experimental-strip-types qa/spec-catalog-contract.mjs",
+    "check:traffic-arrival": "node --experimental-strip-types qa/traffic-arrival-contract.mjs",
     "core": "node scripts/spec-core.mjs",
     "check:shared-core": "node --experimental-strip-types qa/shared-spec-core.mjs",
     "prebuild": "npm run core -- index && node scripts/skills-core.mjs index && node scripts/agents-from-specs.mjs && node scripts/docs-from-specs.mjs && node scripts/viewport-from-spec.mjs && node scripts/onboarding-from-spec.mjs && node scripts/queen-wars-from-spec.mjs",
