@@ -436,9 +436,9 @@ Space(infer(x)) = O(d²)
 
 ## Experimental Results
 
-| Model | Params | Size | tok/s @ 1W |
+| Model | Params | Size | tok/s ~~@ 1W~~ (power not measured) |
 |-------|--------|------|------------|
-| HSLM-1B | 1.95M | 385 KB | ~~63~~ (withdrawn: the FPGA figure was a projection and power was never measured; see the FPGA table in the root README.md) |
+| HSLM-1B | 1.95M | 385 KB | ~~63~~ (withdrawn: the FPGA figure was a projection and power was not measured, none is on record; see the FPGA table in the root README.md) |
 | BitNet-3B | 3.1B | 1.2 GB | 12 |
 
 ## Why polynomial time matters

@@ -88,12 +88,12 @@ All weights use 2-bit ternary encoding: `01` = +1, `10` = -1, `00` = 0. Multipli
 
 | Platform | tok/s/W |
 |----------|---------|
-| **Trinity XC7A100T** | ~~**~63**~~ withdrawn: power was never measured, so no tok/s/W can be stated (see the FPGA table in the root README.md) |
+| **Trinity XC7A100T** | ~~**~63**~~ withdrawn: power was not measured (none is on record), so no tok/s/W can be stated (see the FPGA table in the root README.md) |
 | FlightLLM (Alveo U280) | ~1.5 |
 | Bitnet.cpp (M2 Ultra) | ~0.12 |
 | Bitnet.cpp (i7-13700H) | ~0.03 |
 
-Note: models differ in size (HSLM ~60K params vs LLaMA-7B), but the hardware efficiency ratio demonstrates the advantage of natively ternary architectures.
+Note: models differ in size (HSLM ~60K params vs LLaMA-7B), ~~but the hardware efficiency ratio demonstrates the advantage of natively ternary architectures~~ (withdrawn with the Trinity row above: power was not measured, so no efficiency ratio is claimed; see the FPGA table in the root README.md).
 
 ## Latency Breakdown
 
