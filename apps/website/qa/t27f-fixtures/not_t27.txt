@@ -1,0 +1,3 @@
+# Not a t27 file
+
+This is Markdown. A compiler that reads it as a spec must not report a pass.

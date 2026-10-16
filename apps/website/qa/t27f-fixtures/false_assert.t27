@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+; A spec that type-checks clean and whose own test is false on purpose.
+; t27f-spec-view must report compile PASS and tests FAILS: a typecheck is not a test run.
+
+module t27f_false_assert;
+
+pub const A : u8 = 1;
+pub const B : u8 = 2;
+
+test "false_on_purpose" {
+    assert(A > B);
+}
+
+test "true_on_purpose" {
+    assert(B > A);
+}

@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+; Malformed on purpose: a constant with no value and an unclosed parameter list.
+
+module t27f_malformed;
+
+pub const A : u8 = ;
+fn (

@@ -1,0 +1,169 @@
+# t27f-spec-view: the independent Spec Explorer slice (dmitrii-f-t27/trinity#1).
+#
+# Three questions, answered on a runner rather than on a laptop:
+#   harness  -- do the tests hold, what does the pinned compiler say about the whole vendored
+#               corpus, and does the harness still run with the network switched off?
+#   rebuild  -- built from its named source (gHashTag/t27 @ COMPILER_COMMIT in
+#               specs/t27f/spec_view.t27), is the compiler the same bytes as the vendored one,
+#               and if not, does it say the same thing about every spec?
+# No secrets, no write permission, no third-party action: only actions/* and the runner's own
+# rustup and docker.
+name: t27f spec view
+
+on:
+  push:
+    branches: [codex/t27f-independent-spec-viewer]
+  pull_request:
+    branches: [t27f-base-ee512359]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t27f-spec-view-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  T27_REPO: gHashTag/t27
+  # Must equal COMPILER_COMMIT in apps/website/specs/t27f/spec_view.t27; the job checks it.
+  T27_COMMIT: 6c69265bf8b276de6c7c38906c47084af03884c5
+
+jobs:
+  harness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/website
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /apps/website/scripts/
+            /apps/website/specs/t27f/
+            /apps/website/qa/t27f-fixtures/
+            /apps/website/public/t27/t27_compiler.wasm
+            /apps/website/public/t27/files/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+      - name: Record what runs
+        run: |
+          node --version
+          sha256sum public/t27/t27_compiler.wasm specs/t27f/spec_view.t27 scripts/t27f-spec-view.mjs
+          echo "commit ${GITHUB_SHA}"
+      - name: Tests
+        run: node --test scripts/t27f-spec-view.test.mjs
+      - name: Views and exit codes
+        run: |
+          set +e
+          mkdir -p ../../out
+          expect() { want=$1; shift; node scripts/t27f-spec-view.mjs "$@"; got=$?; echo "exit ${got} (want ${want})"; [ "$got" = "$want" ] || exit 1; }
+          expect 0 specs/t27f/spec_view.t27 --out ../../out/policy
+          expect 0 public/t27/files/specs/numeric/gf16.t27 --out ../../out/gf16 --focus 975
+          expect 0 qa/t27f-fixtures/false_assert.t27 --out ../../out/false_assert
+          expect 1 qa/t27f-fixtures/malformed.t27 --out ../../out/malformed
+          expect 1 qa/t27f-fixtures/not_t27.txt --out ../../out/not_t27
+          expect 2 qa/t27f-fixtures/empty.t27 --out ../../out/empty
+          expect 2 public/t27/files/specs/numeric/gf16.t27 --wasm /nonexistent.wasm --out ../../out/no_wasm
+          : > /tmp/empty.wasm
+          expect 2 public/t27/files/specs/numeric/gf16.t27 --wasm /tmp/empty.wasm --out ../../out/empty_wasm
+          expect 3 qa/t27f-fixtures/false_assert.t27 --focus '"><b>x'
+          grep -q '"state": "FAILS"' ../../out/false_assert/result.json || { echo 'false assert did not FAIL its test'; exit 1; }
+      - name: Survey of the whole vendored corpus
+        run: |
+          node scripts/t27f-spec-view.mjs --survey public/t27/files | tee ../../out/survey.json
+      - name: Offline run (docker, no network)
+        run: |
+          cd ../..
+          docker pull -q node:22.11.0-bookworm-slim
+          docker run --rm --network none -v "$PWD":/w -w /w/apps/website node:22.11.0-bookworm-slim sh -euc '
+            echo "negative control: the container must not reach the network"
+            if node -e "fetch(\"https://github.com\").then(()=>process.exit(1),()=>process.exit(0))"; then echo "  fetch failed, as it must"; else echo "  NETWORK REACHABLE"; exit 1; fi
+            node --test scripts/t27f-spec-view.test.mjs
+            node scripts/t27f-spec-view.mjs public/t27/files/specs/numeric/gf16.t27 --out /w/out/offline_gf16
+          '
+          cmp out/gf16/result.json out/offline_gf16/result.json && echo "offline result.json is byte-identical to the online one"
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### t27f spec view'
+            echo '```'
+            sha256sum public/t27/t27_compiler.wasm
+            for d in policy gf16 false_assert malformed not_t27 empty no_wasm empty_wasm; do
+              [ -f ../../out/$d/result.json ] && node -e 'const r=require(process.argv[1]);console.log(process.argv[2].padEnd(13), "compile", r.compile.verdict, r.compile.rule??"-", "| tests", r.tests?.state??"-")' "$PWD/../../out/$d/result.json" "$d"
+            done
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: t27f-views
+          path: out/
+          retention-days: 30
+
+  rebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # t27 pins no rustc. 1.98.0 was stable when the vendored bytes were made (2026-09-21).
+        toolchain: ['1.97.0', '1.98.0', '1.99.0']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /apps/website/scripts/
+            /apps/website/specs/t27f/
+            /apps/website/public/t27/t27_compiler.wasm
+            /apps/website/public/t27/files/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+      - name: The source named by the spec is the one being built
+        run: |
+          grep -q "pub const COMPILER_COMMIT : str = \"${T27_COMMIT}\";" apps/website/specs/t27f/spec_view.t27
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.T27_REPO }}
+          ref: ${{ env.T27_COMMIT }}
+          path: t27
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /Cargo.toml
+            /Cargo.lock
+            /.cargo/
+            /bootstrap/
+            /bindings/wasm-explorer/
+      - name: Build bindings/wasm-explorer
+        working-directory: t27/bindings/wasm-explorer
+        run: |
+          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --target wasm32-unknown-unknown
+          cargo +${{ matrix.toolchain }} --version
+          git -C "$GITHUB_WORKSPACE/t27" rev-parse HEAD
+          cargo +${{ matrix.toolchain }} build --release --locked --target wasm32-unknown-unknown
+          ls -l target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm
+          sha256sum target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm "$GITHUB_WORKSPACE/apps/website/public/t27/t27_compiler.wasm"
+      - name: Compare bytes and behaviour over the corpus
+        run: |
+          mkdir -p out
+          cp t27/bindings/wasm-explorer/target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm out/rebuilt-${{ matrix.toolchain }}.wasm
+          node apps/website/scripts/t27f-spec-view.mjs --compare apps/website/public/t27/t27_compiler.wasm out/rebuilt-${{ matrix.toolchain }}.wasm apps/website/public/t27/files | tee out/compare-${{ matrix.toolchain }}.json
+          {
+            echo "### rebuild with rustc ${{ matrix.toolchain }} from ${T27_REPO}@${T27_COMMIT}"
+            echo '```json'
+            cat out/compare-${{ matrix.toolchain }}.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: t27f-rebuild-${{ matrix.toolchain }}
+          path: out/
+          retention-days: 30

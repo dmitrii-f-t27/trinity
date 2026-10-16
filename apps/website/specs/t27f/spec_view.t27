@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/t27f/spec_view.t27 -- the rules of the minimal, independent Spec Explorer slice.
+; Issue: https://github.com/dmitrii-f-t27/trinity/issues/1
+; Read by apps/website/scripts/t27f-spec-view.mjs through the vendored compiler
+; (public/t27/t27_compiler.wasm). The harness takes every decision below from this
+; file's AST; it parses nothing here with a regular expression.
+; ASCII only, English only.
+; WHAT THE SLICE IS: real .t27 source, analysed by the same WebAssembly compiler the
+; Spec Explorer page loads, through the same ABI (t27_alloc, t27_analyze, t27_free),
+; rendered as a read-only view linked to source lines. Nothing at run time talks to a
+; network, a Queen, GitHub or a model.
+; WHAT IT IS NOT: the whole T27F, a replacement for SpecExplorer.tsx, or a second parser.
+; WHY THE RULES ARE DATA AND NOT A FUNCTION (measured 2026-10-16 against the pinned
+; WASM): the compiler's JavaScript backend prints declarations only. A `fn` here comes
+; back as "fn ... was not emitted -- this backend lowers declarations, not bodies", and a
+; `test` block as "not emitted -- it is checked by the compiler, not by the artifact". So
+; the ordered rule table and its outcomes live here as constants, and the harness holds
+; only the predicates that read the compiler's JSON. The harness refuses to run when this
+; table names a rule it does not implement, or omits one it does.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module t27f_spec_view;
+
+pub const KIND : str = "t27f-spec-view";
+pub const ID : str = "t27f/spec_view";
+pub const ISSUE : str = "https://github.com/dmitrii-f-t27/trinity/issues/1";
+pub const LICENCE : str = "Apache-2.0";
+
+; --- The compiler this slice trusts --------------------------------------------------------
+; The bytes, not the file name. A WASM whose SHA-256 differs is not analysed at all.
+pub const WASM_PATH : str = "public/t27/t27_compiler.wasm";
+pub const WASM_SHA256 : str = "bb39b9a5ca412a2695ab6a20a54e222933e10edaf08ef053670e4974d08f113f";
+pub const WASM_BYTES : u32 = 731581;
+pub const REQUIRED_EXPORTS : [4]str = ["memory", "t27_alloc", "t27_free", "t27_analyze"];
+pub const OPTIONAL_EXPORTS : [1]str = ["t27_analyze_named"];
+
+; Where the bytes came from. VENDORED_BY is the trinity commit that last changed the file;
+; COMPILER_COMMIT is the t27 commit that commit names as its source. REBUILD_STATUS says
+; what a rebuild from that source has shown: "unmeasured", "byte-identical",
+; "behaviour-equal" or "differs". It is measured by the workflow, never assumed.
+pub const VENDORED_IN : str = "gHashTag/trinity@ee512359254bcd7438bb6a79c8a4a7f8b554b620";
+pub const VENDORED_BY : str = "a41600ad7f921412e64a47e3c4185b7dcc487743";
+pub const COMPILER_REPO : str = "gHashTag/t27";
+pub const COMPILER_SOURCE : str = "bindings/wasm-explorer";
+pub const COMPILER_COMMIT : str = "6c69265bf8b276de6c7c38906c47084af03884c5";
+pub const REBUILD_STATUS : str = "unmeasured";
+
+; --- Compile verdict -----------------------------------------------------------------------
+; Rules are checked in this order; the first one that holds decides. When none holds the
+; verdict is DEFAULT_VERDICT. Every outcome is one of VERDICTS.
+pub const VERDICTS : [3]str = ["PASS", "FAIL", "UNKNOWN"];
+; analysis_unreadable holds for any answer whose shape is not the compiler's: not an object,
+; tokens that are not objects with a string kind and lexeme and a line and column of at least
+; 1 within sourceLines, a sourceLines that is not a whole number, a sourceBytes that is not the
+; size of the input, or an ast that is not a Module with a list of children.
+; typecheck_contradicts holds when the answer disagrees with itself: ok is true while it counts
+; or lists errors, or ok is false with no error, no count and no fatal message. Contradictory
+; data is not evidence either way, so it is UNKNOWN, not FAIL.
+pub const RULES : [10]str = ["compiler_absent", "compiler_unpinned", "exports_missing", "analysis_unreadable", "not_parsed", "typecheck_unknown", "typecheck_contradicts", "typecheck_errors", "declarations_discarded", "empty_module"];
+pub const RULE_VERDICTS : [10]str = ["UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN", "FAIL", "UNKNOWN", "UNKNOWN", "FAIL", "FAIL", "UNKNOWN"];
+pub const DEFAULT_VERDICT : str = "PASS";
+
+; --- Test verdict, kept apart from the compile verdict -------------------------------------
+; The compiler type-checks a test block; it does not run it. TYPECHECK_EVALUATES_ASSERTS
+; records that `assert(A > B)` with A = 1 and B = 2 type-checks clean. Asserts over
+; constants are evaluated by the existing AST evaluator (evalExpr in
+; scripts/viewport-from-spec.mjs); anything it cannot evaluate is NOT_EVALUATED, never
+; HOLDS. Invariant and bench blocks are counted and never executed.
+pub const TYPECHECK_EVALUATES_ASSERTS : bool = false;
+pub const JS_BACKEND_EMITS_FN_BODIES : bool = false;
+pub const JS_BACKEND_EMITS_TESTS : bool = false;
+pub const TEST_STATES : [4]str = ["HOLDS", "FAILS", "NOT_EVALUATED", "NONE"];
+; A block or a file takes the first state in this list that any of its asserts has.
+pub const TEST_PRECEDENCE : [3]str = ["FAILS", "NOT_EVALUATED", "HOLDS"];
+pub const TEST_EMPTY : str = "NONE";
+
+; --- Source positions ----------------------------------------------------------------------
+; Tokens carry an exact line and column. AST nodes carry a line for some kinds only, and
+; line 0 means the compiler did not say. No node carries a column or an end, so the view
+; draws no AST span; an AST node is linked to a line only when its line is not 0.
+pub const AST_LINE_UNKNOWN : u32 = 0;
+pub const AST_HAS_SPANS : bool = false;
+pub const TOKEN_POSITIONS : str = "line-col";
+
+; --- Run time ------------------------------------------------------------------------------
+pub const RUNTIME_NETWORK : bool = false;
+
+test "the_rule_table_is_square" {
+    assert(RULE_VERDICTS[0] == "UNKNOWN");
+    assert(RULE_VERDICTS[9] == "UNKNOWN");
+    assert(RULES[0] == "compiler_absent");
+    assert(RULES[9] == "empty_module");
+}
+
+test "no_compiler_problem_can_pass" {
+    assert(RULE_VERDICTS[0] != "PASS");
+    assert(RULE_VERDICTS[1] != "PASS");
+    assert(RULE_VERDICTS[2] != "PASS");
+    assert(RULE_VERDICTS[3] != "PASS");
+}
+
+test "an_empty_module_is_not_a_pass" {
+    assert(RULES[9] == "empty_module");
+    assert(RULE_VERDICTS[9] == "UNKNOWN");
+}
+
+test "self_contradicting_data_is_not_evidence" {
+    assert(RULES[3] == "analysis_unreadable");
+    assert(RULE_VERDICTS[3] == "UNKNOWN");
+    assert(RULES[6] == "typecheck_contradicts");
+    assert(RULE_VERDICTS[6] == "UNKNOWN");
+}
+
+test "a_typecheck_is_not_a_test_run" {
+    assert(TYPECHECK_EVALUATES_ASSERTS == false);
+    assert(JS_BACKEND_EMITS_TESTS == false);
+    assert(TEST_PRECEDENCE[0] == "FAILS");
+    assert(TEST_PRECEDENCE[2] == "HOLDS");
+}
+
+test "positions_claim_no_more_than_the_compiler_gives" {
+    assert(AST_LINE_UNKNOWN == 0);
+    assert(AST_HAS_SPANS == false);
+    assert(TOKEN_POSITIONS == "line-col");
+}
+
+test "the_pin_and_the_network_rule" {
+    assert(WASM_BYTES == 731581);
+    assert(RUNTIME_NETWORK == false);
+}
